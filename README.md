@@ -1,4 +1,4 @@
-# TFLint Ruleset for Redeploy
+# Redeploy TFLint Ruleset
 
 This repository contains a custom ruleset for TFLint.
 
