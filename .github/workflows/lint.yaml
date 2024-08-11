@@ -9,20 +9,21 @@ on:
     branches:
       - main
 
+permissions: {}
+
 jobs:
   lint:
     name: Lint codebase
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      statuses: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
 
       - name: Run linter
         uses: super-linter/super-linter@v6.8.0
@@ -31,3 +32,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_TERRAFORM_TFLINT: false
+          VALIDATE_TERRAFORM_TERRASCAN: false

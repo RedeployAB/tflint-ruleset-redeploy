@@ -9,6 +9,8 @@ on:
     branches:
       - main
 
+permissions: {}
+
 jobs:
   e2e:
     name: Linux
