@@ -1,16 +1,16 @@
 default: build
 
 test:
-  go test --count=1 $$(go list ./... | grep -v integration)
+	go test --count=1 $$(go list ./... | grep -v integration)
 
 build:
-  go build
+	go build
 
 install: build
-  mkdir -p ~/.tflint.d/plugins
-  mv ./tflint-ruleset-redeploy ~/.tflint.d/plugins
+	mkdir -p ~/.tflint.d/plugins
+	mv ./tflint-ruleset-redeploy ~/.tflint.d/plugins
 
 e2e:
-  cd integration && go test -v && cd ../
+	cd integration && go test -v && cd ../
 
 .PHONY: test build install
