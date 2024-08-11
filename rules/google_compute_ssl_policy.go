@@ -66,7 +66,7 @@ func (r *GoogleComputeSSLPolicyRule) Check(runner tflint.Runner) error {
 			continue
 		}
 
-		err := runner.EvaluateExpr(attribute.Expr, func (version string) error {
+		err := runner.EvaluateExpr(attribute.Expr, func(version string) error {
 			for _, allow := range config.AllowedVersions {
 				if version == allow {
 					return nil

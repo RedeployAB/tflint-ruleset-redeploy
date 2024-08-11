@@ -59,7 +59,7 @@ func (r *AwsInstanceExampleTypeRule) Check(runner tflint.Runner) error {
 			continue
 		}
 
-		err := runner.EvaluateExpr(attribute.Expr, func (instanceType string) error {
+		err := runner.EvaluateExpr(attribute.Expr, func(instanceType string) error {
 			return runner.EmitIssue(
 				r,
 				fmt.Sprintf("instance type is %s", instanceType),

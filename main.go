@@ -1,16 +1,25 @@
 package main
 
 import (
+	"github.com/RedeployAB/tflint-ruleset-redeploy/rules"
 	"github.com/terraform-linters/tflint-plugin-sdk/plugin"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
-	"github.com/terraform-linters/tflint-ruleset-template/rules"
+)
+
+var (
+	// these will be set by the goreleaser configuration
+	// to appropriate values for the compiled binary.
+	version string = "dev"
+
+	// goreleaser can pass other information to the main package, such as the specific commit
+	// https://goreleaser.com/cookbooks/using-main.version/
 )
 
 func main() {
 	plugin.Serve(&plugin.ServeOpts{
 		RuleSet: &tflint.BuiltinRuleSet{
-			Name:    "template",
-			Version: "0.1.0",
+			Name:    "redeploy",
+			Version: version,
 			Rules: []tflint.Rule{
 				rules.NewAwsInstanceExampleTypeRule(),
 				rules.NewAwsS3BucketExampleLifecycleRule(),
