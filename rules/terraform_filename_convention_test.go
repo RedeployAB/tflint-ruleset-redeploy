@@ -33,6 +33,36 @@ func TestTerraformFilenameConvention(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "valid single name",
+			Filename: "main.tf",
+			Expected: helper.Issues{},
+		},
+		{
+			Name:     "valid single name with underscore",
+			Filename: "my_name.tf",
+			Expected: helper.Issues{},
+		},
+		{
+			Name:     "valid name with area containing underscore",
+			Filename: "my_name.my_area.tf",
+			Expected: helper.Issues{},
+		},
+		{
+			Name:     "invalid multiple periods",
+			Filename: "my_name.my_area.extra.tf",
+			Expected: helper.Issues{
+				{
+					Rule:    NewTerraformFilenameConventionRule(),
+					Message: "Terraform filename 'my_name.my_area.extra.tf' does not match the pattern '<name>.tf' or '<name>.<area>.tf' (all snake_case alphanumerics)",
+					Range: hcl.Range{
+						Filename: "my_name.my_area.extra.tf",
+						Start:    hcl.Pos{Line: 1, Column: 1},
+						End:      hcl.Pos{Line: 1, Column: 1},
+					},
+				},
+			},
+		},
 	}
 
 	rule := NewTerraformFilenameConventionRule()
