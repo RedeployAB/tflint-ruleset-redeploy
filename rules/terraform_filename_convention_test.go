@@ -24,7 +24,7 @@ func TestTerraformFilenameConvention(t *testing.T) {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformFilenameConventionRule(),
-					Message: "Terraform filename 'Main.Example.tf' does not match the pattern '<name>.<area>.tf' with snake_case alphanumerics only",
+					Message: "Terraform filename 'Main.Example.tf' does not match the pattern '<name>.tf' or '<name>.<area>.tf' (all snake_case alphanumerics)",
 					Range: hcl.Range{
 						Filename: "Main.Example.tf",
 						Start:    hcl.Pos{Line: 0, Column: 0},
