@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/terraform-linters/tflint-plugin-sdk/hclext"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
@@ -33,20 +32,14 @@ func (r *TerraformResourceNameRule) Link() string {
 }
 
 func (r *TerraformResourceNameRule) Check(runner tflint.Runner) error {
-	// We retrieve *all* resources (no specific type)
-	resources, err := runner.GetResourceContent("", &hclext.BodySchema{}, nil)
+	resourceBlocks, err := runner.GetResourceBlocks()
 	if err != nil {
 		return err
 	}
 
-	for _, resource := range resources.Blocks {
-		// Resource blocks typically have 2 labels: [type, name]
-		if len(resource.Labels) < 2 {
-			continue
-		}
-
-		resourceType := resource.Labels[0]
-		resourceName := resource.Labels[1]
+	for _, block := range resourceBlocks {
+		resourceType := block.TypeLabel()
+		resourceName := block.NameLabel()
 
 		// Remove the provider prefix if the resource type is like "azurerm_..."
 		splitted := strings.SplitN(resourceType, "_", 2)
@@ -61,7 +54,7 @@ func (r *TerraformResourceNameRule) Check(runner tflint.Runner) error {
 			if err := runner.EmitIssue(
 				r,
 				fmt.Sprintf("Resource name repeats resource type '%s'", typeWithoutProvider),
-				resource.DefRange,
+				block.DefRange,
 			); err != nil {
 				return err
 			}
