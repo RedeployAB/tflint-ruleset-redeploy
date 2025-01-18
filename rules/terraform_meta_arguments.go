@@ -45,30 +45,43 @@ func (r *TerraformMetaArgumentsRule) Link() string {
 //   1) count or for_each
 //   2) depends_on
 func (r *TerraformMetaArgumentsRule) Check(runner tflint.Runner) error {
-	return runner.WalkFiles(func(file *tflint.File) error {
-		// Skip non-HCL files
-		if file.IsBinary || file.Path == "" {
-			return nil
+	files, err := runner.GetFiles()
+	if err != nil {
+		return err
+	}
+
+	for filename, hclFile := range files {
+		// Skip if no content
+		if hclFile == nil || hclFile.Bytes == nil {
+			continue
 		}
 
-		// Parse the file body to hclsyntax.Body to preserve ordering
-		body, err := file.GetBody()
-		if err != nil {
-			return err
+		// Use hclsyntax.ParseConfig() to parse the raw bytes in lexical order
+		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
+		if diags.HasErrors() {
+			// Either skip or emit an issue if parse fails
+			continue
 		}
 
-		syntaxBody, ok := body.(*hclsyntax.Body)
+		// Now syntaxFile.Body is an *hclsyntax.Body that preserves ordering
+		fileBody := syntaxFile.Body
+
+		syntaxBody, ok := fileBody.(*hclsyntax.Body)
 		if !ok {
 			// Cannot parse body; skip this file
-			return nil
+			continue
 		}
 
-		// Process top-level blocks
-		return r.processBody(syntaxBody, runner)
-	})
+		if err := r.processBody(syntaxBody, filename, runner); err != nil {
+			return err
+		}
+	}
+
+	// If everything succeeded
+	return nil
 }
 
-func (r *TerraformMetaArgumentsRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
+func (r *TerraformMetaArgumentsRule) processBody(body *hclsyntax.Body, filename string, runner tflint.Runner) error {
 	// Collect attributes and blocks with their positions
 	type contentItem struct {
 		Name     string
@@ -85,7 +98,7 @@ func (r *TerraformMetaArgumentsRule) processBody(body *hclsyntax.Body, runner tf
 			Name:     attr.Name,
 			Type:     "attribute",
 			Attr:     attr,
-			SrcRange: attr.SrcRange,
+			SrcRange: attr.Range(), // Use attr.Range() for the correct range
 		})
 	}
 
@@ -94,7 +107,7 @@ func (r *TerraformMetaArgumentsRule) processBody(body *hclsyntax.Body, runner tf
 			Name:     block.Type,
 			Type:     "block",
 			Block:    block,
-			SrcRange: block.DefRange(),
+			SrcRange: block.DefRange(), // Use block.DefRange()
 		})
 	}
 
@@ -113,7 +126,7 @@ func (r *TerraformMetaArgumentsRule) processBody(body *hclsyntax.Body, runner tf
 				}
 			} else {
 				// Recursively process other blocks
-				if err := r.processBody(item.Block.Body, runner); err != nil {
+				if err := r.processBody(item.Block.Body, filename, runner); err != nil {
 					return err
 				}
 			}
@@ -151,7 +164,7 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 		contentItems = append(contentItems, contentItem{
 			Name:     attr.Name,
 			Type:     "attribute",
-			SrcRange: attr.SrcRange,
+			SrcRange: attr.Range(), // Use attr.Range() for correct range
 		})
 	}
 
@@ -159,7 +172,7 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 		contentItems = append(contentItems, contentItem{
 			Name:     childBlock.Type,
 			Type:     "block",
-			SrcRange: childBlock.DefRange(),
+			SrcRange: childBlock.DefRange(), // Use childBlock.DefRange()
 		})
 	}
 
