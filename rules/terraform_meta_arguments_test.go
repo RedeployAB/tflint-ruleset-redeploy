@@ -40,7 +40,7 @@ resource "aws_instance" "example" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 1},
-						End:      hcl.Pos{Line: 6, Column: 1},
+						End:      hcl.Pos{Line: 2, Column: 34},
 					},
 				},
 			},
@@ -69,7 +69,7 @@ module "example" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 1},
-						End:      hcl.Pos{Line: 5, Column: 1},
+						End:      hcl.Pos{Line: 2, Column: 17},
 					},
 				},
 			},
