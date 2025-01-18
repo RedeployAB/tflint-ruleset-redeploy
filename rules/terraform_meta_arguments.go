@@ -195,6 +195,12 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 		}
 	}
 
+	// Allow blocks with zero meta-arguments
+	if len(metaArgs) == 0 {
+		// If there are no meta-arguments, allow it with no issues
+		return nil
+	}
+
 	// Verify the order of meta-arguments
 	expectedIndex := 0
 	actualIndex := 0
