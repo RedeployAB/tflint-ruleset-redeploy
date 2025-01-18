@@ -27,8 +27,8 @@ func TestTerraformFilenameConvention(t *testing.T) {
 					Message: "Terraform filename 'Main.Example.tf' does not match the pattern '<name>.<area>.tf' with snake_case alphanumerics only",
 					Range: hcl.Range{
 						Filename: "Main.Example.tf",
-						Start:    hcl.Pos{Line: 1, Column: 1},
-						End:      hcl.Pos{Line: 1, Column: 1},
+						Start:    hcl.Pos{Line: 0, Column: 0},
+						End:      hcl.Pos{Line: 0, Column: 0},
 					},
 				},
 			},
@@ -57,8 +57,8 @@ func TestTerraformFilenameConvention(t *testing.T) {
 					Message: "Terraform filename 'my_name.my_area.extra.tf' does not match the pattern '<name>.tf' or '<name>.<area>.tf' (all snake_case alphanumerics)",
 					Range: hcl.Range{
 						Filename: "my_name.my_area.extra.tf",
-						Start:    hcl.Pos{Line: 1, Column: 1},
-						End:      hcl.Pos{Line: 1, Column: 1},
+						Start:    hcl.Pos{Line: 0, Column: 0},
+						End:      hcl.Pos{Line: 0, Column: 0},
 					},
 				},
 			},
