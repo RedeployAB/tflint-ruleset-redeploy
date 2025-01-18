@@ -9,7 +9,7 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-var filenamePattern = regexp.MustCompile(`^[a-z0-9]+(?:_[a-z0-9]+)*\.[a-z0-9]+(?:_[a-z0-9]+)*\.tf$`)
+var filenamePattern = regexp.MustCompile(`^[a-z0-9]+(?:_[a-z0-9]+)*(?:\.[a-z0-9]+(?:_[a-z0-9]+)*)?\.tf$`)
 
 type TerraformFilenameConventionRule struct {
 	tflint.DefaultRule
@@ -49,7 +49,10 @@ func (r *TerraformFilenameConventionRule) Check(runner tflint.Runner) error {
 		if !filenamePattern.MatchString(base) {
 			if err := runner.EmitIssue(
 				r,
-				fmt.Sprintf("Terraform filename '%s' does not match the pattern '<name>.<area>.tf' with snake_case alphanumerics only", base),
+				fmt.Sprintf(
+					"Terraform filename '%s' does not match the pattern '<name>.tf' or '<name>.<area>.tf' (all snake_case alphanumerics)",
+					base,
+				),
 				hcl.Range{Filename: filename},
 			); err != nil {
 				return err
