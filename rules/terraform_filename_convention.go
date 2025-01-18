@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
@@ -35,8 +36,11 @@ func (r *TerraformFilenameConventionRule) Link() string {
 }
 
 func (r *TerraformFilenameConventionRule) Check(runner tflint.Runner) error {
-	files := runner.GetFiles()
-	for filename, file := range files {
+	files, err := runner.GetFiles()
+	if err != nil {
+		return err
+	}
+	for filename := range files {
 		if filepath.Ext(filename) != ".tf" {
 			continue
 		}
@@ -46,7 +50,7 @@ func (r *TerraformFilenameConventionRule) Check(runner tflint.Runner) error {
 			if err := runner.EmitIssue(
 				r,
 				fmt.Sprintf("Terraform filename '%s' does not match the pattern '<name>.<area>.tf' with snake_case alphanumerics only", base),
-				file.Range(),
+				hcl.Range{Filename: filename},
 			); err != nil {
 				return err
 			}
