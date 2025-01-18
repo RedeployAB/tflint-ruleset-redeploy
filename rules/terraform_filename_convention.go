@@ -35,29 +35,21 @@ func (r *TerraformFilenameConventionRule) Link() string {
 }
 
 func (r *TerraformFilenameConventionRule) Check(runner tflint.Runner) error {
-	parser := runner.GetParser()
-	if parser == nil {
-		return nil
-	}
-
-	for _, file := range parser.Files() {
-		// Only consider .tf files
-		if filepath.Ext(file.Name) != ".tf" {
-			continue
+	return runner.WalkFiles(func(file *tflint.File) error {
+		if filepath.Ext(file.Path) != ".tf" {
+			return nil
 		}
 
-		base := filepath.Base(file.Name)
-		// Check pattern <name>.<area>.tf and ensure snake_case alphanumerics
+		base := filepath.Base(file.Path)
 		if !filenamePattern.MatchString(base) {
 			if err := runner.EmitIssue(
 				r,
 				fmt.Sprintf("Terraform filename '%s' does not match the pattern '<name>.<area>.tf' with snake_case alphanumerics only", base),
-				file.Range,
+				file.Range(),
 			); err != nil {
 				return err
 			}
 		}
-	}
-
-	return nil
+		return nil
+	})
 }
