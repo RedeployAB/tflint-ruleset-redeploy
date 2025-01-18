@@ -27,6 +27,7 @@ func main() {
 				rules.NewTerraformBackendTypeRule(),
 				rules.NewTerraformFilenameConventionRule(),
 				rules.NewTerraformResourceNameRule(),
+				rules.NewTerraformStandardModuleStructureRule(),
 			},
 		},
 	})
