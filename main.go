@@ -21,9 +21,6 @@ func main() {
 			Name:    "redeploy",
 			Version: version,
 			Rules: []tflint.Rule{
-				rules.NewAwsInstanceExampleTypeRule(),
-				rules.NewAwsS3BucketExampleLifecycleRule(),
-				rules.NewGoogleComputeSSLPolicyRule(),
 				rules.NewTerraformBackendTypeRule(),
 				rules.NewTerraformFilenameConventionRule(),
 				rules.NewTerraformResourceNameRule(),
