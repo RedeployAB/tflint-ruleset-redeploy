@@ -94,7 +94,7 @@ func (r *TerraformMetaArgumentsRule) processBody(body *hclsyntax.Body, runner tf
 			Name:     block.Type,
 			Type:     "block",
 			Block:    block,
-			SrcRange: block.DefRange,
+			SrcRange: block.DefRange(),
 		})
 	}
 
@@ -159,7 +159,7 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 		contentItems = append(contentItems, contentItem{
 			Name:     childBlock.Type,
 			Type:     "block",
-			SrcRange: childBlock.DefRange,
+			SrcRange: childBlock.DefRange(),
 		})
 	}
 
@@ -207,7 +207,7 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 			"Missing or out-of-order meta arguments in %s '%s'. Expected sequence: %s",
 			block.Type, blockLabels, strings.Join(desiredSequence, " -> "),
 		)
-		return runner.EmitIssue(r, msg, block.DefRange)
+		return runner.EmitIssue(r, msg, block.DefRange())
 	}
 
 	// Check for any remaining expected meta-arguments
@@ -216,7 +216,7 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 			"Missing meta arguments in %s '%s'. Expected sequence: %s",
 			block.Type, blockLabels, strings.Join(desiredSequence, " -> "),
 		)
-		return runner.EmitIssue(r, msg, block.DefRange)
+		return runner.EmitIssue(r, msg, block.DefRange())
 	}
 
 	return nil
