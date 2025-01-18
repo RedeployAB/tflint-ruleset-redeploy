@@ -35,12 +35,13 @@ func (r *TerraformFilenameConventionRule) Link() string {
 }
 
 func (r *TerraformFilenameConventionRule) Check(runner tflint.Runner) error {
-	return runner.WalkFiles(func(file *tflint.File) error {
-		if filepath.Ext(file.Path) != ".tf" {
-			return nil
+	files := runner.GetFiles()
+	for filename, file := range files {
+		if filepath.Ext(filename) != ".tf" {
+			continue
 		}
 
-		base := filepath.Base(file.Path)
+		base := filepath.Base(filename)
 		if !filenamePattern.MatchString(base) {
 			if err := runner.EmitIssue(
 				r,
@@ -50,6 +51,6 @@ func (r *TerraformFilenameConventionRule) Check(runner tflint.Runner) error {
 				return err
 			}
 		}
-		return nil
-	})
+	}
+	return nil
 }
