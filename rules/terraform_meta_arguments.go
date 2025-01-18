@@ -219,14 +219,24 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 			expectedIndex++
 			actualIndex++
 			continue
-		} else {
-			// Skip expected meta-arguments that are not present
-			expectedIndex++
-			continue
 		}
+
+		// Out-of-order meta-argument found
+		msg := fmt.Sprintf(
+			"Missing or out-of-order meta arguments in %s '%s'. Expected sequence: %s",
+			block.Type, blockLabels, strings.Join(desiredSequence, " -> "),
+		)
+		return runner.EmitIssue(r, msg, block.DefRange())
 	}
 
-	// No need to check for remaining expected meta-arguments
+	// Check for any remaining expected meta-arguments
+	if expectedIndex < len(desiredSequence) {
+		msg := fmt.Sprintf(
+			"Missing meta arguments in %s '%s'. Expected sequence: %s",
+			block.Type, blockLabels, strings.Join(desiredSequence, " -> "),
+		)
+		return runner.EmitIssue(r, msg, block.DefRange())
+	}
 
 	return nil
 }
