@@ -26,6 +26,7 @@ func main() {
 				rules.NewGoogleComputeSSLPolicyRule(),
 				rules.NewTerraformBackendTypeRule(),
 				rules.NewTerraformFilenameConventionRule(),
+				rules.NewTerraformResourceNameRule(),
 			},
 		},
 	})
