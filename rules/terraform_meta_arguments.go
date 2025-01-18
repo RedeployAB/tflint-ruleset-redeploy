@@ -34,7 +34,18 @@ func (r *TerraformMetaArgumentsRule) Link() string {
 }
 
 // Check enforces the required ordering and blank-line separation:
-// 1) count or for_each, 2) provider, <blank line>, 3) lifecycle, <blank line>, 4) depends_on
+// For resources:
+//   1) count or for_each
+//   2) provider
+//   <blank line>
+//   3) lifecycle
+//   <blank line>
+//   4) depends_on
+//
+// For modules:
+//   1) count or for_each
+//   <blank line>
+//   2) depends_on
 func (r *TerraformMetaArgumentsRule) Check(runner tflint.Runner) error {
 	content, err := runner.GetModuleContent(&hclext.BodySchema{
 		Blocks: []hclext.BlockSchema{
@@ -53,15 +64,28 @@ func (r *TerraformMetaArgumentsRule) Check(runner tflint.Runner) error {
 					},
 				},
 			},
+			{
+				Type:       "module",
+				LabelNames: []string{"name"},
+				Body: &hclext.BodySchema{
+					Attributes: []hclext.AttributeSchema{
+						{Name: "count"},
+						{Name: "for_each"},
+					},
+					Blocks: []hclext.BlockSchema{
+						{Type: "depends_on"},
+					},
+				},
+			},
 		},
 	}, nil)
 	if err != nil {
 		return err
 	}
 
-	for _, resource := range content.Blocks {
+	for _, block := range content.Blocks {
 		// Gather the meta-arguments in the order they appear in the file
-		lines := resource.Body.UnsortedContent()
+		lines := block.Body.UnsortedContent()
 		linesText := make([]string, 0, len(lines))
 
 		for _, item := range lines {
@@ -72,66 +96,65 @@ func (r *TerraformMetaArgumentsRule) Check(runner tflint.Runner) error {
 			case item.Block != nil:
 				// e.g. "lifecycle" or "depends_on"
 				linesText = append(linesText, item.Block.Type)
-			case item.Body != nil && item.Body.Item != nil:
-				// Handle blank lines or comments (if possible)
 			}
 		}
 
-		// Expected distinct sections:
-		// 1) one of ["count","for_each"] then "provider"
-		// 2) blank line
-		// 3) "lifecycle"
-		// 4) blank line
-		// 5) "depends_on"
+		// Define the desired sequences based on block type
+		var desiredSequence []string
+		if block.Type == "resource" {
+			desiredSequence = []string{"count|for_each", "provider", "lifecycle", "depends_on"}
+		} else if block.Type == "module" {
+			desiredSequence = []string{"count|for_each", "depends_on"}
+		} else {
+			continue // Skip other block types
+		}
 
-		// We'll just do a naive check for the sequence with minimal validation:
-		desiredSequence := []string{"count|for_each", "provider", "lifecycle", "depends_on"}
 		foundIndex := 0
-
 		for _, name := range linesText {
 			// Check for count/for_each
 			if foundIndex == 0 && (name == "count" || name == "for_each") {
 				foundIndex++
 				continue
 			}
-			// Then provider
-			if foundIndex <= 1 && name == "provider" {
-				foundIndex = 2
+			// For resources: then provider
+			if block.Type == "resource" && foundIndex == 1 && name == "provider" {
+				foundIndex++
 				continue
 			}
-			// Then lifecycle
-			if foundIndex <= 2 && name == "lifecycle" {
-				foundIndex = 3
+			// For resources: then lifecycle
+			if block.Type == "resource" && foundIndex == 2 && name == "lifecycle" {
+				foundIndex++
 				continue
 			}
-			// Finally depends_on
-			if foundIndex <= 3 && name == "depends_on" {
-				foundIndex = 4
+			// For modules, skip to depends_on
+			// For resources: finally depends_on
+			if (block.Type == "module" && foundIndex == 1 && name == "depends_on") ||
+				(block.Type == "resource" && foundIndex >= 1 && name == "depends_on") {
+				foundIndex = len(desiredSequence)
 				continue
 			}
 
 			// If we reach here, the item is out of order
 			errMsg := fmt.Sprintf(
-				"Meta-argument '%s' is out of expected order. Current sequence: %s",
-				name, strings.Join(linesText, ", "),
+				"Meta-argument '%s' is out of expected order in %s '%s'. Current sequence: %s",
+				name, block.Type, strings.Join(block.Labels, " "), strings.Join(linesText, ", "),
 			)
-			if emitErr := runner.EmitIssue(r, errMsg, resource.DefRange); emitErr != nil {
+			if emitErr := runner.EmitIssue(r, errMsg, block.DefRange); emitErr != nil {
 				return emitErr
 			}
 			break
 		}
 
 		// Check if we completed the entire desired sequence
-		if foundIndex < 2 {
-			// Means we never found provider or meta-arguments
-			msg := "Missing or out-of-order meta arguments: expected count/for_each, then provider"
-			if emitErr := runner.EmitIssue(r, msg, resource.DefRange); emitErr != nil {
+		if foundIndex < len(desiredSequence) {
+			msg := fmt.Sprintf(
+				"Missing or out-of-order meta arguments in %s '%s'. Expected sequence: %s",
+				block.Type, strings.Join(block.Labels, " "), strings.Join(desiredSequence, " -> "),
+			)
+			if emitErr := runner.EmitIssue(r, msg, block.DefRange); emitErr != nil {
 				return emitErr
 			}
 		}
-
-		// You could add checks for blank lines here by comparing item ranges
-		// but that’s more advanced parsing. This minimal approach covers the order.
 	}
 
 	return nil
