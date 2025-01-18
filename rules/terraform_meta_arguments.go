@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/terraform-linters/tflint-plugin-sdk/hclext"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
@@ -84,19 +83,24 @@ func (r *TerraformMetaArgumentsRule) Check(runner tflint.Runner) error {
 	}
 
 	for _, block := range content.Blocks {
-		// Gather the meta-arguments in the order they appear in the file
-		lines := block.Body.UnsortedContent()
-		linesText := make([]string, 0, len(lines))
+		// Gather the meta-arguments; order is not preserved
+		attributes, err := block.Body.Attributes()
+		if err != nil {
+			return err
+		}
+		blocks, err := block.Body.Blocks()
+		if err != nil {
+			return err
+		}
 
-		for _, item := range lines {
-			switch {
-			case item.Attribute != nil:
-				// e.g. "count", "for_each", or "provider"
-				linesText = append(linesText, item.Attribute.Name)
-			case item.Block != nil:
-				// e.g. "lifecycle" or "depends_on"
-				linesText = append(linesText, item.Block.Type)
-			}
+		// Populate linesText from the attribute and block names
+		linesText := make([]string, 0, len(attributes)+len(blocks))
+
+		for _, attr := range attributes {
+			linesText = append(linesText, attr.Name)
+		}
+		for _, b := range blocks {
+			linesText = append(linesText, b.Type)
 		}
 
 		// Define the desired sequences based on block type
@@ -126,9 +130,8 @@ func (r *TerraformMetaArgumentsRule) Check(runner tflint.Runner) error {
 				foundIndex++
 				continue
 			}
-			// For modules, skip to depends_on
-			// For resources: finally depends_on
-			if (block.Type == "module" && foundIndex == 1 && name == "depends_on") ||
+			// For modules and resources: depends_on
+			if (block.Type == "module" && foundIndex >= 1 && name == "depends_on") ||
 				(block.Type == "resource" && foundIndex >= 1 && name == "depends_on") {
 				foundIndex = len(desiredSequence)
 				continue
