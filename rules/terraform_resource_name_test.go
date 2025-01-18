@@ -36,7 +36,7 @@ resource "azurerm_load_balancer" "load_balancer" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 1},
-						End:      hcl.Pos{Line: 2, Column: 55},
+						End:      hcl.Pos{Line: 2, Column: 1},
 					},
 				},
 			},
