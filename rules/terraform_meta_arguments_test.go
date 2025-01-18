@@ -27,6 +27,14 @@ resource "aws_instance" "example" {
 			Expected: helper.Issues{},
 		},
 		{
+			Name: "resource with no meta arguments",
+			Content: `
+resource "aws_instance" "example" {
+  # No meta arguments here
+}`,
+			Expected: helper.Issues{},
+		},
+		{
 			Name: "invalid resource order",
 			Content: `
 resource "aws_instance" "example" {
