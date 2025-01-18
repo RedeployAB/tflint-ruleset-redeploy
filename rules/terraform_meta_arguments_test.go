@@ -27,6 +27,14 @@ resource "aws_instance" "example" {
 			Expected: helper.Issues{},
 		},
 		{
+			Name: "resource partial usage (count only)",
+			Content: `
+resource "aws_instance" "example" {
+  count = 1
+}`,
+			Expected: helper.Issues{},
+		},
+		{
 			Name: "resource with no meta arguments",
 			Content: `
 resource "aws_instance" "example" {
