@@ -1,9 +1,7 @@
 package rules
 
 import (
-	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -149,7 +147,7 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 	}
 
 	// Get the block labels for reporting
-	blockLabels := strings.Join(block.Labels, " ")
+	// blockLabels := strings.Join(block.Labels, " ")
 
 	// Collect block content items in order
 	type contentItem struct {
