@@ -14,41 +14,23 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 		Expected helper.Issues
 	}{
 		{
-			Name: "valid resource order",
-			Content: `
-resource "aws_instance" "example" {
-  count     = 1
-  provider  = aws
-
-  lifecycle {}
-
-  depends_on = []
-}`,
+			Name:    "valid resource order",
+			Content: readFixture(t, "meta_order_valid_resource.tf"),
 			Expected: helper.Issues{},
 		},
 		{
-			Name: "resource partial usage (count only)",
-			Content: `
-resource "aws_instance" "example" {
-  count = 1
-}`,
+			Name:    "resource partial usage (count only)",
+			Content: readFixture(t, "meta_order_resource_count_only.tf"),
 			Expected: helper.Issues{},
 		},
 		{
-			Name: "resource with no meta arguments",
-			Content: `
-resource "aws_instance" "example" {
-  # No meta arguments here
-}`,
+			Name:    "resource with no meta arguments",
+			Content: readFixture(t, "meta_order_resource_no_meta.tf"),
 			Expected: helper.Issues{},
 		},
 		{
-			Name: "invalid resource order",
-			Content: `
-resource "aws_instance" "example" {
-  depends_on = []
-  count      = 1
-}`,
+			Name:    "invalid resource order",
+			Content: readFixture(t, "meta_order_invalid_resource.tf"),
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformMetaArgumentOrderRule(),
@@ -62,22 +44,13 @@ resource "aws_instance" "example" {
 			},
 		},
 		{
-			Name: "valid module order",
-			Content: `
-module "example" {
-  count = 2
-
-  depends_on = []
-}`,
+			Name:    "valid module order",
+			Content: readFixture(t, "meta_order_valid_module.tf"),
 			Expected: helper.Issues{},
 		},
 		{
-			Name: "invalid module order",
-			Content: `
-module "example" {
-  depends_on = []
-  count      = 2
-}`,
+			Name:    "invalid module order",
+			Content: readFixture(t, "meta_order_invalid_module.tf"),
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformMetaArgumentOrderRule(),

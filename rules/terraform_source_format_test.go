@@ -14,36 +14,18 @@ func TestTerraformSourceFormat(t *testing.T) {
 		Issues  helper.Issues
 	}{
 		{
-			Name: "OK - only source, block ends",
-			Content: `
-module "example" {
-  source = "a source address"
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "OK - only source, block ends",
+			Content: readFixture(t, "source_format_only_source.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "OK - source plus version, block ends",
-			Content: `
-module "example" {
-  source  = "a source address"
-  version = "x.x.x"
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "OK - source plus version, block ends",
+			Content: readFixture(t, "source_format_source_version.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "NOT OK - source plus version, extra blank line at end is disallowed",
-			Content: `
-module "example" {
-  source  = "a source address"
-  version = "x.x.x"
-
-}
-`,
-			// The rule as described suggests we do NOT want that trailing blank line
-			// However, your examples showed that a blank line after version is only needed
-			// if more arguments follow. But here, the block ends. So let's produce an issue:
+			Name:    "NOT OK - source plus version, extra blank line at end is disallowed",
+			Content: readFixture(t, "source_format_extra_blank_line.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformSourceFormatRule(),
@@ -57,13 +39,8 @@ module "example" {
 			},
 		},
 		{
-			Name: "NOT OK - source alone with trailing blank line before closing brace",
-			Content: `
-module "example" {
-  source = "a source address"
-
-}
-`,
+			Name:    "NOT OK - source alone with trailing blank line before closing brace",
+			Content: readFixture(t, "source_format_source_trailing_blank.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformSourceFormatRule(),
@@ -77,37 +54,18 @@ module "example" {
 			},
 		},
 		{
-			Name: "OK - source plus version, more property after blank line",
-			Content: `
-module "example" {
-  source  = "a source address"
-  version = "x.x.x"
-
-  property = "value"
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "OK - source plus version, more property after blank line",
+			Content: readFixture(t, "source_format_source_version_with_property.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "OK - source alone, more property after blank line",
-			Content: `
-module "example" {
-  source = "a source address"
-
-  property = "value"
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "OK - source alone, more property after blank line",
+			Content: readFixture(t, "source_format_source_with_property.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "NOT OK - source plus version, property follows with no blank line",
-			Content: `
-module "example" {
-  source  = "a source address"
-  version = "x.x.x"
-  property = "value"
-}
-`,
+			Name:    "NOT OK - source plus version, property follows with no blank line",
+			Content: readFixture(t, "source_format_no_blank_before_property.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformSourceFormatRule(),

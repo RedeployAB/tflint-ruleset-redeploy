@@ -14,63 +14,23 @@ func TestTerraformTagsArgumentRule(t *testing.T) {
 		Issues  helper.Issues
 	}{
 		{
-			Name: "OK usage with tags last, then depends_on, then lifecycle",
-			Content: `
-resource "aws_nat_gateway" "this" {
-  count = 2
-
-  allocation_id = "..."
-  subnet_id     = "..."
-
-  tags = {
-    Name = "..."
-  }
-
-  depends_on = [aws_internet_gateway.this]
-
-  lifecycle {}
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "OK usage with tags last, then depends_on, then lifecycle",
+			Content: readFixture(t, "tags_argument_ok_with_depends_on_and_lifecycle.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "OK usage with only tags",
-			Content: `
-resource "aws_nat_gateway" "this" {
-  tags = {
-    Name = "..."
-  }
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "OK usage with only tags",
+			Content: readFixture(t, "tags_argument_ok_only_tags.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "OK usage with tags last, no depends_on or lifecycle",
-			Content: `
-resource "aws_nat_gateway" "this" {
-  allocation_id = "..."
-  subnet_id     = "..."
-
-  tags = {
-    Name = "..."
-  }
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "OK usage with tags last, no depends_on or lifecycle",
+			Content: readFixture(t, "tags_argument_ok_tags_last.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "NOT OK usage - normal arguments after tags",
-			Content: `
-resource "aws_nat_gateway" "this" {
-  count = 2
-
-  tags = {
-    Name = "..."
-  }
-
-  allocation_id = "..."
-}
-`,
+			Name:    "NOT OK usage - normal arguments after tags",
+			Content: readFixture(t, "tags_argument_normal_args_after_tags.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformTagsArgumentRule(),
@@ -84,16 +44,8 @@ resource "aws_nat_gateway" "this" {
 			},
 		},
 		{
-			Name: "NOT OK usage - block after tags that's not lifecycle",
-			Content: `
-resource "aws_nat_gateway" "this" {
-  tags = {
-    Name = "..."
-  }
-
-  something_else {}
-}
-`,
+			Name:    "NOT OK usage - block after tags that's not lifecycle",
+			Content: readFixture(t, "tags_argument_block_after_tags.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformTagsArgumentRule(),
@@ -107,15 +59,8 @@ resource "aws_nat_gateway" "this" {
 			},
 		},
 		{
-			Name: "NOT OK usage - missing blank line between tags and depends_on",
-			Content: `
-resource "aws_nat_gateway" "this" {
-  tags = {
-    Name = "..."
-  }
-  depends_on = [aws_internet_gateway.this]
-}
-`,
+			Name:    "NOT OK - missing blank line between tags and depends_on",
+			Content: readFixture(t, "tags_argument_missing_blank_between_tags_and_depends_on.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformTagsArgumentRule(),
@@ -129,15 +74,8 @@ resource "aws_nat_gateway" "this" {
 			},
 		},
 		{
-			Name: "NOT OK usage - missing blank line between tags and lifecycle",
-			Content: `
-resource "aws_nat_gateway" "this" {
-  tags = {
-    Name = "..."
-  }
-  lifecycle {}
-}
-`,
+			Name:    "NOT OK - missing blank line between tags and lifecycle",
+			Content: readFixture(t, "tags_argument_missing_blank_between_tags_and_lifecycle.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformTagsArgumentRule(),

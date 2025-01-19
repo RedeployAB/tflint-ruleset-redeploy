@@ -14,41 +14,23 @@ func TestTerraformMetaArgumentFormat(t *testing.T) {
 		Issues  helper.Issues
 	}{
 		{
-			Name: "resource with no meta arguments",
-			Content: `
-resource "aws_instance" "example" {
-  # No meta arguments at all
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "resource with no meta arguments",
+			Content: readFixture(t, "meta_fmt_no_meta_args.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "module with no meta arguments",
-			Content: `
-module "example" {
-  # No meta arguments here
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "module with no meta arguments",
+			Content: readFixture(t, "meta_fmt_module_no_meta.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "resource with top meta argument on last line (no blank line required)",
-			Content: `
-resource "aws_instance" "example" {
-  count = 1
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "resource with top meta argument on last line (no blank line required)",
+			Content: readFixture(t, "meta_fmt_top_meta_last_line.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "resource missing blank line after top meta argument",
-			Content: `
-resource "aws_instance" "example" {
-  provider = aws
-  # next line isn't blank
-  name = "test"
-}
-`,
+			Name:    "resource missing blank line after top meta argument",
+			Content: readFixture(t, "meta_fmt_missing_blank_after_top.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformMetaArgumentFormatRule(),
@@ -62,13 +44,8 @@ resource "aws_instance" "example" {
 			},
 		},
 		{
-			Name: "resource missing blank line before bottom meta argument (depends_on)",
-			Content: `
-resource "aws_instance" "example" {
-  tags = {}
-  depends_on = []
-}
-`,
+			Name:    "resource missing blank line before bottom meta argument (depends_on)",
+			Content: readFixture(t, "meta_fmt_missing_blank_before_depends_on.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformMetaArgumentFormatRule(),
@@ -82,24 +59,13 @@ resource "aws_instance" "example" {
 			},
 		},
 		{
-			Name: "module valid formatting with top and bottom meta arguments",
-			Content: `
-module "example" {
-  count = 2
-
-  depends_on = []
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "module valid formatting with top and bottom meta arguments",
+			Content: readFixture(t, "meta_fmt_module_valid.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "module missing blank line before bottom meta argument (depends_on)",
-			Content: `
-module "example" {
-  tags = {}
-  depends_on = []
-}
-`,
+			Name:    "module missing blank line before bottom meta argument (depends_on)",
+			Content: readFixture(t, "meta_fmt_module_missing_blank_before_depends_on.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformMetaArgumentFormatRule(),
@@ -113,27 +79,13 @@ module "example" {
 			},
 		},
 		{
-			Name: "resource partial usage (only provider) - valid formatting",
-			Content: `
-resource "aws_instance" "example" {
-  provider = aws
-
-  # Some setting
-  name     = "valid"
-}
-`,
-			Issues: helper.Issues{},
+			Name:    "resource partial usage (only provider) - valid formatting",
+			Content: readFixture(t, "meta_fmt_only_provider_valid.tf"),
+			Issues:  helper.Issues{},
 		},
 		{
-			Name: "resource partial usage (only lifecycle) - missing blank line before",
-			Content: `
-resource "aws_instance" "example" {
-  tags = {
-    Something = "xyz"
-  }
-  lifecycle {}
-}
-`,
+			Name:    "resource partial usage (only lifecycle) - missing blank line before",
+			Content: readFixture(t, "meta_fmt_missing_blank_before_lifecycle.tf"),
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformMetaArgumentFormatRule(),
