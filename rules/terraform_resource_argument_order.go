@@ -84,8 +84,9 @@ func (r *TerraformResourceArgumentOrderRule) processBody(body *hclsyntax.Body, r
 }
 
 // checkArgumentOrder checks that within this block:
-//  - all non-block attributes come first
-//  - then all sub-blocks
+//   - all non-block attributes come first
+//   - then all sub-blocks
+//
 // We skip meta arguments. Then we apply the same logic inside each sub-block, but
 // that recursion is done in processBody -> checkArgumentOrder.
 func (r *TerraformResourceArgumentOrderRule) checkArgumentOrder(block *hclsyntax.Block, runner tflint.Runner) error {
