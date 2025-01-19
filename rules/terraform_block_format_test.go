@@ -116,3 +116,57 @@ func TestTerraformBlockFormat(t *testing.T) {
 			Content: readFixture(t, "block_fmt_ok_data_single_block_no_blank_line.tf"),
 			Issues:  helper.Issues{},
 		},
+		{
+			Name:    "NOT OK - single data block with extra blank line after brace",
+			Content: readFixture(t, "block_fmt_not_ok_data_extra_blank_line_after_brace.tf"),
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformBlockFormatRule(),
+					Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 4, Column: 3},
+						End:      hcl.Pos{Line: 4, Column: 9},
+					},
+				},
+			},
+		},
+		{
+			Name:    "OK - terraform block with two sub-blocks, each separated by one blank line",
+			Content: readFixture(t, "block_fmt_ok_terraform_two_subblocks.tf"),
+			Issues:  helper.Issues{},
+		},
+		{
+			Name:    "NOT OK - provider block with no blank line between sub-blocks",
+			Content: readFixture(t, "block_fmt_not_ok_provider_no_blank_line_between_subblocks.tf"),
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformBlockFormatRule(),
+					Message: "Expected exactly one blank line before this block",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 5, Column: 3},
+						End:      hcl.Pos{Line: 5, Column: 14},
+					},
+				},
+			},
+		},
+	}
+
+	rule := NewTerraformBlockFormatRule()
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{
+				"resource.tf": tc.Content,
+			})
+
+			err := rule.Check(runner)
+			if err != nil {
+				t.Fatalf("Unexpected error occurred: %s", err)
+			}
+
+			helper.AssertIssues(t, tc.Issues, runner.Issues)
+		})
+	}
+}
