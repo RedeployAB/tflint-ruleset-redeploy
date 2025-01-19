@@ -24,7 +24,7 @@ func (r *TerraformStandardModuleStructureRule) Enabled() bool {
 }
 
 func (r *TerraformStandardModuleStructureRule) Severity() tflint.Severity {
-	return tflint.ERROR
+	return tflint.WARNING
 }
 
 func (r *TerraformStandardModuleStructureRule) Link() string {
