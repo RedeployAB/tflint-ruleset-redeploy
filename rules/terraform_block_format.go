@@ -97,67 +97,71 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 
 	// We'll gather the "items" in lexical order (attributes + blocks).
 	type item struct {
-		Type  string // "attr" or "block"
-		Range hcl.Range
+		Type      string // "attr" or "block"
+		Range     hcl.Range
+		StartLine int
+		EndLine   int
 	}
 	var items []item
 
 	// Add attributes in the block
 	for _, attr := range block.Body.Attributes {
-		items = append(items, item{"attr", attr.Range()})
+		items = append(items, item{
+			Type:      "attr",
+			Range:     attr.Range(),
+			StartLine: attr.Range().Start.Line,
+			EndLine:   attr.Range().End.Line,
+		})
 	}
 	// Add sub-blocks in the block
 	for _, blk2 := range block.Body.Blocks {
-		items = append(items, item{"block", blk2.DefRange()})
+		blkStart := blk2.Body.Range().Start.Line
+		blkEnd := blk2.Body.Range().End.Line
+
+		items = append(items, item{
+			Type:      "block",
+			Range:     blk2.DefRange(),
+			StartLine: blkStart,
+			EndLine:   blkEnd,
+		})
 	}
 
-	// Sort by position
+	// Sort by starting line
 	sort.Slice(items, func(i, j int) bool {
-		return items[i].Range.Start.Byte < items[j].Range.Start.Byte
+		return items[i].StartLine < items[j].StartLine
 	})
 
-	// We also need the line of the block's opening brace
-	openBraceLine := block.Body.Range().Start.Line
-
-	var prevLine int
-	noPriorItems := true
+	// Initialize previousEndLine and firstBlock
+	previousEndLine := block.Body.Range().Start.Line
+	firstBlock := true
 
 	for _, it := range items {
-		if it.Type != "block" {
-			// If it's an attribute, just track the end line
-			prevLine = it.Range.End.Line
-			noPriorItems = false
+		if it.Type == "attr" {
+			// Just update previousEndLine
+			previousEndLine = it.EndLine
 			continue
 		}
 
-		// It's a block. We want to see how many blank lines are between
-		// the prior item (or the opening brace line if none) and this block's start.
-		blockStartLine := it.Range.Start.Line
+		// It's a block
+		linesBetween := it.StartLine - (previousEndLine + 1)
 
-		referenceLine := openBraceLine
-		if !noPriorItems {
-			referenceLine = prevLine
-		}
-
-		linesBetween := blockStartLine - (referenceLine + 1)
-
-		if noPriorItems {
-			// If it's the first item, linesBetween must be 0 for no extra blank lines
+		if firstBlock && previousEndLine == block.Body.Range().Start.Line {
+			// No attributes above => expect 0 blank lines
 			if linesBetween != 0 {
 				return r.emitIssue(runner, it.Range,
 					"Block should appear immediately after opening brace when it's the first item (no blank lines)")
 			}
 		} else {
-			// Not the first item -> we expect exactly 1 blank line
+			// Otherwise, expect exactly 1 blank line before each subsequent block
 			if linesBetween != 1 {
 				return r.emitIssue(runner, it.Range,
 					"Expected exactly one blank line before this block")
 			}
 		}
 
-		// Set prevLine to this block's end
-		prevLine = it.Range.End.Line
-		noPriorItems = false
+		// Update for the next iteration
+		previousEndLine = it.EndLine
+		firstBlock = false
 	}
 
 	return nil
