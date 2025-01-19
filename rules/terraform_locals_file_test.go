@@ -1,10 +1,10 @@
 package rules
 
 import (
-  "testing"
+	"testing"
 
-  hcl "github.com/hashicorp/hcl/v2"
-  "github.com/terraform-linters/tflint-plugin-sdk/helper"
+	hcl "github.com/hashicorp/hcl/v2"
+	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
 func TestTerraformLocalsFileRule(t *testing.T) {
@@ -16,21 +16,21 @@ func TestTerraformLocalsFileRule(t *testing.T) {
     {
       Name: "Valid - locals in locals.tf",
       FileMap: map[string]string{
-        "locals.tf": readFixture(t, "locals_file_valid_main.tf"),
+        "locals.tf": readFixture(t, "locals_file_valid.tf"),
       },
       Expected: helper.Issues{},
     },
     {
       Name: "Valid - locals in locals.area.tf",
       FileMap: map[string]string{
-        "locals.config.tf": readFixture(t, "locals_file_valid_main.tf"),
+        "locals.config.tf": readFixture(t, "locals_file_valid.tf"),
       },
       Expected: helper.Issues{},
     },
     {
       Name: "Invalid - locals in other file",
       FileMap: map[string]string{
-        "main.tf": readFixture(t, "locals_file_valid_main.tf"),
+        "main.tf": readFixture(t, "locals_file_valid.tf"),
       },
       Expected: helper.Issues{
         {
@@ -39,7 +39,7 @@ func TestTerraformLocalsFileRule(t *testing.T) {
           Range: hcl.Range{
             Filename: "main.tf",
             Start:    hcl.Pos{Line: 1, Column: 1},
-            End:      hcl.Pos{Line: 1, Column: 1},
+            End:      hcl.Pos{Line: 1, Column: 7},
           },
         },
       },
