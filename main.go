@@ -26,6 +26,7 @@ func main() {
 				rules.NewTerraformResourceNameRule(),
 				rules.NewTerraformStandardModuleStructureRule(),
 				rules.NewTerraformMetaArgumentOrderRule(),
+				rules.NewTerraformMetaArgumentFormatRule(),
 			},
 		},
 	})
