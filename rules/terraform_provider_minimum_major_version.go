@@ -111,15 +111,14 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 			continue
 		}
 
-		// Evaluate the "version" attribute as a string.
-		val, diags := runner.EvaluateExpr(kv.ValueExpr, hcl.TypeString, nil)
-		if diags == nil || !diags.HasErrors() {
-			versionString = val.AsString()
-			versionRange = kv.ValueExpr.Range()
-		} else {
-			// If for some reason it isn't a string, skip
+		var tmp string
+		if err := runner.EvaluateExpr(kv.ValueExpr, &tmp); err != nil {
+			// If for some reason it isn't a string, skip this provider
 			return nil
 		}
+		// EvaluateExpr succeeded => store it
+		versionString = tmp
+		versionRange = kv.ValueExpr.Range()
 		break
 	}
 
@@ -156,7 +155,7 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 			versionRange,
 		)
 	case !hasMin && hasMax:
-		// Invalid: only a max constraint; a minimum is required
+		// Invalid: only a max constraint; a minimum version is required
 		return runner.EmitIssue(
 			r,
 			fmt.Sprintf(
