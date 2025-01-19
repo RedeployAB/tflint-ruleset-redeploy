@@ -130,6 +130,16 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 	expectedIndex := 0
 	actualIndex := 0
 
+	// Helper to see if metaArgs includes an item
+	metaArgIn := func(arg string) bool {
+		for _, m := range metaArgs {
+			if m == arg {
+				return true
+			}
+		}
+		return false
+	}
+
 	// Simple helper for matching "count|for_each" or exact match
 	matchArg := func(actual, expected string) bool {
 		if expected == ArgCount+"|"+ArgForEach {
@@ -139,6 +149,11 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 	}
 
 	for actualIndex < len(metaArgs) {
+		// Skip any unneeded items in desiredSequence that do not appear in metaArgs at all
+		for expectedIndex < len(desiredSequence) && !metaArgIn(desiredSequence[expectedIndex]) {
+			expectedIndex++
+		}
+
 		// If we've run out of expected slots, it's out-of-order
 		if expectedIndex >= len(desiredSequence) {
 			return runner.EmitIssue(
@@ -150,6 +165,7 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 				metaArgRange(block, metaArgs[actualIndex]),
 			)
 		}
+
 		actual := metaArgs[actualIndex]
 		expected := desiredSequence[expectedIndex]
 
