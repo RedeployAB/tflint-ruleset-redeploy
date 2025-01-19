@@ -32,8 +32,8 @@ func TestTerraformProviderMinimumMajorVersionRule(t *testing.T) {
 					Message: "Provider 'aws' has a minimum version constraint but no maximum (version=\">= 4.0\")",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 17},
-						End:      hcl.Pos{Line: 6, Column: 25},
+						Start:    hcl.Pos{Line: 5, Column: 17},
+						End:      hcl.Pos{Line: 5, Column: 25},
 					},
 				},
 			},
@@ -57,8 +57,8 @@ func TestTerraformProviderMinimumMajorVersionRule(t *testing.T) {
 					Message: "Provider 'aws' has only a maximum version constraint; a minimum version is required (version=\"< 4.0\")",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 17},
-						End:      hcl.Pos{Line: 6, Column: 24},
+						Start:    hcl.Pos{Line: 5, Column: 17},
+						End:      hcl.Pos{Line: 5, Column: 24},
 					},
 				},
 			},
