@@ -52,11 +52,11 @@ resource "aws_instance" "example" {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'count' in resource 'aws_instance example'. Expected sequence: count|for_each -> provider -> lifecycle -> depends_on",
+					Message: "Out-of-order meta argument 'depends_on' in resource 'aws_instance example'. Expected sequence: count|for_each -> provider -> lifecycle -> depends_on",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 17},
+						Start:    hcl.Pos{Line: 3, Column: 3},
+						End:      hcl.Pos{Line: 3, Column: 18},
 					},
 				},
 			},
@@ -81,11 +81,11 @@ module "example" {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'count' in module 'example'. Expected sequence: count|for_each -> depends_on",
+					Message: "Out-of-order meta argument 'depends_on' in module 'example'. Expected sequence: count|for_each -> depends_on",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 17},
+						Start:    hcl.Pos{Line: 3, Column: 3},
+						End:      hcl.Pos{Line: 3, Column: 18},
 					},
 				},
 			},

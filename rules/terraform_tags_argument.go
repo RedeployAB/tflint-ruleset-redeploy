@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
@@ -137,30 +138,27 @@ func (r *TerraformTagsArgumentRule) checkResourceBlock(
 		return err
 	}
 	// Step 2: ensure exactly one blank line
-	return r.checkBlankLineAfterTags(block, items, tagsIndex, runner)
+	return r.checkBlankLineAfterTags(items, tagsIndex, runner)
 }
 
-func (r *TerraformTagsArgumentRule) collectResourceItems(block *hclsyntax.Block) []struct {
+type resourceItem struct {
 	Name  string
 	Type  string
 	Range hcl.Range
-} {
-	type item struct {
-		Name  string // attribute or block type
-		Type  string // "attr" or "block"
-		Range hcl.Range
-	}
-	var items []item
+}
+
+func (r *TerraformTagsArgumentRule) collectResourceItems(block *hclsyntax.Block) []resourceItem {
+	var items []resourceItem
 
 	for _, attr := range block.Body.Attributes {
-		items = append(items, item{
+		items = append(items, resourceItem{
 			Name:  attr.Name,
 			Type:  typeAttr,
 			Range: attr.Range(),
 		})
 	}
 	for _, blk := range block.Body.Blocks {
-		items = append(items, item{
+		items = append(items, resourceItem{
 			Name:  blk.Type,
 			Type:  typeBlock,
 			Range: blk.DefRange(),
@@ -174,11 +172,7 @@ func (r *TerraformTagsArgumentRule) collectResourceItems(block *hclsyntax.Block)
 	return items
 }
 
-func (r *TerraformTagsArgumentRule) findTagsIndex(items []struct {
-	Name  string
-	Type  string
-	Range hcl.Range
-}) int {
+func (r *TerraformTagsArgumentRule) findTagsIndex(items []resourceItem) int {
 	for i, it := range items {
 		if it.Type == typeAttr && it.Name == "tags" {
 			return i
@@ -188,11 +182,7 @@ func (r *TerraformTagsArgumentRule) findTagsIndex(items []struct {
 }
 
 func (r *TerraformTagsArgumentRule) checkItemsAfterTags(
-	items []struct {
-		Name  string
-		Type  string
-		Range hcl.Range
-	},
+	items []resourceItem,
 	tagsIndex int,
 	runner tflint.Runner,
 ) error {
@@ -214,27 +204,13 @@ func (r *TerraformTagsArgumentRule) checkItemsAfterTags(
 }
 
 func (r *TerraformTagsArgumentRule) checkBlankLineAfterTags(
-	block *hclsyntax.Block,
-	items []struct {
-		Name  string
-		Type  string
-		Range hcl.Range
-	},
+	items []resourceItem,
 	tagsIndex int,
 	runner tflint.Runner,
 ) error {
-	hclFile, ok := r.getFile(block, runner)
-	if !ok {
-		return nil
-	}
-
 	// Check single blank line
 	tagsLine := items[tagsIndex].Range.End.Line
-	var nextItem *struct {
-		Name  string
-		Type  string
-		Range hcl.Range
-	}
+	var nextItem *resourceItem
 	if tagsIndex+1 < len(items) {
 		nextItem = &items[tagsIndex+1]
 	}
@@ -247,18 +223,6 @@ func (r *TerraformTagsArgumentRule) checkBlankLineAfterTags(
 		}
 	}
 	return nil
-}
-
-func (r *TerraformTagsArgumentRule) getFile(block *hclsyntax.Block, runner tflint.Runner) (*tflint.File, bool) {
-	files, err := runner.GetFiles()
-	if err != nil {
-		return nil, false
-	}
-	hclFile, ok := files[block.Body.Range().Filename]
-	if !ok || hclFile.Bytes == nil {
-		return nil, false
-	}
-	return hclFile, true
 }
 
 func (r *TerraformTagsArgumentRule) emitIssue(runner tflint.Runner, rng hcl.Range, msg string) error {

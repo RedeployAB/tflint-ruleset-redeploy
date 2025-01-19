@@ -153,7 +153,7 @@ func (r *TerraformArgumentOrderRule) collectMetaArgumentsInLexOrder(block *hclsy
 // checkCountOrForEach tries to see whether "count|for_each" is out of order,
 // comparing foundIdx to lastIndex. Returns updated lastIndex or an error if out-of-order.
 func (r *TerraformArgumentOrderRule) checkCountOrForEach(
-	foundIdx, forEachIdx, countIdx, lastIndex int,
+	foundIdx, forEachIdx, lastIndex int,
 	block *hclsyntax.Block, blockLabels string,
 	desiredSequence []string, runner tflint.Runner,
 ) (int, error) {
@@ -233,20 +233,21 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 				continue
 			}
 			// If both are present, pick whichever is earlier
-			foundIdx := -1
-			if countIdx >= 0 && forEachIdx >= 0 {
+			var foundIdx int
+			switch {
+			case countIdx >= 0 && forEachIdx >= 0:
 				if countIdx < forEachIdx {
 					foundIdx = countIdx
 				} else {
 					foundIdx = forEachIdx
 				}
-			} else if countIdx >= 0 {
+			case countIdx >= 0:
 				foundIdx = countIdx
-			} else {
+			default:
 				foundIdx = forEachIdx
 			}
 
-			newIndex, err := r.checkCountOrForEach(foundIdx, forEachIdx, countIdx, lastIndex, block, blockLabels, desiredSequence, runner)
+			newIndex, err := r.checkCountOrForEach(foundIdx, forEachIdx, lastIndex, block, blockLabels, desiredSequence, runner)
 			if err != nil {
 				return err
 			}
