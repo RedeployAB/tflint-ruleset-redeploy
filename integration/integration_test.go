@@ -35,20 +35,20 @@ func TestIntegration(t *testing.T) {
 			testDir := filepath.Join(dir, tc.Dir)
 
 			t.Cleanup(func() {
-				if err := os.Chdir(dir); err != nil {
-					t.Fatal(err)
+				if chdirErr := os.Chdir(dir); chdirErr != nil {
+					t.Fatal(chdirErr)
 				}
 			})
 
-			if err := os.Chdir(testDir); err != nil {
-				t.Fatal(err)
+			if chdirErr := os.Chdir(testDir); chdirErr != nil {
+				t.Fatal(chdirErr)
 			}
 
 			var stdout, stderr bytes.Buffer
 			tc.Command.Stdout = &stdout
 			tc.Command.Stderr = &stderr
-			if err := tc.Command.Run(); err != nil {
-				t.Fatalf("%s, stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+			if cmdErr := tc.Command.Run(); cmdErr != nil {
+				t.Fatalf("%s, stdout=%s stderr=%s", cmdErr, stdout.String(), stderr.String())
 			}
 
 			var b []byte

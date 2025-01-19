@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
@@ -122,18 +121,35 @@ func (r *TerraformTagsArgumentRule) processBody(body *hclsyntax.Body, filename s
 	return nil
 }
 
-// checkResourceBlock checks if "tags" is present, and if so, ensures
-// it is the last normal argument (i.e., after all other non-meta attributes).
-// Then "depends_on" and "lifecycle" (if they exist) come after tags,
-// each separated by exactly one blank line from tags.
-func (r *TerraformTagsArgumentRule) checkResourceBlock(block *hclsyntax.Block, runner tflint.Runner) error {
-	// We'll gather the lexical ordering of all content, then locate "tags," "depends_on," "lifecycle"
+func (r *TerraformTagsArgumentRule) checkResourceBlock(
+	block *hclsyntax.Block,
+	runner tflint.Runner,
+) error {
+	items := r.collectResourceItems(block)
+
+	tagsIndex := r.findTagsIndex(items)
+	if tagsIndex < 0 {
+		return nil
+	}
+
+	// Step 1: ensure no normal attribute or block after tags
+	if err := r.checkItemsAfterTags(items, tagsIndex, runner); err != nil {
+		return err
+	}
+	// Step 2: ensure exactly one blank line
+	return r.checkBlankLineAfterTags(block, items, tagsIndex, runner)
+}
+
+func (r *TerraformTagsArgumentRule) collectResourceItems(block *hclsyntax.Block) []struct {
+	Name  string
+	Type  string
+	Range hcl.Range
+} {
 	type item struct {
 		Name  string // attribute or block type
 		Type  string // "attr" or "block"
 		Range hcl.Range
 	}
-
 	var items []item
 
 	for _, attr := range block.Body.Attributes {
@@ -155,66 +171,94 @@ func (r *TerraformTagsArgumentRule) checkResourceBlock(block *hclsyntax.Block, r
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Range.Start.Byte < items[j].Range.Start.Byte
 	})
+	return items
+}
 
-	// Find if "tags" is present
-	tagsIndex := -1
+func (r *TerraformTagsArgumentRule) findTagsIndex(items []struct {
+	Name  string
+	Type  string
+	Range hcl.Range
+}) int {
 	for i, it := range items {
 		if it.Type == typeAttr && it.Name == "tags" {
-			tagsIndex = i
-			break
+			return i
 		}
 	}
-	if tagsIndex < 0 {
-		// If no tags -> no checks
-		return nil
-	}
+	return -1
+}
 
-	// If tags is present, ensure all normal attributes come before it
-	// but "depends_on" and "lifecycle" must come after it. We'll also
-	// check for the single empty line requirement.
-
-	// We'll read the actual file lines for the single-blank-line checks
-	files, err := runner.GetFiles()
-	if err != nil {
-		return err
-	}
-	hclFile, ok := files[block.Body.Range().Filename]
-	if !ok || hclFile.Bytes == nil {
-		return nil
-	}
-
+func (r *TerraformTagsArgumentRule) checkItemsAfterTags(
+	items []struct {
+		Name  string
+		Type  string
+		Range hcl.Range
+	},
+	tagsIndex int,
+	runner tflint.Runner,
+) error {
 	// Step 1: ensure no normal attribute or block after tags, except depends_on or lifecycle
 	for i := tagsIndex + 1; i < len(items); i++ {
 		if items[i].Type == typeAttr {
-			// If it's depends_on -> OK. If it's "tags" again? That's weird. We'll skip. If it's anything else -> NOT OK
 			if items[i].Name != "depends_on" {
-				return r.emitIssue(runner, items[i].Range, fmt.Sprintf("Argument '%s' must not come after 'tags'", items[i].Name))
+				return r.emitIssue(runner, items[i].Range,
+					fmt.Sprintf("Argument '%s' must not come after 'tags'", items[i].Name))
 			}
 		} else if items[i].Type == typeBlock {
-			// If it's "lifecycle" -> OK. Otherwise -> not OK
 			if items[i].Name != "lifecycle" {
-				return r.emitIssue(runner, items[i].Range, fmt.Sprintf("Block '%s' must not come after 'tags'", items[i].Name))
+				return r.emitIssue(runner, items[i].Range,
+					fmt.Sprintf("Block '%s' must not come after 'tags'", items[i].Name))
 			}
 		}
 	}
-
-	// Step 2: ensure exactly one blank line separates tags from depends_on or lifecycle if they exist
-	// We'll check the lines in lexical order. The line containing tags is items[tagsIndex].Range.End.Line
-	tagsLine := items[tagsIndex].Range.End.Line
-	// We'll look for the next item if it's depends_on or lifecycle
-	if tagsIndex+1 < len(items) {
-		next := items[tagsIndex+1]
-		if (next.Name == "depends_on" && next.Type == typeAttr) || (next.Name == "lifecycle" && next.Type == typeBlock) {
-			// We want exactly one blank line between line-of-tags and line-of-next
-			// line-of-tags is tagsLine, line-of-next is next.Range.Start.Line
-			linesBetween := next.Range.Start.Line - tagsLine - 1
-			if linesBetween != 1 {
-				return r.emitIssue(runner, next.Range, fmt.Sprintf("Expected exactly one blank line between 'tags' and '%s'", next.Name))
-			}
-		}
-	}
-
 	return nil
+}
+
+func (r *TerraformTagsArgumentRule) checkBlankLineAfterTags(
+	block *hclsyntax.Block,
+	items []struct {
+		Name  string
+		Type  string
+		Range hcl.Range
+	},
+	tagsIndex int,
+	runner tflint.Runner,
+) error {
+	hclFile, ok := r.getFile(block, runner)
+	if !ok {
+		return nil
+	}
+
+	// Check single blank line
+	tagsLine := items[tagsIndex].Range.End.Line
+	var nextItem *struct {
+		Name  string
+		Type  string
+		Range hcl.Range
+	}
+	if tagsIndex+1 < len(items) {
+		nextItem = &items[tagsIndex+1]
+	}
+
+	if nextItem != nil && (nextItem.Name == "depends_on" || nextItem.Name == "lifecycle") {
+		linesBetween := nextItem.Range.Start.Line - tagsLine - 1
+		if linesBetween != 1 {
+			return r.emitIssue(runner, nextItem.Range,
+				fmt.Sprintf("Expected exactly one blank line between 'tags' and '%s'", nextItem.Name))
+		}
+	}
+	return nil
+}
+
+func (r *TerraformTagsArgumentRule) getFile(block *hclsyntax.Block, runner tflint.Runner) (*tflint.File, bool) {
+	files, err := runner.GetFiles()
+	if err != nil {
+		return nil, false
+	}
+	hclFile, ok := files[block.Body.Range().Filename]
+	if !ok || hclFile.Bytes == nil {
+		return nil, false
+	}
+	return hclFile, true
 }
 
 func (r *TerraformTagsArgumentRule) emitIssue(runner tflint.Runner, rng hcl.Range, msg string) error {
