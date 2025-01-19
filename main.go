@@ -29,6 +29,7 @@ func main() {
 				rules.NewTerraformSourceFormatRule(),
 				rules.NewTerraformStandardModuleStructureRule(),
 				rules.NewTerraformTagsArgumentRule(),
+				rules.NewTerraformProviderSourceOrderRule(),
 			},
 		},
 	})
