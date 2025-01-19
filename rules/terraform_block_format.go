@@ -9,15 +9,6 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-const (
-	typeResource  = "resource"
-	typeData      = "data"
-	typeTerraform = "terraform"
-	typeProvider  = "provider"
-	typeAttr      = "attr"
-	typeBlock     = "block"
-)
-
 // TerraformBlockFormatRule enforces that within certain block types (resource, data, terraform, provider):
 // 1) The first block (if any) appears immediately after the opening brace or
 //    after exactly one blank line if there are attributes above it.
@@ -106,7 +97,7 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 
 	for _, attr := range block.Body.Attributes {
 		items = append(items, item{
-			Type:      typeAttr,
+			Type:      TypeAttr,
 			Range:     attr.Range(),
 			StartLine: attr.Range().Start.Line,
 			EndLine:   attr.Range().End.Line,
@@ -117,7 +108,7 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 		blkEnd := blk2.Body.Range().End.Line
 
 		items = append(items, item{
-			Type:      typeBlock,
+			Type:      TypeBlock,
 			Range:     blk2.DefRange(),
 			StartLine: blkStart,
 			EndLine:   blkEnd,
@@ -132,7 +123,7 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 	firstBlock := true
 
 	for _, it := range items {
-		if it.Type == typeAttr {
+		if it.Type == TypeAttr {
 			previousEndLine = it.EndLine
 			continue
 		}
@@ -168,5 +159,5 @@ func (r *TerraformBlockFormatRule) emitIssue(runner tflint.Runner, rng hcl.Range
 
 func isBlockTypeOfInterest(typ string) bool {
 	t := strings.ToLower(typ)
-	return t == typeResource || t == typeData || t == typeTerraform || t == typeProvider
+	return t == TypeResource || t == TypeData || t == TypeTerraform || t == TypeProvider
 }

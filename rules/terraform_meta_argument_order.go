@@ -10,18 +10,6 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-const (
-	argDependsOn      = "depends_on"
-	argLifecycle      = "lifecycle"
-	argCount          = "count"
-	argForEach        = "for_each"
-	argProvider       = "provider"
-	contentTypeBlock  = "block"
-	contentTypeAttr   = "attribute"
-	blockTypeResource = "resource"
-	blockTypeModule   = "module"
-)
-
 type TerraformArgumentOrderRule struct {
 	tflint.DefaultRule
 }
@@ -86,7 +74,7 @@ func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename 
 	for _, attr := range body.Attributes {
 		contentItems = append(contentItems, contentItem{
 			Name:     attr.Name,
-			Type:     contentTypeAttr,
+			Type:     TypeAttr,
 			Attr:     attr,
 			SrcRange: attr.Range(),
 		})
@@ -95,7 +83,7 @@ func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename 
 	for _, block := range body.Blocks {
 		contentItems = append(contentItems, contentItem{
 			Name:     block.Type,
-			Type:     contentTypeBlock,
+			Type:     TypeBlock,
 			Block:    block,
 			SrcRange: block.DefRange(),
 		})
@@ -106,8 +94,8 @@ func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename 
 	})
 
 	for _, item := range contentItems {
-		if item.Type == contentTypeBlock {
-			if item.Block.Type == blockTypeResource || item.Block.Type == blockTypeModule {
+		if item.Type == TypeBlock {
+			if item.Block.Type == TypeResource || item.Block.Type == TypeModule {
 				if err := r.checkBlock(item.Block, runner); err != nil {
 					return err
 				}
@@ -126,10 +114,10 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 	var desiredSequence []string
 
 	switch block.Type {
-	case blockTypeResource:
-		desiredSequence = []string{argCount + "|" + argForEach, argProvider, argLifecycle, argDependsOn}
-	case blockTypeModule:
-		desiredSequence = []string{argCount + "|" + argForEach, argDependsOn}
+	case TypeResource:
+		desiredSequence = []string{ArgCount + "|" + ArgForEach, ArgProvider, ArgLifecycle, ArgDependsOn}
+	case TypeModule:
+		desiredSequence = []string{ArgCount + "|" + ArgForEach, ArgDependsOn}
 	default:
 		return nil
 	}
@@ -147,7 +135,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 	for _, attr := range block.Body.Attributes {
 		contentItems = append(contentItems, contentItem{
 			Name:     attr.Name,
-			Type:     contentTypeAttr,
+			Type:     TypeAttr,
 			SrcRange: attr.Range(),
 		})
 	}
@@ -155,7 +143,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 	for _, childBlock := range block.Body.Blocks {
 		contentItems = append(contentItems, contentItem{
 			Name:     childBlock.Type,
-			Type:     contentTypeBlock,
+			Type:     TypeBlock,
 			SrcRange: childBlock.DefRange(),
 		})
 	}
@@ -166,12 +154,12 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 
 	var metaArgs []string
 	for _, item := range contentItems {
-		if item.Type == contentTypeAttr {
-			if item.Name == argCount || item.Name == argForEach || item.Name == argProvider || item.Name == argDependsOn {
+		if item.Type == TypeAttr {
+			if item.Name == ArgCount || item.Name == ArgForEach || item.Name == ArgProvider || item.Name == ArgDependsOn {
 				metaArgs = append(metaArgs, item.Name)
 			}
-		} else if item.Type == contentTypeBlock {
-			if item.Name == argLifecycle {
+		} else if item.Type == TypeBlock {
+			if item.Name == ArgLifecycle {
 				metaArgs = append(metaArgs, item.Name)
 			}
 		}
@@ -196,7 +184,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 		expected := desiredSequence[expectedIndex]
 		actual := metaArgs[actualIndex]
 
-		if (expected == argCount+"|"+argForEach && (actual == argCount || actual == argForEach)) || (expected == actual) {
+		if (expected == ArgCount+"|"+ArgForEach && (actual == ArgCount || actual == ArgForEach)) || (expected == actual) {
 			expectedIndex++
 			actualIndex++
 			continue
@@ -205,7 +193,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 		foundMatch := false
 		for expectedIndex < len(desiredSequence) {
 			expected = desiredSequence[expectedIndex]
-			if (expected == argCount+"|"+argForEach && (actual == argCount || actual == argForEach)) || (expected == actual) {
+			if (expected == ArgCount+"|"+ArgForEach && (actual == ArgCount || actual == ArgForEach)) || (expected == actual) {
 				foundMatch = true
 				break
 			}
