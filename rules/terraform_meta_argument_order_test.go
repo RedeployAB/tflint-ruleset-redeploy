@@ -14,18 +14,18 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 		Expected helper.Issues
 	}{
 		{
-			Name:    "valid resource order",
-			Content: readFixture(t, "meta_order_valid_resource.tf"),
+			Name:     "valid resource order",
+			Content:  readFixture(t, "meta_order_valid_resource.tf"),
 			Expected: helper.Issues{},
 		},
 		{
-			Name:    "resource partial usage (count only)",
-			Content: readFixture(t, "meta_order_resource_count_only.tf"),
+			Name:     "resource partial usage (count only)",
+			Content:  readFixture(t, "meta_order_resource_count_only.tf"),
 			Expected: helper.Issues{},
 		},
 		{
-			Name:    "resource with no meta arguments",
-			Content: readFixture(t, "meta_order_resource_no_meta.tf"),
+			Name:     "resource with no meta arguments",
+			Content:  readFixture(t, "meta_order_resource_no_meta.tf"),
 			Expected: helper.Issues{},
 		},
 		{
@@ -44,8 +44,8 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			},
 		},
 		{
-			Name:    "valid module order",
-			Content: readFixture(t, "meta_order_valid_module.tf"),
+			Name:     "valid module order",
+			Content:  readFixture(t, "meta_order_valid_module.tf"),
 			Expected: helper.Issues{},
 		},
 		{

@@ -1,4 +1,4 @@
 module "example" {
-  tags = {}
+  tags       = {}
   depends_on = []
 }
