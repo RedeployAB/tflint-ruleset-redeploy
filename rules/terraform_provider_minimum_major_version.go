@@ -112,7 +112,7 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 		}
 
 		var tmp string
-		if err := runner.EvaluateExpr(kv.ValueExpr, &tmp); err != nil {
+		if err := runner.EvaluateExpr(kv.ValueExpr, &tmp, nil); err != nil {
 			// If for some reason it isn't a string, skip this provider
 			return nil
 		}

@@ -56,8 +56,8 @@ terraform {
 					Message: "Provider 'aws' has a minimum version constraint but no maximum (version=\">= 4.0\")",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 7},
-						End:      hcl.Pos{Line: 6, Column: 14},
+						Start:    hcl.Pos{Line: 6, Column: 17},
+						End:      hcl.Pos{Line: 6, Column: 25},
 					},
 				},
 			},
@@ -105,8 +105,8 @@ terraform {
 					Message: "Provider 'aws' has only a maximum version constraint; a minimum version is required (version=\"< 4.0\")",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 7},
-						End:      hcl.Pos{Line: 6, Column: 14},
+						Start:    hcl.Pos{Line: 6, Column: 17},
+						End:      hcl.Pos{Line: 6, Column: 24},
 					},
 				},
 			},
