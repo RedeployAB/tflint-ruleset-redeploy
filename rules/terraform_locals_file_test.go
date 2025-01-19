@@ -23,14 +23,14 @@ func TestTerraformLocalsFileRule(t *testing.T) {
     {
       Name: "Valid - locals in locals.area.tf",
       FileMap: map[string]string{
-        "locals.config.tf": readFixture(t, "locals_file_valid_area.tf"),
+        "locals.config.tf": readFixture(t, "locals_file_valid_main.tf"),
       },
       Expected: helper.Issues{},
     },
     {
       Name: "Invalid - locals in other file",
       FileMap: map[string]string{
-        "main.tf": readFixture(t, "locals_file_invalid.tf"),
+        "main.tf": readFixture(t, "locals_file_valid_main.tf"),
       },
       Expected: helper.Issues{
         {
