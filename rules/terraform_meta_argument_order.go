@@ -127,63 +127,93 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 	blockLabels string,
 	runner tflint.Runner,
 ) error {
-	expectedIndex := 0
-	actualIndex := 0
+	// 1) Build a dictionary mapping metaArg -> index in metaArgs
+	metaArgIndices := make(map[string]int)
+	for i, arg := range metaArgs {
+		// If there's a collision (like "count" and "for_each" both found),
+		// keep the earlier index if we want whichever is first
+		if _, exists := metaArgIndices[arg]; !exists {
+			metaArgIndices[arg] = i
+		}
+	}
 
-	// Helper to see if metaArgs includes an item
-	metaArgIn := func(arg string) bool {
-		for _, m := range metaArgs {
-			if m == arg {
-				return true
+	// 2) We'll keep track of the highest index found so far
+	lastIndex := -1
+
+	// Helper to find the actual index of a meta-argument if it exists
+	// returns -1 if not found
+	getIndex := func(arg string) int {
+		if i, ok := metaArgIndices[arg]; ok {
+			return i
+		}
+		return -1
+	}
+
+	for i := 0; i < len(desiredSequence); i++ {
+		want := desiredSequence[i]
+
+		// If we are dealing with "count|for_each"
+		if want == ArgCount+"|"+ArgForEach {
+			countIdx := getIndex(ArgCount)
+			forEachIdx := getIndex(ArgForEach)
+
+			// If both are absent, skip
+			if countIdx < 0 && forEachIdx < 0 {
+				continue
 			}
+			// If both are present, pick whichever is earlier
+			foundIdx := -1
+			if countIdx >= 0 && forEachIdx >= 0 {
+				if countIdx < forEachIdx {
+					foundIdx = countIdx
+				} else {
+					foundIdx = forEachIdx
+				}
+			} else if countIdx >= 0 {
+				foundIdx = countIdx
+			} else {
+				foundIdx = forEachIdx
+			}
+
+			if foundIdx < lastIndex {
+				// out-of-order
+				argName := ArgCount
+				if foundIdx == forEachIdx {
+					argName = ArgForEach
+				}
+
+				return runner.EmitIssue(r,
+					fmt.Sprintf(
+						"Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
+						argName, block.Type, blockLabels,
+						strings.Join(desiredSequence, " -> "),
+					),
+					metaArgRange(block, argName),
+				)
+			}
+
+			lastIndex = foundIdx
+		} else {
+			// Normal argument
+			idx := getIndex(want)
+			if idx < 0 {
+				// not present -> skip
+				continue
+			}
+			// If present, must appear after lastIndex
+			if idx < lastIndex {
+				// out-of-order
+				return runner.EmitIssue(r,
+					fmt.Sprintf(
+						"Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
+						want, block.Type, blockLabels,
+						strings.Join(desiredSequence, " -> "),
+					),
+					metaArgRange(block, want),
+				)
+			}
+			lastIndex = idx
 		}
-		return false
-	}
-
-	// Simple helper for matching "count|for_each" or exact match
-	matchArg := func(actual, expected string) bool {
-		if expected == ArgCount+"|"+ArgForEach {
-			return (actual == ArgCount || actual == ArgForEach)
-		}
-		return (actual == expected)
-	}
-
-	for actualIndex < len(metaArgs) {
-		// Skip any unneeded items in desiredSequence that do not appear in metaArgs at all
-		for expectedIndex < len(desiredSequence) && !metaArgIn(desiredSequence[expectedIndex]) {
-			expectedIndex++
-		}
-
-		// If we've run out of expected slots, it's out-of-order
-		if expectedIndex >= len(desiredSequence) {
-			return runner.EmitIssue(
-				r,
-				fmt.Sprintf(
-					"Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
-					metaArgs[actualIndex], block.Type, blockLabels, strings.Join(desiredSequence, " -> "),
-				),
-				metaArgRange(block, metaArgs[actualIndex]),
-			)
-		}
-
-		actual := metaArgs[actualIndex]
-		expected := desiredSequence[expectedIndex]
-
-		// If this actual doesn't match the next expected exactly, it's out-of-order
-		if !matchArg(actual, expected) {
-			return runner.EmitIssue(
-				r,
-				fmt.Sprintf(
-					"Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
-					actual, block.Type, blockLabels, strings.Join(desiredSequence, " -> "),
-				),
-				metaArgRange(block, actual),
-			)
-		}
-
-		// Move to next expected + actual
-		expectedIndex++
-		actualIndex++
 	}
 	return nil
 }
