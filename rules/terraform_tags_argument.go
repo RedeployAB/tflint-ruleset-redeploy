@@ -110,7 +110,7 @@ func (r *TerraformTagsArgumentRule) Check(runner tflint.Runner) error {
 func (r *TerraformTagsArgumentRule) processBody(body *hclsyntax.Body, filename string, runner tflint.Runner) error {
 	for _, block := range body.Blocks {
 		if block.Type == "resource" {
-			if err := r.checkResourceBlock(block, filename, runner); err != nil {
+			if err := r.checkResourceBlock(block, runner); err != nil {
 				return err
 			}
 		}
@@ -126,7 +126,7 @@ func (r *TerraformTagsArgumentRule) processBody(body *hclsyntax.Body, filename s
 // it is the last normal argument (i.e., after all other non-meta attributes).
 // Then "depends_on" and "lifecycle" (if they exist) come after tags,
 // each separated by exactly one blank line from tags.
-func (r *TerraformTagsArgumentRule) checkResourceBlock(block *hclsyntax.Block, filename string, runner tflint.Runner) error {
+func (r *TerraformTagsArgumentRule) checkResourceBlock(block *hclsyntax.Block, runner tflint.Runner) error {
 	// We'll gather the lexical ordering of all content, then locate "tags," "depends_on," "lifecycle"
 	type item struct {
 		Name  string // attribute or block type

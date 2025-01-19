@@ -64,7 +64,7 @@ func (r *TerraformSourceFormatRule) Check(runner tflint.Runner) error {
 func (r *TerraformSourceFormatRule) processBody(body *hclsyntax.Body, filename string, runner tflint.Runner) error {
 	for _, block := range body.Blocks {
 		if block.Type == "module" {
-			if err := r.checkModuleBlock(block, filename, runner); err != nil {
+			if err := r.checkModuleBlock(block, runner); err != nil {
 				return err
 			}
 		}
@@ -76,7 +76,7 @@ func (r *TerraformSourceFormatRule) processBody(body *hclsyntax.Body, filename s
 }
 
 //nolint:gocyclo
-func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, filename string, runner tflint.Runner) error {
+func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, runner tflint.Runner) error {
 	srcRange := block.Body.Range()
 
 	files, err := runner.GetFiles()
@@ -182,7 +182,6 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, fil
 				rng,
 			)
 		}
-		nextLineIdx++
 	}
 
 	return nil
