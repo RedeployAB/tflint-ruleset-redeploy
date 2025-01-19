@@ -2,13 +2,11 @@ package rules
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
-	"github.com/zclconf/go-cty/cty"
 )
 
 // TerraformProviderMinimumMajorVersionRule enforces that, if a provider's
@@ -108,44 +106,21 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 	var versionString string
 	var versionRange hcl.Range
 
-	// Gather attributes in lexical order
-	type item struct {
-		Key   string
-		Value string
-		Range hcl.Range
-		Idx   int
-	}
-	var items []item
 	for _, kv := range obj.Items {
-		keyName := strings.TrimSpace(hcl.ExprAsKeyword(kv.KeyExpr))
-		if keyName == "" {
+		if strings.TrimSpace(hcl.ExprAsKeyword(kv.KeyExpr)) != "version" {
 			continue
 		}
-		rng := kv.KeyExpr.Range()
-		valueSrc := strings.TrimSpace(hcl.ExprAsKeyword(kv.ValueExpr))
-		items = append(items, item{Key: keyName, Value: valueSrc, Range: rng, Idx: rng.Start.Byte})
-	}
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Idx < items[j].Idx
-	})
 
-	for _, it := range items {
-		if it.Key == "version" {
-			versionString = it.Value
-			// If the expression is a string literal, we can decode it from kv.ValueExpr
-			if lit, ok := kvByKey(obj.Items, "version"); ok {
-				if strLit, ok := lit.ValueExpr.(*hclsyntax.LiteralValueExpr); ok {
-					versionRange = strLit.Range() // Use the value's range instead of the key's
-					v, diags := strLit.Value(nil)
-					if !diags.HasErrors() && v.Type() == cty.String {
-						versionString = v.AsString()
-					}
-				}
-			} else {
-				versionRange = it.Range
-			}
-			break
+		// Evaluate the "version" attribute as a string.
+		val, diags := runner.EvaluateExpr(kv.ValueExpr, hcl.TypeString, nil)
+		if diags == nil || !diags.HasErrors() {
+			versionString = val.AsString()
+			versionRange = kv.ValueExpr.Range()
+		} else {
+			// If for some reason it isn't a string, skip
+			return nil
 		}
+		break
 	}
 
 	// If no version => skip
@@ -181,7 +156,7 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 			versionRange,
 		)
 	case !hasMin && hasMax:
-		// Invalid: only a max constraint => no min
+		// Invalid: only a max constraint; a minimum is required
 		return runner.EmitIssue(
 			r,
 			fmt.Sprintf(
@@ -194,14 +169,4 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 		// Neither min nor max => skip
 		return nil
 	}
-}
-
-// kvByKey is a helper that returns the first key-value item with the given name
-func kvByKey(items []hclsyntax.ObjectConsItem, key string) (hclsyntax.ObjectConsItem, bool) {
-	for _, it := range items {
-		if strings.TrimSpace(hcl.ExprAsKeyword(it.KeyExpr)) == key {
-			return it, true
-		}
-	}
-	return hclsyntax.ObjectConsItem{}, false
 }
