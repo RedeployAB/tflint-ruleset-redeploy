@@ -117,7 +117,7 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 	})
 
 	// We also need the line of the block's opening brace
-	openBraceLine := block.Body.Range().Start.Line - 1
+	openBraceLine := block.Body.Range().Start.Line
 
 	var prevLine int
 	noPriorItems := true
@@ -139,7 +139,7 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 			referenceLine = prevLine
 		}
 
-		linesBetween := blockStartLine - referenceLine - 1
+		linesBetween := blockStartLine - (referenceLine + 1)
 
 		if noPriorItems {
 			// If it's the first item, linesBetween must be 0 for no extra blank lines
