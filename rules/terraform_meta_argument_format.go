@@ -212,8 +212,7 @@ func (r *TerraformMetaArgumentFormatRule) checkFormatting(block *hclsyntax.Block
 				nextLineIdx++
 				continue
 			} else {
-				// Next line is not blank
-				rng := hcl.Range{Filename: srcRange.Filename, Start: hcl.Pos{Line: nextLineIdx + 1}, End: hcl.Pos{Line: nextLineIdx + 1}}
+				rng := hcl.Range{Filename: srcRange.Filename, Start: hcl.Pos{Line: nextLineIdx + 1, Column: 1}, End: hcl.Pos{Line: nextLineIdx + 1, Column: 1}}
 				return runner.EmitIssue(
 					r,
 					"Expected a blank line after meta-arguments (count/for_each/provider)",
@@ -231,14 +230,13 @@ func (r *TerraformMetaArgumentFormatRule) checkFormatting(block *hclsyntax.Block
 			for prevLineIdx > startLine {
 				prevLine := strings.TrimSpace(lines[prevLineIdx])
 				if prevLine == "" {
-					// Blank line found
+					// blank line found
 					break
 				} else if strings.HasPrefix(prevLine, "//") || strings.HasPrefix(prevLine, "#") {
 					prevLineIdx--
 					continue
 				} else {
-					// Previous line is not blank
-					rng := hcl.Range{Filename: srcRange.Filename, Start: hcl.Pos{Line: argIdx + 1}, End: hcl.Pos{Line: argIdx + 1}}
+					rng := hcl.Range{Filename: srcRange.Filename, Start: hcl.Pos{Line: argIdx + 1, Column: 1}, End: hcl.Pos{Line: argIdx + 1, Column: 1}}
 					errMsg := fmt.Sprintf("Expected a blank line before meta-argument '%s'", argName)
 					return runner.EmitIssue(r, errMsg, rng)
 				}
