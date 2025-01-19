@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"github.com/RedeployAB/tflint-ruleset-redeploy/internal"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -164,7 +165,7 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, fil
 	}
 
 	// We only require a blank line if there's something *after* the last one
-	lastOfTheTwo := max(sourceLine, versionLine)
+	lastOfTheTwo := internal.Max(sourceLine, versionLine)
 	if lastOfTheTwo < 0 {
 		return nil
 	}
@@ -254,11 +255,4 @@ func pickAttrName(srcLine, verLine, last int) string {
 	default:
 		return "source"
 	}
-}
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }
