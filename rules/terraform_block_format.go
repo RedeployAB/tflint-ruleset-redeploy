@@ -51,7 +51,7 @@ func (r *TerraformBlockFormatRule) Check(runner tflint.Runner) error {
 
 		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
 		if diags.HasErrors() {
-			// skip file w/ parse errors
+			// skip file with parse errors
 			continue
 		}
 
@@ -148,14 +148,20 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 		if firstBlock && previousEndLine == block.Body.Range().Start.Line {
 			// No attributes above => expect 0 blank lines
 			if linesBetween != 0 {
-				return r.emitIssue(runner, it.Range,
-					"Block should appear immediately after opening brace when it's the first item (no blank lines)")
+				if err := r.emitIssue(runner, it.Range,
+					"Block should appear immediately after opening brace when it's the first item (no blank lines)"); err != nil {
+					return err
+				}
+				// Continue checking next items
 			}
 		} else {
 			// Otherwise, expect exactly 1 blank line before each subsequent block
 			if linesBetween != 1 {
-				return r.emitIssue(runner, it.Range,
-					"Expected exactly one blank line before this block")
+				if err := r.emitIssue(runner, it.Range,
+					"Expected exactly one blank line before this block"); err != nil {
+					return err
+				}
+				// Continue checking next items
 			}
 		}
 
