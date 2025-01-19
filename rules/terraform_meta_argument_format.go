@@ -248,10 +248,3 @@ func (r *TerraformMetaArgumentFormatRule) checkFormatting(block *hclsyntax.Block
 
 	return nil
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}

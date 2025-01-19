@@ -142,7 +142,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "example" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 11, Column: 3},
-						End:      hcl.Pos{Line: 11, Column: 20},
+						End:      hcl.Pos{Line: 11, Column: 22},
 					},
 				},
 			},
@@ -198,7 +198,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "example" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 8, Column: 3},
-						End:      hcl.Pos{Line: 8, Column: 24},
+						End:      hcl.Pos{Line: 8, Column: 26},
 					},
 				},
 			},
@@ -234,7 +234,7 @@ data "aws_ami" "example" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 8},
+						End:      hcl.Pos{Line: 4, Column: 9},
 					},
 				},
 			},
@@ -272,6 +272,15 @@ provider "aws" {
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 4, Column: 3},
 						End:      hcl.Pos{Line: 4, Column: 14},
+					},
+				},
+				{
+					Rule:    NewTerraformBlockFormatRule(),
+					Message: "Expected exactly one blank line before this block",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 5, Column: 3},
+						End:      hcl.Pos{Line: 5, Column: 15},
 					},
 				},
 			},

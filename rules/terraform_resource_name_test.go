@@ -36,7 +36,7 @@ resource "azurerm_load_balancer" "load_balancer" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 1},
-						End:      hcl.Pos{Line: 2, Column: 55},
+						End:      hcl.Pos{Line: 2, Column: 49},
 					},
 				},
 			},
@@ -48,6 +48,8 @@ resource "azurerm_load_balancer" "load_balancer" {
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			runner := helper.TestRunner(t, map[string]string{"resource.tf": test.Content})
+
+			t.Logf("Issues: %+v", runner.Issues)
 
 			if err := rule.Check(runner); err != nil {
 				t.Fatalf("Unexpected error occurred: %s", err)

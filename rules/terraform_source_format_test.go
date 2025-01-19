@@ -47,7 +47,7 @@ module "example" {
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformSourceFormatRule(),
-					Message: "Expected a blank line after 'version'",
+					Message: "Unexpected blank line after 'version' when block ends",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 5, Column: 1},
@@ -67,7 +67,7 @@ module "example" {
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformSourceFormatRule(),
-					Message: "Expected a blank line after 'source'",
+					Message: "Unexpected blank line after 'source' when block ends",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 4, Column: 1},
@@ -114,8 +114,8 @@ module "example" {
 					Message: "Expected a blank line after 'version'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 4, Column: 1},
-						End:      hcl.Pos{Line: 4, Column: 1},
+						Start:    hcl.Pos{Line: 5, Column: 1},
+						End:      hcl.Pos{Line: 5, Column: 1},
 					},
 				},
 			},

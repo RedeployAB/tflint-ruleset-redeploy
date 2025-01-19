@@ -7,7 +7,7 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
-func TestTerraformMetaArguments(t *testing.T) {
+func TestTerraformMetaArgumentOrder(t *testing.T) {
 	tests := []struct {
 		Name     string
 		Content  string
@@ -51,12 +51,12 @@ resource "aws_instance" "example" {
 }`,
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentsRule(),
-					Message: "Missing or out-of-order meta arguments in resource 'aws_instance example'. Expected sequence: count|for_each -> provider -> lifecycle -> depends_on",
+					Rule:    NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'count' in resource 'aws_instance example'. Expected sequence: count|for_each -> provider -> lifecycle -> depends_on",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 2, Column: 1},
-						End:      hcl.Pos{Line: 2, Column: 34},
+						Start:    hcl.Pos{Line: 4, Column: 3},
+						End:      hcl.Pos{Line: 4, Column: 17},
 					},
 				},
 			},
@@ -80,19 +80,19 @@ module "example" {
 }`,
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentsRule(),
-					Message: "Missing or out-of-order meta arguments in module 'example'. Expected sequence: count|for_each -> depends_on",
+					Rule:    NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'count' in module 'example'. Expected sequence: count|for_each -> depends_on",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 2, Column: 1},
-						End:      hcl.Pos{Line: 2, Column: 17},
+						Start:    hcl.Pos{Line: 4, Column: 3},
+						End:      hcl.Pos{Line: 4, Column: 17},
 					},
 				},
 			},
 		},
 	}
 
-	rule := NewTerraformMetaArgumentsRule()
+	rule := NewTerraformMetaArgumentOrderRule()
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {

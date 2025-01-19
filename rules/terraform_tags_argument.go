@@ -3,7 +3,6 @@ package rules
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -178,7 +177,6 @@ func (r *TerraformTagsArgumentRule) checkResourceBlock(block *hclsyntax.Block, f
 	if !ok || hclFile.Bytes == nil {
 		return nil
 	}
-	lines := strings.Split(string(hclFile.Bytes), "\n")
 
 	// Step 1: ensure no normal attribute or block after tags, except depends_on or lifecycle
 	for i := tagsIndex + 1; i < len(items); i++ {

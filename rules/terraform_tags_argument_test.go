@@ -77,8 +77,8 @@ resource "aws_nat_gateway" "this" {
 					Message: "Argument 'allocation_id' must not come after 'tags'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 8, Column: 3},
-						End:      hcl.Pos{Line: 8, Column: 27},
+						Start:    hcl.Pos{Line: 9, Column: 3},
+						End:      hcl.Pos{Line: 9, Column: 24},
 					},
 				},
 			},
@@ -100,8 +100,8 @@ resource "aws_nat_gateway" "this" {
 					Message: "Block 'something_else' must not come after 'tags'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 3},
-						End:      hcl.Pos{Line: 6, Column: 19},
+						Start:    hcl.Pos{Line: 7, Column: 3},
+						End:      hcl.Pos{Line: 7, Column: 17},
 					},
 				},
 			},
@@ -123,7 +123,7 @@ resource "aws_nat_gateway" "this" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 6, Column: 3},
-						End:      hcl.Pos{Line: 6, Column: 53},
+						End:      hcl.Pos{Line: 6, Column: 43},
 					},
 				},
 			},
@@ -145,7 +145,7 @@ resource "aws_nat_gateway" "this" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 6, Column: 3},
-						End:      hcl.Pos{Line: 6, Column: 14},
+						End:      hcl.Pos{Line: 6, Column: 12},
 					},
 				},
 			},

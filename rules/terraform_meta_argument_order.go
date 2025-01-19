@@ -10,27 +10,27 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-type TerraformMetaArgumentsRule struct {
+type TerraformArgumentOrderRule struct {
 	tflint.DefaultRule
 }
 
-func NewTerraformMetaArgumentsRule() *TerraformMetaArgumentsRule {
-	return &TerraformMetaArgumentsRule{}
+func NewTerraformMetaArgumentOrderRule() *TerraformArgumentOrderRule {
+	return &TerraformArgumentOrderRule{}
 }
 
-func (r *TerraformMetaArgumentsRule) Name() string {
-	return "terraform_meta_arguments"
+func (r *TerraformArgumentOrderRule) Name() string {
+	return "terraform_meta_argument_order"
 }
 
-func (r *TerraformMetaArgumentsRule) Enabled() bool {
+func (r *TerraformArgumentOrderRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformMetaArgumentsRule) Severity() tflint.Severity {
+func (r *TerraformArgumentOrderRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
-func (r *TerraformMetaArgumentsRule) Link() string {
+func (r *TerraformArgumentOrderRule) Link() string {
 	return ""
 }
 
@@ -44,7 +44,7 @@ func (r *TerraformMetaArgumentsRule) Link() string {
 // For modules:
 //   1) count or for_each
 //   2) depends_on
-func (r *TerraformMetaArgumentsRule) Check(runner tflint.Runner) error {
+func (r *TerraformArgumentOrderRule) Check(runner tflint.Runner) error {
 	files, err := runner.GetFiles()
 	if err != nil {
 		return err
@@ -81,7 +81,7 @@ func (r *TerraformMetaArgumentsRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
-func (r *TerraformMetaArgumentsRule) processBody(body *hclsyntax.Body, filename string, runner tflint.Runner) error {
+func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename string, runner tflint.Runner) error {
 	// Collect attributes and blocks with their positions
 	type contentItem struct {
 		Name     string
@@ -136,7 +136,7 @@ func (r *TerraformMetaArgumentsRule) processBody(body *hclsyntax.Body, filename 
 	return nil
 }
 
-func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner tflint.Runner) error {
+func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner tflint.Runner) error {
 	// Define the expected meta-argument sequence
 	var desiredSequence []string
 	if block.Type == "resource" {
@@ -227,7 +227,6 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 			// Instead of skipping or failing immediately, search forward in desiredSequence
 			// for the current 'actual' argument. If it's found, we match it. Otherwise, it's out-of-order.
 			foundMatch := false
-			saveExpectedIndex := expectedIndex // Save current position
 			for expectedIndex < len(desiredSequence) {
 				expected := desiredSequence[expectedIndex]
 				if (expected == "count|for_each" && (actual == "count" || actual == "for_each")) || (expected == actual) {

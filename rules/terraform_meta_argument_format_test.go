@@ -65,8 +65,7 @@ resource "aws_instance" "example" {
 			Name: "resource missing blank line before bottom meta argument (depends_on)",
 			Content: `
 resource "aws_instance" "example" {
-  provider = aws
-
+  tags = {}
   depends_on = []
 }
 `,
@@ -76,8 +75,8 @@ resource "aws_instance" "example" {
 					Message: `Expected a blank line before meta-argument 'depends_on'`,
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 5, Column: 1},
-						End:      hcl.Pos{Line: 5, Column: 1},
+						Start:    hcl.Pos{Line: 4, Column: 1},
+						End:      hcl.Pos{Line: 4, Column: 1},
 					},
 				},
 			},
@@ -97,7 +96,7 @@ module "example" {
 			Name: "module missing blank line before bottom meta argument (depends_on)",
 			Content: `
 module "example" {
-  count = 2
+  tags = {}
   depends_on = []
 }
 `,
@@ -107,8 +106,8 @@ module "example" {
 					Message: `Expected a blank line before meta-argument 'depends_on'`,
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 3},
+						Start:    hcl.Pos{Line: 4, Column: 1},
+						End:      hcl.Pos{Line: 4, Column: 1},
 					},
 				},
 			},
@@ -141,8 +140,8 @@ resource "aws_instance" "example" {
 					Message: `Expected a blank line before meta-argument 'lifecycle'`,
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 3},
-						End:      hcl.Pos{Line: 6, Column: 3},
+						Start:    hcl.Pos{Line: 6, Column: 1},
+						End:      hcl.Pos{Line: 6, Column: 1},
 					},
 				},
 			},
