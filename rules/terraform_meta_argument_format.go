@@ -116,7 +116,7 @@ func (r *TerraformMetaArgumentFormatRule) processBody(body *hclsyntax.Body, runn
 
 func (r *TerraformMetaArgumentFormatRule) checkFormatting(block *hclsyntax.Block, runner tflint.Runner) error {
 	// Get the block's source range
-	srcRange := block.DefRange()
+	srcRange := block.Body.Range()
 
 	// Get the file content from runner.GetFiles()
 	files, err := runner.GetFiles()
