@@ -161,7 +161,7 @@ func (r *TerraformMetaArgumentFormatRule) checkBlock(block *hclsyntax.Block, run
 					rng,
 				)
 			}
-			break
+
 		}
 	}
 
@@ -183,7 +183,7 @@ func (r *TerraformMetaArgumentFormatRule) checkBlock(block *hclsyntax.Block, run
 					msg := fmt.Sprintf("Expected a blank line before meta-argument '%s'", argName)
 					return runner.EmitIssue(r, msg, rng)
 				}
-				break
+
 			}
 		}
 	}

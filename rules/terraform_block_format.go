@@ -10,9 +10,9 @@ import (
 )
 
 // TerraformBlockFormatRule enforces that within certain block types (resource, data, terraform, provider):
-// 1) The first block (if any) appears immediately after the opening brace or
-//    after exactly one blank line if there are attributes above it.
-// 2) Any subsequent blocks in the same block appear after exactly one blank line.
+//  1. The first block (if any) appears immediately after the opening brace or
+//     after exactly one blank line if there are attributes above it.
+//  2. Any subsequent blocks in the same block appear after exactly one blank line.
 //
 // The same logic applies to nested blocks of nested blocks, recursively.
 type TerraformBlockFormatRule struct {

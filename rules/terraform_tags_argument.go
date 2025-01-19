@@ -22,39 +22,39 @@ const (
 //
 // Examples:
 //
-//   # OK usage
-//   resource "aws_nat_gateway" "this" {
-//     count = 2
+//	# OK usage
+//	resource "aws_nat_gateway" "this" {
+//	  count = 2
 //
-//     allocation_id = "..."
-//     subnet_id     = "..."
+//	  allocation_id = "..."
+//	  subnet_id     = "..."
 //
-//     tags = {
-//       Name = "..."
-//     }
+//	  tags = {
+//	    Name = "..."
+//	  }
 //
-//     depends_on = [aws_internet_gateway.this]
+//	  depends_on = [aws_internet_gateway.this]
 //
-//     lifecycle {
-//       create_before_destroy = true
-//     }
-//   }
+//	  lifecycle {
+//	    create_before_destroy = true
+//	  }
+//	}
 //
-//   # Not OK usage: tags not last real argument
-//   resource "aws_nat_gateway" "this" {
-//     count = 2
+//	# Not OK usage: tags not last real argument
+//	resource "aws_nat_gateway" "this" {
+//	  count = 2
 //
-//     tags = "..."
+//	  tags = "..."
 //
-//     depends_on = [aws_internet_gateway.this]
+//	  depends_on = [aws_internet_gateway.this]
 //
-//     lifecycle {
-//       create_before_destroy = true
-//     }
+//	  lifecycle {
+//	    create_before_destroy = true
+//	  }
 //
-//     allocation_id = "..."
-//     subnet_id     = "..."
-//   }
+//	  allocation_id = "..."
+//	  subnet_id     = "..."
+//	}
 type TerraformTagsArgumentRule struct {
 	tflint.DefaultRule
 }
