@@ -14,7 +14,7 @@ import (
 // a maximum ("<" or "<=") in the same string. It also flags purely
 // maximum-only constraints with no minimum as invalid.
 //
-// Skips approximate versions (~> ...), exact (= ...) constraints, or no version at all.
+// Skips approximate versions (~> ...), exact (= ...) constraints, constraints containing '!=', or no version at all.
 type TerraformProviderMinimumMajorVersionRule struct {
 	tflint.DefaultRule
 }
@@ -129,6 +129,10 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 	trimmed := strings.TrimSpace(versionString)
 
 	// We only skip if the constraint is approximate (contains "~>"),
+	// or if the constraint includes "!=" (exclusion).
+	if strings.Contains(trimmed, "!=") {
+		return nil
+	}
 	// or if it starts with "=" (exact). But do NOT skip if it's ">=..." or "<=..."
 	if strings.Contains(trimmed, "~>") {
 		return nil
@@ -155,7 +159,7 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 			versionRange,
 		)
 	case !hasMin && hasMax:
-		// Invalid: only a max constraint; a minimum version is required
+		// Invalid: only a maximum constraint; a minimum version is required
 		return runner.EmitIssue(
 			r,
 			fmt.Sprintf(
