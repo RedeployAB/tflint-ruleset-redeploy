@@ -150,6 +150,50 @@ func (r *TerraformArgumentOrderRule) collectMetaArgumentsInLexOrder(block *hclsy
 	return metaArgs
 }
 
+// checkCountOrForEach tries to see whether "count|for_each" is out of order,
+// comparing foundIdx to lastIndex. Returns updated lastIndex or an error if out-of-order.
+func (r *TerraformArgumentOrderRule) checkCountOrForEach(
+	foundIdx, forEachIdx, countIdx, lastIndex int,
+	block *hclsyntax.Block, blockLabels string,
+	desiredSequence []string, runner tflint.Runner,
+) (int, error) {
+	if foundIdx < lastIndex {
+		// out-of-order
+		argName := ArgCount
+		if foundIdx == forEachIdx {
+			argName = ArgForEach
+		}
+		return lastIndex, runner.EmitIssue(r,
+			fmt.Sprintf(
+				"Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
+				argName, block.Type, blockLabels,
+				strings.Join(desiredSequence, " -> "),
+			),
+			metaArgRange(block, argName),
+		)
+	}
+	return foundIdx, nil
+}
+
+// checkSingleArg ensures that idx >= 0 appears after lastIndex, or else it’s out-of-order.
+func (r *TerraformArgumentOrderRule) checkSingleArg(
+	want string, idx, lastIndex int,
+	block *hclsyntax.Block, blockLabels string,
+	desiredSequence []string, runner tflint.Runner,
+) (int, error) {
+	if idx < lastIndex {
+		return lastIndex, runner.EmitIssue(r,
+			fmt.Sprintf(
+				"Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
+				want, block.Type, blockLabels,
+				strings.Join(desiredSequence, " -> "),
+			),
+			metaArgRange(block, want),
+		)
+	}
+	return idx, nil
+}
+
 func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 	metaArgs, desiredSequence []string,
 	block *hclsyntax.Block,
@@ -159,10 +203,8 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 	// 1) Build a dictionary mapping metaArg -> index in metaArgs
 	metaArgIndices := make(map[string]int)
 	for i, arg := range metaArgs {
-		// If there's a collision (like "count" and "for_each" both found),
-		// keep the earlier index if we want whichever is first
-		if _, exists := metaArgIndices[arg]; !exists {
-			metaArgIndices[arg] = i
+		if _, already := metaArgIndices[arg]; !already {
+			metaArgIndices[arg] = i // store first occurrence only
 		}
 	}
 
@@ -204,44 +246,22 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 				foundIdx = forEachIdx
 			}
 
-			if foundIdx < lastIndex {
-				// out-of-order
-				argName := ArgCount
-				if foundIdx == forEachIdx {
-					argName = ArgForEach
-				}
-
-				return runner.EmitIssue(r,
-					fmt.Sprintf(
-						"Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
-						argName, block.Type, blockLabels,
-						strings.Join(desiredSequence, " -> "),
-					),
-					metaArgRange(block, argName),
-				)
+			newIndex, err := r.checkCountOrForEach(foundIdx, forEachIdx, countIdx, lastIndex, block, blockLabels, desiredSequence, runner)
+			if err != nil {
+				return err
 			}
-
-			lastIndex = foundIdx
+			lastIndex = newIndex
 		} else {
-			// Normal argument
 			idx := getIndex(want)
+			// not present -> skip
 			if idx < 0 {
-				// not present -> skip
 				continue
 			}
-			// If present, must appear after lastIndex
-			if idx < lastIndex {
-				// out-of-order
-				return runner.EmitIssue(r,
-					fmt.Sprintf(
-						"Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
-						want, block.Type, blockLabels,
-						strings.Join(desiredSequence, " -> "),
-					),
-					metaArgRange(block, want),
-				)
+			newIndex, err := r.checkSingleArg(want, idx, lastIndex, block, blockLabels, desiredSequence, runner)
+			if err != nil {
+				return err
 			}
-			lastIndex = idx
+			lastIndex = newIndex
 		}
 	}
 	return nil

@@ -61,6 +61,67 @@ func (r *TerraformMetaArgumentFormatRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
+// detectMetaArgName checks whether the given trimmed line starts with
+// any recognized meta argument. Returns "" if not found.
+func (r *TerraformMetaArgumentFormatRule) detectMetaArgName(line string) string {
+	if strings.HasPrefix(line, "count ") || strings.HasPrefix(line, "count=") {
+		return ArgCount
+	}
+	if strings.HasPrefix(line, "for_each ") || strings.HasPrefix(line, "for_each=") {
+		return ArgForEach
+	}
+	if strings.HasPrefix(line, "provider ") || strings.HasPrefix(line, "provider=") {
+		return ArgProvider
+	}
+	if strings.HasPrefix(line, "lifecycle ") {
+		return ArgLifecycle
+	}
+	if strings.HasPrefix(line, "depends_on ") || strings.HasPrefix(line, "depends_on=") {
+		return ArgDependsOn
+	}
+	return ""
+}
+
+// gatherMetaArgumentIndices scans lines within the block range to locate
+// top/bottom meta-argument line indices.
+func (r *TerraformMetaArgumentFormatRule) gatherMetaArgumentIndices(
+	lines []string,
+	startLine, endLine int,
+) (countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx int) {
+	countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx = -1, -1, -1, -1
+
+	for lineNum := startLine; lineNum <= endLine && lineNum < len(lines); lineNum++ {
+		trimmed := strings.TrimSpace(lines[lineNum])
+		if trimmed == "" {
+			continue
+		}
+		argName := r.detectMetaArgName(trimmed)
+		if argName == "" {
+			continue
+		}
+
+		switch argName {
+		case ArgCount, ArgForEach:
+			if countForEachIdx < 0 {
+				countForEachIdx = lineNum
+			}
+		case ArgProvider:
+			if providerIdx < 0 {
+				providerIdx = lineNum
+			}
+		case ArgLifecycle:
+			if lifecycleIdx < 0 {
+				lifecycleIdx = lineNum
+			}
+		case ArgDependsOn:
+			if dependsOnIdx < 0 {
+				dependsOnIdx = lineNum
+			}
+		}
+	}
+	return countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx
+}
+
 // Helper for checking blank line after top meta-arguments
 func (r *TerraformMetaArgumentFormatRule) checkBlankLineAfterTopMetaArgs(
 	lines []string,
@@ -128,45 +189,6 @@ func (r *TerraformMetaArgumentFormatRule) checkBlankLineBeforeBottomMetaArgs(
 		}
 	}
 	return nil
-}
-
-// gatherMetaArgumentIndices scans lines within the block range to locate
-// top/bottom meta-argument line indices.
-func (r *TerraformMetaArgumentFormatRule) gatherMetaArgumentIndices(
-	lines []string,
-	startLine, endLine int,
-) (countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx int) {
-	countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx = -1, -1, -1, -1
-
-	for l := startLine; l <= endLine && l < len(lines); l++ {
-		text := strings.TrimSpace(lines[l])
-		if text == "" {
-			continue
-		}
-		switch {
-		case strings.HasPrefix(text, "count ") || strings.HasPrefix(text, "count="):
-			if countForEachIdx < 0 {
-				countForEachIdx = l
-			}
-		case strings.HasPrefix(text, "for_each ") || strings.HasPrefix(text, "for_each="):
-			if countForEachIdx < 0 {
-				countForEachIdx = l
-			}
-		case strings.HasPrefix(text, "provider ") || strings.HasPrefix(text, "provider="):
-			if providerIdx < 0 {
-				providerIdx = l
-			}
-		case strings.HasPrefix(text, "lifecycle "):
-			if lifecycleIdx < 0 {
-				lifecycleIdx = l
-			}
-		case strings.HasPrefix(text, "depends_on ") || strings.HasPrefix(text, "depends_on="):
-			if dependsOnIdx < 0 {
-				dependsOnIdx = l
-			}
-		}
-	}
-	return countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx
 }
 
 func (r *TerraformMetaArgumentFormatRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
