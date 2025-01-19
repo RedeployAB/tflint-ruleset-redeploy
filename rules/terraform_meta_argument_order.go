@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -81,7 +82,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 		return nil
 	}
 	blockLabels := strings.Join(block.Labels, " ")
-	metaArgs := r.collectMetaArguments(block)
+	metaArgs := r.collectMetaArgumentsInLexOrder(block)
 	if len(metaArgs) == 0 {
 		return nil
 	}
@@ -99,23 +100,51 @@ func (r *TerraformArgumentOrderRule) getDesiredSequence(blockType string) []stri
 	}
 }
 
-func (r *TerraformArgumentOrderRule) collectMetaArguments(block *hclsyntax.Block) []string {
-	type contentItem struct {
-		Name string
-		Type string
+// collectMetaArgumentsInLexOrder collects meta-arguments (count, for_each, provider, depends_on, lifecycle)
+// in the exact lexical order they appear in the block. This ensures we don’t incorrectly treat
+// “depends_on” or others as out-of-order if they actually appear properly in the file.
+func (r *TerraformArgumentOrderRule) collectMetaArgumentsInLexOrder(block *hclsyntax.Block) []string {
+	type item struct {
+		Name     string
+		Type     string // "attr" or "block"
+		StartIdx int    // position of the line/byte
 	}
-	var items []contentItem
+
+	var items []item
+
 	for _, attr := range block.Body.Attributes {
-		items = append(items, contentItem{Name: attr.Name, Type: TypeAttr})
+		items = append(items, item{
+			Name:     attr.Name,
+			Type:     TypeAttr,
+			StartIdx: attr.Range().Start.Byte,
+		})
 	}
 	for _, childBlock := range block.Body.Blocks {
-		items = append(items, contentItem{Name: childBlock.Type, Type: TypeBlock})
+		items = append(items, item{
+			Name:     childBlock.Type,
+			Type:     TypeBlock,
+			StartIdx: childBlock.DefRange().Start.Byte,
+		})
 	}
+
+	// sort them by lexical StartIdx so we see them in the actual file order
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].StartIdx < items[j].StartIdx
+	})
+
 	var metaArgs []string
-	for _, it := range items {
-		if (it.Type == TypeAttr && (it.Name == ArgCount || it.Name == ArgForEach || it.Name == ArgProvider || it.Name == ArgDependsOn)) ||
-			(it.Type == TypeBlock && it.Name == ArgLifecycle) {
-			metaArgs = append(metaArgs, it.Name)
+	for _, i := range items {
+		// only record recognized meta arguments
+		if i.Type == TypeAttr {
+			switch i.Name {
+			case ArgCount, ArgForEach, ArgProvider, ArgDependsOn:
+				metaArgs = append(metaArgs, i.Name)
+			}
+		} else if i.Type == TypeBlock {
+			// for blocks, only "lifecycle" is a meta-argument
+			if i.Name == ArgLifecycle {
+				metaArgs = append(metaArgs, i.Name)
+			}
 		}
 	}
 	return metaArgs
