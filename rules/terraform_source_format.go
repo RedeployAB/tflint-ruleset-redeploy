@@ -10,45 +10,6 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-// TerraformSourceFormatRule enforces a blank line after the last of "source" or "version"
-// within a module block, but ONLY if additional arguments follow. If the block ends, no extra
-// blank line is required. Additionally, it disallows unnecessary blank lines before the closing brace
-// when no additional arguments are present.
-//
-// Examples:
-//  module "example" {
-//    source  = "something"  # OK if block ends here
-//  }
-//
-//  module "example" {
-//    source  = "something"
-//    version = "x.x.x"      # OK if block ends here
-//  }
-//
-//  module "example" {
-//    source  = "something"
-//    version = "x.x.x"
-//
-//    property = "value"     # OK because there's a blank line
-//  }
-//
-//  module "example" {
-//    source  = "something"
-//
-//    property = "value"     # OK because there's a blank line
-//  }
-//
-//  module "example" {
-//    source = "something"
-//    version = "x.x.x"
-//    property = "value"     # NOT OK, missing a blank line after version
-//  }
-//
-//  module "example" {
-//    source = "something"
-//
-//  }                       # NOT OK, unnecessary blank line before closing brace
-
 type TerraformSourceFormatRule struct {
 	tflint.DefaultRule
 }
@@ -80,7 +41,6 @@ func (r *TerraformSourceFormatRule) Check(runner tflint.Runner) error {
 	}
 
 	for filename, file := range files {
-		// Skip empty or nil
 		if file == nil || file.Bytes == nil {
 			continue
 		}
@@ -102,13 +62,11 @@ func (r *TerraformSourceFormatRule) Check(runner tflint.Runner) error {
 
 func (r *TerraformSourceFormatRule) processBody(body *hclsyntax.Body, filename string, runner tflint.Runner) error {
 	for _, block := range body.Blocks {
-		// Only check "module" blocks
 		if block.Type == "module" {
 			if err := r.checkModuleBlock(block, filename, runner); err != nil {
 				return err
 			}
 		}
-		// Recurse into nested blocks
 		if err := r.processBody(block.Body, filename, runner); err != nil {
 			return err
 		}
@@ -117,8 +75,6 @@ func (r *TerraformSourceFormatRule) processBody(body *hclsyntax.Body, filename s
 }
 
 func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, filename string, runner tflint.Runner) error {
-	// We'll parse the "source" and "version" lines by scanning the block's actual text lines.
-	// Then if there's a "source" or "version," check whether we must require a blank line after it.
 	srcRange := block.Body.Range()
 
 	files, err := runner.GetFiles()
@@ -139,18 +95,14 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, fil
 		endLine = len(lines) - 1
 	}
 
-	// Identify line numbers for "source" and "version".
-	// We'll store whichever is last (max line #).
 	sourceLine := -1
 	versionLine := -1
 
 	for l := startLine; l <= endLine && l < len(lines); l++ {
 		text := strings.TrimSpace(lines[l])
-		// Skip empty lines
 		if text == "" {
 			continue
 		}
-		// Check for "source" and "version" attributes
 		if strings.HasPrefix(text, "source ") || strings.HasPrefix(text, "source=") {
 			sourceLine = l
 		}
@@ -159,20 +111,16 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, fil
 		}
 	}
 
-	// If neither found, no issues
 	if sourceLine < 0 && versionLine < 0 {
 		return nil
 	}
 
-	// We only require a blank line if there's something *after* the last one
 	lastOfTheTwo := internal.Max(sourceLine, versionLine)
 	if lastOfTheTwo < 0 {
 		return nil
 	}
 
-	// The next line after lastOfTheTwo
 	nextLineIdx := lastOfTheTwo + 1
-	// If nextLineIdx > endLine, then the block ends immediately, no blank line required
 	if nextLineIdx > endLine {
 		return nil
 	}
@@ -180,7 +128,6 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, fil
 	for nextLineIdx <= endLine {
 		nextText := strings.TrimSpace(lines[nextLineIdx])
 		if nextText == "" {
-			// There's a blank line. Need to check if more arguments follow
 			tmp := nextLineIdx + 1
 			for tmp <= endLine {
 				lineCheck := strings.TrimSpace(lines[tmp])
@@ -189,7 +136,6 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, fil
 					continue
 				}
 				if lineCheck == "}" {
-					// Found a blank line followed by closing brace => issue
 					rng := hcl.Range{
 						Filename: srcRange.Filename,
 						Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
@@ -201,10 +147,8 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, fil
 						rng,
 					)
 				}
-				// Found actual argument => blank line is correct
 				return nil
 			}
-			// Ran off the block's end => no need for blank line => issue
 			rng := hcl.Range{
 				Filename: srcRange.Filename,
 				Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
@@ -215,32 +159,28 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, fil
 				fmt.Sprintf("Unexpected blank line after '%s' when block ends", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
 				rng,
 			)
-		} else if strings.HasPrefix(nextText, "//") || strings.HasPrefix(nextText, "#") {
-			// Skip comment lines
+		}
+		if strings.HasPrefix(nextText, "//") || strings.HasPrefix(nextText, "#") {
 			nextLineIdx++
 			continue
-		} else if nextText == "}" {
-			// Next line is the closing brace => no blank line required
-			return nil
-		} else {
-			// Next line is an argument; check for blank line before it
-			if nextLineIdx > lastOfTheTwo+1 {
-				// There is a blank line before this line => correct
-				return nil
-			} else {
-				// No blank line before this line => issue
-				rng := hcl.Range{
-					Filename: srcRange.Filename,
-					Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
-					End:      hcl.Pos{Line: nextLineIdx + 1, Column: 1},
-				}
-				return runner.EmitIssue(
-					r,
-					fmt.Sprintf("Expected a blank line after '%s'", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
-					rng,
-				)
-			}
 		}
+		if nextText == "}" {
+			return nil
+		}
+		if nextLineIdx > lastOfTheTwo+1 {
+			return nil
+		}
+
+		rng := hcl.Range{
+			Filename: srcRange.Filename,
+			Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
+			End:      hcl.Pos{Line: nextLineIdx + 1, Column: 1},
+		}
+		return runner.EmitIssue(
+			r,
+			fmt.Sprintf("Expected a blank line after '%s'", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
+			rng,
+		)
 	}
 
 	return nil

@@ -1,7 +1,3 @@
-// Package integration provides integration tests for tflint.
-// Make sure to install tflint & the plugin.
-//
-// To install the plugin use `make install`.
 package integration
 
 import (
@@ -29,7 +25,10 @@ func TestIntegration(t *testing.T) {
 		},
 	}
 
-	dir, _ := os.Getwd()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current working directory: %v", err)
+	}
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -53,7 +52,6 @@ func TestIntegration(t *testing.T) {
 			}
 
 			var b []byte
-			var err error
 			if runtime.GOOS == "windows" && IsWindowsResultExist() {
 				b, err = os.ReadFile(filepath.Join(testDir, "result_windows.json"))
 			} else {

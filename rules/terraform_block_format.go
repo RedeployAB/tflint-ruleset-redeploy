@@ -9,6 +9,15 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
+const (
+	typeResource = "resource"
+	typeData     = "data"
+	typeTerraform = "terraform"
+	typeProvider  = "provider"
+	typeAttr     = "attr"
+	typeBlock    = "block"
+)
+
 // TerraformBlockFormatRule enforces that within certain block types (resource, data, terraform, provider):
 // 1) The first block (if any) appears immediately after the opening brace or
 //    after exactly one blank line if there are attributes above it.
@@ -51,7 +60,6 @@ func (r *TerraformBlockFormatRule) Check(runner tflint.Runner) error {
 
 		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
 		if diags.HasErrors() {
-			// skip file with parse errors
 			continue
 		}
 
@@ -65,15 +73,12 @@ func (r *TerraformBlockFormatRule) Check(runner tflint.Runner) error {
 }
 
 func (r *TerraformBlockFormatRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
-	// Recurse into all blocks
 	for _, blk := range body.Blocks {
-		// If block.Type is in [resource, data, terraform, provider], check
 		if isBlockTypeOfInterest(blk.Type) {
 			if err := r.checkBlock(blk, runner); err != nil {
 				return err
 			}
 		}
-		// Recurse deeper
 		if err := r.processBody(blk.Body, runner); err != nil {
 			return err
 		}
@@ -81,10 +86,6 @@ func (r *TerraformBlockFormatRule) processBody(body *hclsyntax.Body, runner tfli
 	return nil
 }
 
-// checkBlock ensures that any sub-blocks inside the relevant block type
-// are separated by exactly one blank line from the prior item (be it an attribute or block),
-// except if it's the very first item, in which case it can appear immediately if it’s first
-// or after exactly one blank line if an attribute precedes it.
 func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tflint.Runner) error {
 	files, err := runner.GetFiles()
 	if err != nil {
@@ -95,77 +96,65 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 		return nil
 	}
 
-	// We'll gather the "items" in lexical order (attributes + blocks).
 	type item struct {
-		Type      string // "attr" or "block"
+		Type      string
 		Range     hcl.Range
 		StartLine int
 		EndLine   int
 	}
 	var items []item
 
-	// Add attributes in the block
 	for _, attr := range block.Body.Attributes {
 		items = append(items, item{
-			Type:      "attr",
+			Type:      typeAttr,
 			Range:     attr.Range(),
 			StartLine: attr.Range().Start.Line,
 			EndLine:   attr.Range().End.Line,
 		})
 	}
-	// Add sub-blocks in the block
 	for _, blk2 := range block.Body.Blocks {
 		blkStart := blk2.Body.Range().Start.Line
 		blkEnd := blk2.Body.Range().End.Line
 
 		items = append(items, item{
-			Type:      "block",
+			Type:      typeBlock,
 			Range:     blk2.DefRange(),
 			StartLine: blkStart,
 			EndLine:   blkEnd,
 		})
 	}
 
-	// Sort by starting line
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].StartLine < items[j].StartLine
 	})
 
-	// Initialize previousEndLine and firstBlock
 	previousEndLine := block.Body.Range().Start.Line
 	firstBlock := true
 
 	for _, it := range items {
-		if it.Type == "attr" {
-			// Just update previousEndLine
+		if it.Type == typeAttr {
 			previousEndLine = it.EndLine
 			continue
 		}
 
-		// It's a block
 		linesBetween := it.StartLine - (previousEndLine + 1)
 
 		if firstBlock && previousEndLine == block.Body.Range().Start.Line {
-			// No attributes above => expect 0 blank lines
 			if linesBetween != 0 {
 				if err := r.emitIssue(runner, it.Range,
 					"Block should appear immediately after opening brace when it's the first item (no blank lines)"); err != nil {
 					return err
 				}
-				// Continue checking next items
 			}
 		} else {
-			// Otherwise, expect exactly 1 blank line before each subsequent block
 			if linesBetween != 1 {
 				if err := r.emitIssue(runner, it.Range,
 					"Expected exactly one blank line before this block"); err != nil {
 					return err
 				}
-				// Continue checking next items
 			}
 		}
 
-		// Update for the next iteration
 		previousEndLine = it.EndLine
 		firstBlock = false
 	}
@@ -178,8 +167,6 @@ func (r *TerraformBlockFormatRule) emitIssue(runner tflint.Runner, rng hcl.Range
 }
 
 func isBlockTypeOfInterest(typ string) bool {
-	// apply same format rule to resource, data, terraform, provider
-	// add more if needed
 	t := strings.ToLower(typ)
-	return t == "resource" || t == "data" || t == "terraform" || t == "provider"
+	return t == typeResource || t == typeData || t == typeTerraform || t == typeProvider
 }

@@ -10,6 +10,14 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
+const (
+	argDependsOn = "depends_on"
+	argLifecycle = "lifecycle"
+	argCount     = "count"
+	argForEach   = "for_each"
+	argProvider  = "provider"
+)
+
 type TerraformArgumentOrderRule struct {
 	tflint.DefaultRule
 }
@@ -34,16 +42,6 @@ func (r *TerraformArgumentOrderRule) Link() string {
 	return ""
 }
 
-// Check enforces the required ordering of meta-arguments in resource and module blocks.
-// For resources:
-//   1) count or for_each
-//   2) provider
-//   3) lifecycle
-//   4) depends_on
-//
-// For modules:
-//   1) count or for_each
-//   2) depends_on
 func (r *TerraformArgumentOrderRule) Check(runner tflint.Runner) error {
 	files, err := runner.GetFiles()
 	if err != nil {
@@ -51,41 +49,29 @@ func (r *TerraformArgumentOrderRule) Check(runner tflint.Runner) error {
 	}
 
 	for filename, hclFile := range files {
-		// Skip if no content
 		if hclFile == nil || hclFile.Bytes == nil {
 			continue
 		}
 
-		// Use hclsyntax.ParseConfig() to parse the raw bytes in lexical order
 		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
 		if diags.HasErrors() {
-			// Either skip or emit an issue if parse fails
 			continue
 		}
 
-		// Now syntaxFile.Body is an *hclsyntax.Body that preserves ordering
-		fileBody := syntaxFile.Body
-
-		syntaxBody, ok := fileBody.(*hclsyntax.Body)
-		if !ok {
-			// Cannot parse body; skip this file
-			continue
-		}
-
-		if err := r.processBody(syntaxBody, filename, runner); err != nil {
-			return err
+		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
+			if err := r.processBody(body, filename, runner); err != nil {
+				return err
+			}
 		}
 	}
 
-	// If everything succeeded
 	return nil
 }
 
 func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename string, runner tflint.Runner) error {
-	// Collect attributes and blocks with their positions
 	type contentItem struct {
 		Name     string
-		Type     string // "attribute" or "block"
+		Type     string
 		Attr     *hclsyntax.Attribute
 		Block    *hclsyntax.Block
 		SrcRange hcl.Range
@@ -98,7 +84,7 @@ func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename 
 			Name:     attr.Name,
 			Type:     "attribute",
 			Attr:     attr,
-			SrcRange: attr.Range(), // Use attr.Range() for the correct range
+			SrcRange: attr.Range(),
 		})
 	}
 
@@ -107,25 +93,21 @@ func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename 
 			Name:     block.Type,
 			Type:     "block",
 			Block:    block,
-			SrcRange: block.DefRange(), // Use block.DefRange()
+			SrcRange: block.DefRange(),
 		})
 	}
 
-	// Sort contentItems by their position in the file to preserve ordering
 	sort.Slice(contentItems, func(i, j int) bool {
 		return contentItems[i].SrcRange.Start.Byte < contentItems[j].SrcRange.Start.Byte
 	})
 
-	// Iterate over contentItems in order
 	for _, item := range contentItems {
 		if item.Type == "block" {
-			// Check resource and module blocks
 			if item.Block.Type == "resource" || item.Block.Type == "module" {
 				if err := r.checkBlock(item.Block, runner); err != nil {
 					return err
 				}
 			} else {
-				// Recursively process other blocks
 				if err := r.processBody(item.Block.Body, filename, runner); err != nil {
 					return err
 				}
@@ -137,24 +119,20 @@ func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename 
 }
 
 func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner tflint.Runner) error {
-	// Define the expected meta-argument sequence
 	var desiredSequence []string
 	if block.Type == "resource" {
-		desiredSequence = []string{"count|for_each", "provider", "lifecycle", "depends_on"}
+		desiredSequence = []string{argCount + "|" + argForEach, argProvider, argLifecycle, argDependsOn}
 	} else if block.Type == "module" {
-		desiredSequence = []string{"count|for_each", "depends_on"}
+		desiredSequence = []string{argCount + "|" + argForEach, argDependsOn}
 	} else {
-		// Not a resource or module block
 		return nil
 	}
 
-	// Get the block labels for reporting
 	blockLabels := strings.Join(block.Labels, " ")
 
-	// Collect block content items in order
 	type contentItem struct {
 		Name     string
-		Type     string // "attribute" or "block"
+		Type     string
 		SrcRange hcl.Range
 	}
 
@@ -164,7 +142,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 		contentItems = append(contentItems, contentItem{
 			Name:     attr.Name,
 			Type:     "attribute",
-			SrcRange: attr.Range(), // Use attr.Range() for correct range
+			SrcRange: attr.Range(),
 		})
 	}
 
@@ -172,42 +150,36 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 		contentItems = append(contentItems, contentItem{
 			Name:     childBlock.Type,
 			Type:     "block",
-			SrcRange: childBlock.DefRange(), // Use childBlock.DefRange()
+			SrcRange: childBlock.DefRange(),
 		})
 	}
 
-	// Sort the content items to preserve ordering
 	sort.Slice(contentItems, func(i, j int) bool {
 		return contentItems[i].SrcRange.Start.Byte < contentItems[j].SrcRange.Start.Byte
 	})
 
-	// Collect meta-arguments in the order they appear
 	metaArgs := []string{}
 	for _, item := range contentItems {
 		if item.Type == "attribute" {
-			if item.Name == "count" || item.Name == "for_each" || item.Name == "provider" || item.Name == "depends_on" {
+			if item.Name == argCount || item.Name == argForEach || item.Name == argProvider || item.Name == argDependsOn {
 				metaArgs = append(metaArgs, item.Name)
 			}
 		} else if item.Type == "block" {
-			if item.Name == "lifecycle" {
+			if item.Name == argLifecycle {
 				metaArgs = append(metaArgs, item.Name)
 			}
 		}
 	}
 
-	// Allow blocks with zero meta-arguments
 	if len(metaArgs) == 0 {
-		// If there are no meta-arguments, allow it with no issues
 		return nil
 	}
 
-	// Verify the order of meta-arguments
 	expectedIndex := 0
 	actualIndex := 0
 
 	for actualIndex < len(metaArgs) {
 		if expectedIndex >= len(desiredSequence) {
-			// We've exhausted expected meta-arguments; any additional actual meta-arguments are out of order
 			return runner.EmitIssue(
 				r,
 				fmt.Sprintf("Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s", metaArgs[actualIndex], block.Type, blockLabels, strings.Join(desiredSequence, " -> ")),
@@ -218,47 +190,39 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 		expected := desiredSequence[expectedIndex]
 		actual := metaArgs[actualIndex]
 
-		if (expected == "count|for_each" && (actual == "count" || actual == "for_each")) || (expected == actual) {
-			// Match found, advance both indices
+		if (expected == argCount+"|"+argForEach && (actual == argCount || actual == argForEach)) || (expected == actual) {
 			expectedIndex++
 			actualIndex++
 			continue
-		} else {
-			// Instead of skipping or failing immediately, search forward in desiredSequence
-			// for the current 'actual' argument. If it's found, we match it. Otherwise, it's out-of-order.
-			foundMatch := false
-			for expectedIndex < len(desiredSequence) {
-				expected := desiredSequence[expectedIndex]
-				if (expected == "count|for_each" && (actual == "count" || actual == "for_each")) || (expected == actual) {
-					foundMatch = true
-					break
-				}
-				expectedIndex++
-			}
-
-			if foundMatch {
-				// We found where 'actual' fits in the sequence, so accept it and advance
-				expectedIndex++
-				actualIndex++
-				continue
-			} else {
-				// We never found a valid spot in the remainder of desiredSequence => out-of-order
-				return runner.EmitIssue(
-					r,
-					fmt.Sprintf("Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s", actual, block.Type, blockLabels, strings.Join(desiredSequence, " -> ")),
-					metaArgRange(block, actual),
-				)
-			}
 		}
-	}
 
-	// No need to check for remaining expected meta-arguments
+		foundMatch := false
+		for expectedIndex < len(desiredSequence) {
+			expected := desiredSequence[expectedIndex]
+			if (expected == argCount+"|"+argForEach && (actual == argCount || actual == argForEach)) || (expected == actual) {
+				foundMatch = true
+				break
+			}
+			expectedIndex++
+		}
+
+		if foundMatch {
+			expectedIndex++
+			actualIndex++
+			continue
+		}
+
+		return runner.EmitIssue(
+			r,
+			fmt.Sprintf("Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s", actual, block.Type, blockLabels, strings.Join(desiredSequence, " -> ")),
+			metaArgRange(block, actual),
+		)
+	}
 
 	return nil
 }
 
 func metaArgRange(block *hclsyntax.Block, argName string) hcl.Range {
-	// Find the attribute or block with the given name and return its range
 	for _, attr := range block.Body.Attributes {
 		if attr.Name == argName {
 			return attr.Range()
@@ -269,6 +233,5 @@ func metaArgRange(block *hclsyntax.Block, argName string) hcl.Range {
 			return childBlock.DefRange()
 		}
 	}
-	// If not found, return the block definition range
 	return block.DefRange()
 }
