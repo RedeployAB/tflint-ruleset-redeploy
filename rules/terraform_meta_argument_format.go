@@ -2,8 +2,9 @@ package rules
 
 import (
 	"fmt"
-	"sort"
+	"strings"
 
+	"github.com/RedeployAB/tflint-ruleset-redeploy/internal"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
@@ -61,47 +62,15 @@ func (r *TerraformMetaArgumentFormatRule) Check(runner tflint.Runner) error {
 }
 
 func (r *TerraformMetaArgumentFormatRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
-	type contentItem struct {
-		Name     string
-		Type     string
-		Block    *hclsyntax.Block
-		Attr     *hclsyntax.Attribute
-		SrcRange hcl.Range
-	}
-
-	var items []contentItem
-	for _, attr := range body.Attributes {
-		items = append(items, contentItem{
-			Name:     attr.Name,
-			Type:     TypeAttr,
-			Attr:     attr,
-			SrcRange: attr.Range(),
-		})
-	}
 	for _, blk := range body.Blocks {
-		items = append(items, contentItem{
-			Name:     blk.Type,
-			Type:     TypeBlock,
-			Block:    blk,
-			SrcRange: blk.DefRange(),
-		})
-	}
-
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].SrcRange.Start.Byte < items[j].SrcRange.Start.Byte
-	})
-
-	for _, it := range items {
-		if it.Type == TypeBlock {
-			if it.Block.Type == TypeResource || it.Block.Type == TypeModule {
-				if err := r.checkBlock(it.Block, runner); err != nil {
-					return err
-				}
-			} else {
-				// Recursively process other blocks
-				if err := r.processBody(it.Block.Body, runner); err != nil {
-					return err
-				}
+		if blk.Type == TypeResource || blk.Type == TypeModule {
+			if err := r.checkBlock(blk, runner); err != nil {
+				return err
+			}
+		} else {
+			// Recursively process other blocks
+			if err := r.processBody(blk.Body, runner); err != nil {
+				return err
 			}
 		}
 	}
@@ -109,68 +78,115 @@ func (r *TerraformMetaArgumentFormatRule) processBody(body *hclsyntax.Body, runn
 	return nil
 }
 
+// Reverted to older blank-line logic for top/bottom meta-arguments.
+// The tests expect "Expected a blank line after meta-arguments" and
+// "Expected a blank line before meta-argument 'depends_on/lifecycle'".
+
 func (r *TerraformMetaArgumentFormatRule) checkBlock(block *hclsyntax.Block, runner tflint.Runner) error {
-	// Ensure no blank lines between meta arguments
-	metaArgs := []string{ArgCount, ArgForEach, ArgProvider, ArgLifecycle, ArgDependsOn}
+	srcRange := block.Body.Range()
 
-	type contentItem struct {
-		Name     string
-		Type     string
-		Line     int
-		SrcRange hcl.Range
+	files, err := runner.GetFiles()
+	if err != nil {
+		return err
+	}
+	hclFile, ok := files[srcRange.Filename]
+	if !ok || hclFile.Bytes == nil {
+		return nil
 	}
 
-	var items []contentItem
-	for _, attr := range block.Body.Attributes {
-		items = append(items, contentItem{
-			Name:     attr.Name,
-			Type:     TypeAttr,
-			Line:     attr.Range().Start.Line,
-			SrcRange: attr.Range(),
-		})
-	}
-	for _, blk := range block.Body.Blocks {
-		items = append(items, contentItem{
-			Name:     blk.Type,
-			Type:     TypeBlock,
-			Line:     blk.DefRange().Start.Line,
-			SrcRange: blk.DefRange(),
-		})
+	lines := strings.Split(string(hclFile.Bytes), "\n")
+
+	// Track discovered line indices for each meta-argument
+	var countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx int
+	countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx = -1, -1, -1, -1
+
+	// We'll parse lines from block start to end to locate meta-argument lines
+	startLine := srcRange.Start.Line - 1
+	endLine := srcRange.End.Line - 1
+	if endLine >= len(lines) {
+		endLine = len(lines) - 1
 	}
 
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Line < items[j].Line
-	})
-
-	var metaArgIndices []int
-	for i, item := range items {
-		if contains(metaArgs, item.Name) {
-			metaArgIndices = append(metaArgIndices, i)
+	for l := startLine; l <= endLine && l < len(lines); l++ {
+		text := strings.TrimSpace(lines[l])
+		if text == "" {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(text, "count ") || strings.HasPrefix(text, "count="):
+			if countForEachIdx < 0 {
+				countForEachIdx = l
+			}
+		case strings.HasPrefix(text, "for_each ") || strings.HasPrefix(text, "for_each="):
+			if countForEachIdx < 0 {
+				countForEachIdx = l
+			}
+		case strings.HasPrefix(text, "provider ") || strings.HasPrefix(text, "provider="):
+			if providerIdx < 0 {
+				providerIdx = l
+			}
+		case strings.HasPrefix(text, "lifecycle "):
+			if lifecycleIdx < 0 {
+				lifecycleIdx = l
+			}
+		case strings.HasPrefix(text, "depends_on ") || strings.HasPrefix(text, "depends_on="):
+			if dependsOnIdx < 0 {
+				dependsOnIdx = l
+			}
 		}
 	}
 
-	for i := 0; i < len(metaArgIndices)-1; i++ {
-		currentItem := items[metaArgIndices[i]]
-		nextItem := items[metaArgIndices[i+1]]
+	// If we have a top meta-argument (count/for_each/provider), check for blank line after it
+	topIdx := internal.Max(countForEachIdx, providerIdx)
+	if topIdx >= 0 {
+		nextLineIdx := topIdx + 1
+		for nextLineIdx <= endLine {
+			nextLine := strings.TrimSpace(lines[nextLineIdx])
+			if nextLine == "" {
+				// Found blank line => good
+				break
+			} else if strings.HasPrefix(nextLine, "//") || strings.HasPrefix(nextLine, "#") {
+				// skip comment lines
+				nextLineIdx++
+				continue
+			} else if nextLine == "}" {
+				// next is closing brace => no blank line needed
+				break
+			} else {
+				// no blank line => error
+				rng := hcl.Range{Filename: srcRange.Filename, Start: hcl.Pos{Line: nextLineIdx + 1, Column: 1}, End: hcl.Pos{Line: nextLineIdx + 1, Column: 1}}
+				return runner.EmitIssue(
+					r,
+					"Expected a blank line after meta-arguments (count/for_each/provider)",
+					rng,
+				)
+			}
+			break
+		}
+	}
 
-		blankLines := nextItem.Line - currentItem.SrcRange.End.Line - 1
-		if blankLines != 0 {
-			return runner.EmitIssue(
-				r,
-				fmt.Sprintf("Meta arguments '%s' and '%s' should have no blank lines between them", currentItem.Name, nextItem.Name),
-				nextItem.SrcRange,
-			)
+	// If we have bottom meta-arguments (depends_on, lifecycle), check for blank line BEFORE them
+	for argName, argIdx := range map[string]int{"lifecycle": lifecycleIdx, "depends_on": dependsOnIdx} {
+		if argIdx >= 0 {
+			prevLineIdx := argIdx - 1
+			for prevLineIdx > startLine {
+				prevLine := strings.TrimSpace(lines[prevLineIdx])
+				if prevLine == "" {
+					// good => found blank line
+					break
+				} else if strings.HasPrefix(prevLine, "//") || strings.HasPrefix(prevLine, "#") {
+					prevLineIdx--
+					continue
+				} else {
+					// missing blank line
+					rng := hcl.Range{Filename: srcRange.Filename, Start: hcl.Pos{Line: argIdx + 1, Column: 1}, End: hcl.Pos{Line: argIdx + 1, Column: 1}}
+					msg := fmt.Sprintf("Expected a blank line before meta-argument '%s'", argName)
+					return runner.EmitIssue(r, msg, rng)
+				}
+				break
+			}
 		}
 	}
 
 	return nil
-}
-
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }
