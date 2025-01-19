@@ -29,8 +29,8 @@ func TestTerraformResourceArgumentOrder(t *testing.T) {
 					Message: "Argument 'skip_provider_registration' must not come after a nested block",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 5, Column: 3},
-						End:      hcl.Pos{Line: 5, Column: 30},
+						Start:    hcl.Pos{Line: 4, Column: 3},
+						End:      hcl.Pos{Line: 4, Column: 36},
 					},
 				},
 			},
@@ -59,8 +59,26 @@ func TestTerraformResourceArgumentOrder(t *testing.T) {
 					Message: "Argument 'resource_group_name' must not come after a nested block",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 15, Column: 3},
-						End:      hcl.Pos{Line: 15, Column: 26},
+						Start:    hcl.Pos{Line: 10, Column: 3},
+						End:      hcl.Pos{Line: 10, Column: 29},
+					},
+				},
+				{
+					Rule:    NewTerraformResourceArgumentOrderRule(),
+					Message: "Argument 'sku_name' must not come after a nested block",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 11, Column: 3},
+						End:      hcl.Pos{Line: 11, Column: 36},
+					},
+				},
+				{
+					Rule:    NewTerraformResourceArgumentOrderRule(),
+					Message: "Argument 'sku_tier' must not come after a nested block",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 12, Column: 3},
+						End:      hcl.Pos{Line: 12, Column: 35},
 					},
 				},
 			},
