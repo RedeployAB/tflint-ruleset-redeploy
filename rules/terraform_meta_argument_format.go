@@ -210,7 +210,9 @@ func (r *TerraformMetaArgumentFormatRule) checkFormatting(block *hclsyntax.Block
 			} else if strings.HasPrefix(nextLine, "//") || strings.HasPrefix(nextLine, "#") {
 				// Skip comment lines
 				nextLineIdx++
-				continue
+			} else if nextLine == "}" {
+				// Next line is the closing brace, so no blank line is required
+				break
 			} else {
 				rng := hcl.Range{Filename: srcRange.Filename, Start: hcl.Pos{Line: nextLineIdx + 1, Column: 1}, End: hcl.Pos{Line: nextLineIdx + 1, Column: 1}}
 				return runner.EmitIssue(
