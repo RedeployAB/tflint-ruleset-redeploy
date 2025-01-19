@@ -13,6 +13,26 @@ permissions: {}
 
 jobs:
   lint:
+    name: Lint Go
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run linter
+        uses: golangci-lint-action@v6
+        with:
+          version: v1.63.4
+
+  super-linter:
     name: Lint codebase
     runs-on: ubuntu-latest
     permissions:
@@ -35,6 +55,7 @@ jobs:
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_CHECKOV: false
           VALIDATE_GO: false
+          VALIDATE_GO_MODULES: false
           VALIDATE_JAVASCRIPT_STANDARD: false
           VALIDATE_TERRAFORM_TFLINT: false
           VALIDATE_TERRAFORM_TERRASCAN: false
