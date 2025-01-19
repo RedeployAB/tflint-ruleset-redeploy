@@ -16,22 +16,14 @@ func TestTerraformConfigBlockFileRule(t *testing.T) {
     {
       Name: "Valid - terraform block in terraform.tf",
       FileMap: map[string]string{
-        "terraform.tf": `
-terraform {
-  required_version = ">= 1.0"
-}
-`,
+        "terraform.tf": readFixture(t, "terraform_config_block.tf"),
       },
       Expected: helper.Issues{},
     },
     {
       Name: "Invalid - terraform block in main.tf",
       FileMap: map[string]string{
-        "main.tf": `
-terraform {
-  backend "s3" {}
-}
-`,
+        "main.tf": readFixture(t, "terraform_config_block.tf"),
       },
       Expected: helper.Issues{
         {
