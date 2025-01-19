@@ -10,12 +10,12 @@ import (
 )
 
 const (
-	typeResource = "resource"
-	typeData     = "data"
+	typeResource  = "resource"
+	typeData      = "data"
 	typeTerraform = "terraform"
 	typeProvider  = "provider"
-	typeAttr     = "attr"
-	typeBlock    = "block"
+	typeAttr      = "attr"
+	typeBlock     = "block"
 )
 
 // TerraformBlockFormatRule enforces that within certain block types (resource, data, terraform, provider):

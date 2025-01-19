@@ -11,12 +11,13 @@ import (
 )
 
 const (
-	blockTypeResource = "resource"
-	blockTypeModule   = "module"
-	contentTypeBlock  = "block"
-	contentTypeAttr   = "attribute"
+	blockTypeResource   = "resource"
+	blockTypeModule     = "module"
+	contentTypeBlock    = "block"
+	contentTypeAttr     = "attribute"
 )
 
+// TerraformMetaArgumentFormatRule checks the formatting of meta-arguments in resource and module blocks.
 type TerraformMetaArgumentFormatRule struct {
 	tflint.DefaultRule
 }
@@ -41,7 +42,6 @@ func (r *TerraformMetaArgumentFormatRule) Link() string {
 	return ""
 }
 
-//nolint:gocyclo
 func (r *TerraformMetaArgumentFormatRule) Check(runner tflint.Runner) error {
 	files, err := runner.GetFiles()
 	if err != nil {
@@ -115,7 +115,6 @@ func (r *TerraformMetaArgumentFormatRule) processBody(body *hclsyntax.Body, runn
 	return nil
 }
 
-//nolint:gocyclo
 func (r *TerraformMetaArgumentFormatRule) checkFormatting(block *hclsyntax.Block, runner tflint.Runner) error {
 	srcRange := block.Body.Range()
 
@@ -189,13 +188,14 @@ func (r *TerraformMetaArgumentFormatRule) checkFormatting(block *hclsyntax.Block
 		nextLineIdx := topIdx + 1
 		for nextLineIdx <= endLine {
 			nextLine := strings.TrimSpace(lines[nextLineIdx])
-			if nextLine == "" {
+			switch {
+			case nextLine == "":
 				break
-			} else if strings.HasPrefix(nextLine, "//") || strings.HasPrefix(nextLine, "#") {
+			case strings.HasPrefix(nextLine, "//"), strings.HasPrefix(nextLine, "#"):
 				nextLineIdx++
-			} else if nextLine == "}" {
+			case nextLine == "}":
 				break
-			} else {
+			default:
 				rng := hcl.Range{Filename: srcRange.Filename, Start: hcl.Pos{Line: nextLineIdx + 1, Column: 1}, End: hcl.Pos{Line: nextLineIdx + 1, Column: 1}}
 				return runner.EmitIssue(
 					r,
@@ -203,6 +203,7 @@ func (r *TerraformMetaArgumentFormatRule) checkFormatting(block *hclsyntax.Block
 					rng,
 				)
 			}
+			break
 		}
 	}
 
@@ -211,15 +212,18 @@ func (r *TerraformMetaArgumentFormatRule) checkFormatting(block *hclsyntax.Block
 			prevLineIdx := argIdx - 1
 			for prevLineIdx > startLine {
 				prevLine := strings.TrimSpace(lines[prevLineIdx])
-				if prevLine == "" {
+				switch {
+				case prevLine == "":
 					break
-				} else if strings.HasPrefix(prevLine, "//") || strings.HasPrefix(prevLine, "#") {
+				case strings.HasPrefix(prevLine, "//"), strings.HasPrefix(prevLine, "#"):
 					prevLineIdx--
 					continue
+				default:
+					rng := hcl.Range{Filename: srcRange.Filename, Start: hcl.Pos{Line: argIdx + 1, Column: 1}, End: hcl.Pos{Line: argIdx + 1, Column: 1}}
+					errMsg := fmt.Sprintf("Expected a blank line before meta-argument '%s'", argName)
+					return runner.EmitIssue(r, errMsg, rng)
 				}
-				rng := hcl.Range{Filename: srcRange.Filename, Start: hcl.Pos{Line: argIdx + 1, Column: 1}, End: hcl.Pos{Line: argIdx + 1, Column: 1}}
-				errMsg := fmt.Sprintf("Expected a blank line before meta-argument '%s'", argName)
-				return runner.EmitIssue(r, errMsg, rng)
+				break
 			}
 		}
 	}

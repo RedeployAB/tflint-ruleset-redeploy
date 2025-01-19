@@ -9,6 +9,11 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
+const (
+	typeAttr  = "attr"
+	typeBlock = "block"
+)
+
 // TerraformTagsArgumentRule enforces that if a resource has a "tags" attribute,
 // the "tags" must appear *after* all normal resource arguments, but *before*
 // depends_on and lifecycle blocks. The user must also ensure that each
@@ -134,14 +139,14 @@ func (r *TerraformTagsArgumentRule) checkResourceBlock(block *hclsyntax.Block, f
 	for _, attr := range block.Body.Attributes {
 		items = append(items, item{
 			Name:  attr.Name,
-			Type:  "attr",
+			Type:  typeAttr,
 			Range: attr.Range(),
 		})
 	}
 	for _, blk := range block.Body.Blocks {
 		items = append(items, item{
 			Name:  blk.Type,
-			Type:  "block",
+			Type:  typeBlock,
 			Range: blk.DefRange(),
 		})
 	}
@@ -154,7 +159,7 @@ func (r *TerraformTagsArgumentRule) checkResourceBlock(block *hclsyntax.Block, f
 	// Find if "tags" is present
 	tagsIndex := -1
 	for i, it := range items {
-		if it.Type == "attr" && it.Name == "tags" {
+		if it.Type == typeAttr && it.Name == "tags" {
 			tagsIndex = i
 			break
 		}
@@ -180,12 +185,12 @@ func (r *TerraformTagsArgumentRule) checkResourceBlock(block *hclsyntax.Block, f
 
 	// Step 1: ensure no normal attribute or block after tags, except depends_on or lifecycle
 	for i := tagsIndex + 1; i < len(items); i++ {
-		if items[i].Type == "attr" {
+		if items[i].Type == typeAttr {
 			// If it's depends_on -> OK. If it's "tags" again? That's weird. We'll skip. If it's anything else -> NOT OK
 			if items[i].Name != "depends_on" {
 				return r.emitIssue(runner, items[i].Range, fmt.Sprintf("Argument '%s' must not come after 'tags'", items[i].Name))
 			}
-		} else if items[i].Type == "block" {
+		} else if items[i].Type == typeBlock {
 			// If it's "lifecycle" -> OK. Otherwise -> not OK
 			if items[i].Name != "lifecycle" {
 				return r.emitIssue(runner, items[i].Range, fmt.Sprintf("Block '%s' must not come after 'tags'", items[i].Name))
@@ -199,7 +204,7 @@ func (r *TerraformTagsArgumentRule) checkResourceBlock(block *hclsyntax.Block, f
 	// We'll look for the next item if it's depends_on or lifecycle
 	if tagsIndex+1 < len(items) {
 		next := items[tagsIndex+1]
-		if (next.Name == "depends_on" && next.Type == "attr") || (next.Name == "lifecycle" && next.Type == "block") {
+		if (next.Name == "depends_on" && next.Type == typeAttr) || (next.Name == "lifecycle" && next.Type == typeBlock) {
 			// We want exactly one blank line between line-of-tags and line-of-next
 			// line-of-tags is tagsLine, line-of-next is next.Range.Start.Line
 			linesBetween := next.Range.Start.Line - tagsLine - 1

@@ -2,14 +2,15 @@ package rules
 
 import (
 	"fmt"
-	"github.com/RedeployAB/tflint-ruleset-redeploy/internal"
 	"strings"
 
+	"github.com/RedeployAB/tflint-ruleset-redeploy/internal"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
+//nolint:gocyclo
 type TerraformSourceFormatRule struct {
 	tflint.DefaultRule
 }
@@ -74,6 +75,7 @@ func (r *TerraformSourceFormatRule) processBody(body *hclsyntax.Body, filename s
 	return nil
 }
 
+//nolint:gocyclo
 func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, filename string, runner tflint.Runner) error {
 	srcRange := block.Body.Range()
 
@@ -127,7 +129,8 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, fil
 
 	for nextLineIdx <= endLine {
 		nextText := strings.TrimSpace(lines[nextLineIdx])
-		if nextText == "" {
+		switch {
+		case nextText == "":
 			tmp := nextLineIdx + 1
 			for tmp <= endLine {
 				lineCheck := strings.TrimSpace(lines[tmp])
@@ -159,28 +162,27 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, fil
 				fmt.Sprintf("Unexpected blank line after '%s' when block ends", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
 				rng,
 			)
-		}
-		if strings.HasPrefix(nextText, "//") || strings.HasPrefix(nextText, "#") {
+		case strings.HasPrefix(nextText, "//"), strings.HasPrefix(nextText, "#"):
 			nextLineIdx++
 			continue
-		}
-		if nextText == "}" {
+		case nextText == "}":
 			return nil
+		default:
+			if nextLineIdx > lastOfTheTwo+1 {
+				return nil
+			}
+			rng := hcl.Range{
+				Filename: srcRange.Filename,
+				Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
+				End:      hcl.Pos{Line: nextLineIdx + 1, Column: 1},
+			}
+			return runner.EmitIssue(
+				r,
+				fmt.Sprintf("Expected a blank line after '%s'", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
+				rng,
+			)
 		}
-		if nextLineIdx > lastOfTheTwo+1 {
-			return nil
-		}
-
-		rng := hcl.Range{
-			Filename: srcRange.Filename,
-			Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
-			End:      hcl.Pos{Line: nextLineIdx + 1, Column: 1},
-		}
-		return runner.EmitIssue(
-			r,
-			fmt.Sprintf("Expected a blank line after '%s'", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
-			rng,
-		)
+		nextLineIdx++
 	}
 
 	return nil

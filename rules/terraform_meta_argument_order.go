@@ -11,11 +11,15 @@ import (
 )
 
 const (
-	argDependsOn = "depends_on"
-	argLifecycle = "lifecycle"
-	argCount     = "count"
-	argForEach   = "for_each"
-	argProvider  = "provider"
+	argDependsOn      = "depends_on"
+	argLifecycle      = "lifecycle"
+	argCount          = "count"
+	argForEach        = "for_each"
+	argProvider       = "provider"
+	contentTypeBlock  = "block"
+	contentTypeAttr   = "attribute"
+	blockTypeResource = "resource"
+	blockTypeModule   = "module"
 )
 
 type TerraformArgumentOrderRule struct {
@@ -82,7 +86,7 @@ func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename 
 	for _, attr := range body.Attributes {
 		contentItems = append(contentItems, contentItem{
 			Name:     attr.Name,
-			Type:     "attribute",
+			Type:     contentTypeAttr,
 			Attr:     attr,
 			SrcRange: attr.Range(),
 		})
@@ -91,7 +95,7 @@ func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename 
 	for _, block := range body.Blocks {
 		contentItems = append(contentItems, contentItem{
 			Name:     block.Type,
-			Type:     "block",
+			Type:     contentTypeBlock,
 			Block:    block,
 			SrcRange: block.DefRange(),
 		})
@@ -102,8 +106,8 @@ func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename 
 	})
 
 	for _, item := range contentItems {
-		if item.Type == "block" {
-			if item.Block.Type == "resource" || item.Block.Type == "module" {
+		if item.Type == contentTypeBlock {
+			if item.Block.Type == blockTypeResource || item.Block.Type == blockTypeModule {
 				if err := r.checkBlock(item.Block, runner); err != nil {
 					return err
 				}
@@ -120,11 +124,13 @@ func (r *TerraformArgumentOrderRule) processBody(body *hclsyntax.Body, filename 
 
 func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner tflint.Runner) error {
 	var desiredSequence []string
-	if block.Type == "resource" {
+
+	switch block.Type {
+	case blockTypeResource:
 		desiredSequence = []string{argCount + "|" + argForEach, argProvider, argLifecycle, argDependsOn}
-	} else if block.Type == "module" {
+	case blockTypeModule:
 		desiredSequence = []string{argCount + "|" + argForEach, argDependsOn}
-	} else {
+	default:
 		return nil
 	}
 
@@ -141,7 +147,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 	for _, attr := range block.Body.Attributes {
 		contentItems = append(contentItems, contentItem{
 			Name:     attr.Name,
-			Type:     "attribute",
+			Type:     contentTypeAttr,
 			SrcRange: attr.Range(),
 		})
 	}
@@ -149,7 +155,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 	for _, childBlock := range block.Body.Blocks {
 		contentItems = append(contentItems, contentItem{
 			Name:     childBlock.Type,
-			Type:     "block",
+			Type:     contentTypeBlock,
 			SrcRange: childBlock.DefRange(),
 		})
 	}
@@ -158,13 +164,13 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 		return contentItems[i].SrcRange.Start.Byte < contentItems[j].SrcRange.Start.Byte
 	})
 
-	metaArgs := []string{}
+	var metaArgs []string
 	for _, item := range contentItems {
-		if item.Type == "attribute" {
+		if item.Type == contentTypeAttr {
 			if item.Name == argCount || item.Name == argForEach || item.Name == argProvider || item.Name == argDependsOn {
 				metaArgs = append(metaArgs, item.Name)
 			}
-		} else if item.Type == "block" {
+		} else if item.Type == contentTypeBlock {
 			if item.Name == argLifecycle {
 				metaArgs = append(metaArgs, item.Name)
 			}
@@ -198,7 +204,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 
 		foundMatch := false
 		for expectedIndex < len(desiredSequence) {
-			expected := desiredSequence[expectedIndex]
+			expected = desiredSequence[expectedIndex]
 			if (expected == argCount+"|"+argForEach && (actual == argCount || actual == argForEach)) || (expected == actual) {
 				foundMatch = true
 				break
