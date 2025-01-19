@@ -37,8 +37,8 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 					Message: "Out-of-order meta argument 'depends_on' in resource 'aws_instance example'. Expected sequence: count|for_each -> provider -> lifecycle -> depends_on",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 3, Column: 3},
-						End:      hcl.Pos{Line: 3, Column: 18},
+						Start:    hcl.Pos{Line: 2, Column: 3},
+						End:      hcl.Pos{Line: 2, Column: 18},
 					},
 				},
 			},
@@ -57,8 +57,8 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 					Message: "Out-of-order meta argument 'depends_on' in module 'example'. Expected sequence: count|for_each -> depends_on",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 3, Column: 3},
-						End:      hcl.Pos{Line: 3, Column: 18},
+						Start:    hcl.Pos{Line: 2, Column: 3},
+						End:      hcl.Pos{Line: 2, Column: 18},
 					},
 				},
 			},

@@ -37,8 +37,8 @@ func TestTerraformMetaArgumentFormat(t *testing.T) {
 					Message: "Expected a blank line after meta-arguments (count/for_each/provider)",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 5, Column: 1},
-						End:      hcl.Pos{Line: 5, Column: 1},
+						Start:    hcl.Pos{Line: 4, Column: 1},
+						End:      hcl.Pos{Line: 4, Column: 1},
 					},
 				},
 			},
@@ -52,8 +52,8 @@ func TestTerraformMetaArgumentFormat(t *testing.T) {
 					Message: `Expected a blank line before meta-argument 'depends_on'`,
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 4, Column: 1},
-						End:      hcl.Pos{Line: 4, Column: 1},
+						Start:    hcl.Pos{Line: 3, Column: 1},
+						End:      hcl.Pos{Line: 3, Column: 1},
 					},
 				},
 			},
@@ -72,8 +72,8 @@ func TestTerraformMetaArgumentFormat(t *testing.T) {
 					Message: `Expected a blank line before meta-argument 'depends_on'`,
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 4, Column: 1},
-						End:      hcl.Pos{Line: 4, Column: 1},
+						Start:    hcl.Pos{Line: 3, Column: 1},
+						End:      hcl.Pos{Line: 3, Column: 1},
 					},
 				},
 			},
@@ -92,8 +92,8 @@ func TestTerraformMetaArgumentFormat(t *testing.T) {
 					Message: `Expected a blank line before meta-argument 'lifecycle'`,
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 1},
-						End:      hcl.Pos{Line: 6, Column: 1},
+						Start:    hcl.Pos{Line: 5, Column: 1},
+						End:      hcl.Pos{Line: 5, Column: 1},
 					},
 				},
 			},

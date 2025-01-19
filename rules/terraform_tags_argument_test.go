@@ -37,8 +37,8 @@ func TestTerraformTagsArgumentRule(t *testing.T) {
 					Message: "Argument 'allocation_id' must not come after 'tags'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 9, Column: 3},
-						End:      hcl.Pos{Line: 9, Column: 24},
+						Start:    hcl.Pos{Line: 8, Column: 3},
+						End:      hcl.Pos{Line: 8, Column: 24},
 					},
 				},
 			},
@@ -52,8 +52,8 @@ func TestTerraformTagsArgumentRule(t *testing.T) {
 					Message: "Block 'something_else' must not come after 'tags'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 7, Column: 3},
-						End:      hcl.Pos{Line: 7, Column: 17},
+						Start:    hcl.Pos{Line: 6, Column: 3},
+						End:      hcl.Pos{Line: 6, Column: 17},
 					},
 				},
 			},
@@ -67,8 +67,8 @@ func TestTerraformTagsArgumentRule(t *testing.T) {
 					Message: "Expected exactly one blank line between 'tags' and 'depends_on'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 3},
-						End:      hcl.Pos{Line: 6, Column: 43},
+						Start:    hcl.Pos{Line: 5, Column: 3},
+						End:      hcl.Pos{Line: 5, Column: 43},
 					},
 				},
 			},
@@ -82,8 +82,8 @@ func TestTerraformTagsArgumentRule(t *testing.T) {
 					Message: "Expected exactly one blank line between 'tags' and 'lifecycle'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 3},
-						End:      hcl.Pos{Line: 6, Column: 12},
+						Start:    hcl.Pos{Line: 5, Column: 3},
+						End:      hcl.Pos{Line: 5, Column: 12},
 					},
 				},
 			},
