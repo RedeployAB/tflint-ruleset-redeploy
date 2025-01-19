@@ -1,6 +1,6 @@
 resource "azurerm_firewall" "example" {
-  name                = "testfirewall"
-  location            = "West Europe"
+  name     = "testfirewall"
+  location = "West Europe"
 
   ip_configuration {
     name      = "configuration"
