@@ -7,37 +7,49 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
-func Test_AwsInstanceExampleType(t *testing.T) {
+func TestTerraformResourceNameRule(t *testing.T) {
 	tests := []struct {
 		Name     string
 		Content  string
 		Expected helper.Issues
 	}{
 		{
-			Name: "issue found",
+			Name: "valid name (does not repeat type)",
 			Content: `
-resource "aws_instance" "web" {
-    instance_type = "t2.micro"
-}`,
+resource "azurerm_load_balancer" "lb" {
+	// ...
+}
+`,
+			Expected: helper.Issues{},
+		},
+		{
+			Name: "invalid repeated name",
+			Content: `
+resource "azurerm_load_balancer" "load_balancer" {
+	// ...
+}
+`,
 			Expected: helper.Issues{
 				{
-					Rule:    NewAwsInstanceExampleTypeRule(),
-					Message: "instance type is t2.micro",
+					Rule:    NewTerraformResourceNameRule(),
+					Message: "Resource name repeats resource type 'load_balancer'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 3, Column: 21},
-						End:      hcl.Pos{Line: 3, Column: 31},
+						Start:    hcl.Pos{Line: 2, Column: 1},
+						End:      hcl.Pos{Line: 2, Column: 49},
 					},
 				},
 			},
 		},
 	}
 
-	rule := NewAwsInstanceExampleTypeRule()
+	rule := NewTerraformResourceNameRule()
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			runner := helper.TestRunner(t, map[string]string{"resource.tf": test.Content})
+
+			t.Logf("Issues: %+v", runner.Issues)
 
 			if err := rule.Check(runner); err != nil {
 				t.Fatalf("Unexpected error occurred: %s", err)

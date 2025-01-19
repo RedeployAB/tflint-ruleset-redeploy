@@ -1,7 +1,7 @@
 ---
 name: Code linting
 
-on:
+on: # yamllint disable-line rule:truthy
   pull_request:
     branches:
       - main
@@ -13,11 +13,30 @@ permissions: {}
 
 jobs:
   lint:
-    name: Lint codebase
+    name: Lint Go
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run linter
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.63.4
+
+  super-linter:
+    name: Lint codebase
+    runs-on: ubuntu-latest
+    permissions:
       packages: read
+      contents: write
       statuses: write
     steps:
       - name: Checkout
@@ -26,10 +45,32 @@ jobs:
           fetch-depth: 0
 
       - name: Run linter
-        uses: super-linter/super-linter@v6.8.0
+        uses: super-linter/super-linter/slim@v7.2.1
         env:
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LINTER_RULES_PATH: "."
+          FILTER_REGEX_EXCLUDE: "^.*/testdata/.*.tf$"
+          IGNORE_GENERATED_FILES: true
           VALIDATE_ALL_CODEBASE: true
+          VALIDATE_CHECKOV: false
+          VALIDATE_GO: false
+          VALIDATE_GO_MODULES: false
+          VALIDATE_JAVASCRIPT_STANDARD: false
+          VALIDATE_MARKDOWN_PRETTIER: false
           VALIDATE_TERRAFORM_TFLINT: false
           VALIDATE_TERRAFORM_TERRASCAN: false
+
+      - name: Commit and push linting fixes
+        # Run only on:
+        # - Pull requests
+        # - Not on the default branch
+        if: >
+          github.event_name == 'pull_request' &&
+          github.ref_name != github.event.repository.default_branch
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          branch: ${{ github.event.pull_request.head.ref || github.head_ref || github.ref }}
+          commit_message: "chore: fix linting issues"
+          commit_user_name: super-linter
+          commit_user_email: super-linter@super-linter.dev

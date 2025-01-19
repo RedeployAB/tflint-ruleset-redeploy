@@ -1,7 +1,3 @@
-// Package integration provides integration tests for tflint.
-// Make sure to install tflint & the plugin.
-//
-// To install the plugin use `make install`.
 package integration
 
 import (
@@ -29,31 +25,33 @@ func TestIntegration(t *testing.T) {
 		},
 	}
 
-	dir, _ := os.Getwd()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current working directory: %v", err)
+	}
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			testDir := filepath.Join(dir, tc.Dir)
 
 			t.Cleanup(func() {
-				if err := os.Chdir(dir); err != nil {
-					t.Fatal(err)
+				if chdirErr := os.Chdir(dir); chdirErr != nil {
+					t.Fatal(chdirErr)
 				}
 			})
 
-			if err := os.Chdir(testDir); err != nil {
-				t.Fatal(err)
+			if chdirErr := os.Chdir(testDir); chdirErr != nil {
+				t.Fatal(chdirErr)
 			}
 
 			var stdout, stderr bytes.Buffer
 			tc.Command.Stdout = &stdout
 			tc.Command.Stderr = &stderr
-			if err := tc.Command.Run(); err != nil {
-				t.Fatalf("%s, stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+			if cmdErr := tc.Command.Run(); cmdErr != nil {
+				t.Fatalf("%s, stdout=%s stderr=%s", cmdErr, stdout.String(), stderr.String())
 			}
 
 			var b []byte
-			var err error
 			if runtime.GOOS == "windows" && IsWindowsResultExist() {
 				b, err = os.ReadFile(filepath.Join(testDir, "result_windows.json"))
 			} else {
