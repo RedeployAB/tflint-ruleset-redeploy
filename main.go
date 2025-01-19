@@ -21,12 +21,14 @@ func main() {
 			Name:    "redeploy",
 			Version: version,
 			Rules: []tflint.Rule{
-				rules.NewTerraformBackendTypeRule(),
+				rules.NewTerraformBlockFormatRule(),
 				rules.NewTerraformFilenameConventionRule(),
-				rules.NewTerraformResourceNameRule(),
-				rules.NewTerraformStandardModuleStructureRule(),
 				rules.NewTerraformMetaArgumentOrderRule(),
 				rules.NewTerraformMetaArgumentFormatRule(),
+				rules.NewTerraformResourceNameRule(),
+				rules.NewTerraformSourceFormatRule(),
+				rules.NewTerraformStandardModuleStructureRule(),
+				rules.NewTerraformTagsArgumentRule(),
 			},
 		},
 	})
