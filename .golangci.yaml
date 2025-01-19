@@ -2,6 +2,10 @@
 linters:
   # see also https://golangci-lint.run/usage/linters/#enabled-by-default
   enable:
-    - gofmt
+    - gocritic
+    - gocyclo
     - godox
+    - gofmt
+    - goimports
     - errchkjson
+    - revive
