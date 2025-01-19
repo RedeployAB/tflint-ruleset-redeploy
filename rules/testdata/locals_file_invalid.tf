@@ -1,0 +1,3 @@
+locals {
+  secret = "somevalue"
+}

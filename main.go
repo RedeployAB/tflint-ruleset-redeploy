@@ -30,6 +30,7 @@ func main() {
 				rules.NewTerraformStandardModuleStructureRule(),
 				rules.NewTerraformTagsArgumentRule(),
 				rules.NewTerraformProviderSourceOrderRule(),
+				rules.NewTerraformLocalsFileRule(), // <- Added this line
 			},
 		},
 	})
