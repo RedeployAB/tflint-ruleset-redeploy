@@ -1,7 +1,9 @@
 package rules
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -147,7 +149,7 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 	}
 
 	// Get the block labels for reporting
-	// blockLabels := strings.Join(block.Labels, " ")
+	blockLabels := strings.Join(block.Labels, " ")
 
 	// Collect block content items in order
 	type contentItem struct {
@@ -203,38 +205,71 @@ func (r *TerraformMetaArgumentsRule) checkBlock(block *hclsyntax.Block, runner t
 	expectedIndex := 0
 	actualIndex := 0
 
-	for actualIndex < len(metaArgs) && expectedIndex < len(desiredSequence) {
+	for actualIndex < len(metaArgs) {
+		if expectedIndex >= len(desiredSequence) {
+			// We've exhausted expected meta-arguments; any additional actual meta-arguments are out of order
+			return runner.EmitIssue(
+				r,
+				fmt.Sprintf("Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s", metaArgs[actualIndex], block.Type, blockLabels, strings.Join(desiredSequence, " -> ")),
+				metaArgRange(block, metaArgs[actualIndex]),
+			)
+		}
+
 		expected := desiredSequence[expectedIndex]
 		actual := metaArgs[actualIndex]
 
-		if expected == "count|for_each" {
-			if actual == "count" || actual == "for_each" {
-				expectedIndex++
-				actualIndex++
-				continue
-			}
-		} else if expected == actual {
+		if (expected == "count|for_each" && (actual == "count" || actual == "for_each")) || (expected == actual) {
+			// Match found, advance both indices
 			expectedIndex++
 			actualIndex++
 			continue
 		} else {
-			// Skip expected meta-arguments that are not present
-			expectedIndex++
-			continue
+			// Instead of skipping or failing immediately, search forward in desiredSequence
+			// for the current 'actual' argument. If it's found, we match it. Otherwise, it's out-of-order.
+			foundMatch := false
+			saveExpectedIndex := expectedIndex // Save current position
+			for expectedIndex < len(desiredSequence) {
+				expected := desiredSequence[expectedIndex]
+				if (expected == "count|for_each" && (actual == "count" || actual == "for_each")) || (expected == actual) {
+					foundMatch = true
+					break
+				}
+				expectedIndex++
+			}
+
+			if foundMatch {
+				// We found where 'actual' fits in the sequence, so accept it and advance
+				expectedIndex++
+				actualIndex++
+				continue
+			} else {
+				// We never found a valid spot in the remainder of desiredSequence => out-of-order
+				return runner.EmitIssue(
+					r,
+					fmt.Sprintf("Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s", actual, block.Type, blockLabels, strings.Join(desiredSequence, " -> ")),
+					metaArgRange(block, actual),
+				)
+			}
 		}
 	}
 
-	// Removed the final check to allow partial usage without failing
-	/*
-	// Check for any remaining expected meta-arguments
-	if expectedIndex < len(desiredSequence) {
-		msg := fmt.Sprintf(
-			"Missing meta arguments in %s '%s'. Expected sequence: %s",
-			block.Type, blockLabels, strings.Join(desiredSequence, " -> "),
-		)
-		return runner.EmitIssue(r, msg, block.DefRange())
-	}
-	*/
+	// No need to check for remaining expected meta-arguments
 
 	return nil
+}
+
+func metaArgRange(block *hclsyntax.Block, argName string) hcl.Range {
+	// Find the attribute or block with the given name and return its range
+	for _, attr := range block.Body.Attributes {
+		if attr.Name == argName {
+			return attr.Range()
+		}
+	}
+	for _, childBlock := range block.Body.Blocks {
+		if childBlock.Type == argName {
+			return childBlock.DefRange()
+		}
+	}
+	// If not found, return the block definition range
+	return block.DefRange()
 }
