@@ -129,44 +129,45 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 ) error {
 	expectedIndex := 0
 	actualIndex := 0
+
+	// Simple helper for matching "count|for_each" or exact match
+	matchArg := func(actual, expected string) bool {
+		if expected == ArgCount+"|"+ArgForEach {
+			return (actual == ArgCount || actual == ArgForEach)
+		}
+		return (actual == expected)
+	}
+
 	for actualIndex < len(metaArgs) {
+		// If we've run out of expected slots, it's out-of-order
 		if expectedIndex >= len(desiredSequence) {
 			return runner.EmitIssue(
 				r,
-				fmt.Sprintf("Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
-					metaArgs[actualIndex], block.Type, blockLabels, strings.Join(desiredSequence, " -> ")),
+				fmt.Sprintf(
+					"Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
+					metaArgs[actualIndex], block.Type, blockLabels, strings.Join(desiredSequence, " -> "),
+				),
 				metaArgRange(block, metaArgs[actualIndex]),
 			)
 		}
-		expected := desiredSequence[expectedIndex]
 		actual := metaArgs[actualIndex]
-		if (expected == ArgCount+"|"+ArgForEach && (actual == ArgCount || actual == ArgForEach)) ||
-			(expected == actual) {
-			expectedIndex++
-			actualIndex++
-			continue
+		expected := desiredSequence[expectedIndex]
+
+		// If this actual doesn't match the next expected exactly, it's out-of-order
+		if !matchArg(actual, expected) {
+			return runner.EmitIssue(
+				r,
+				fmt.Sprintf(
+					"Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
+					actual, block.Type, blockLabels, strings.Join(desiredSequence, " -> "),
+				),
+				metaArgRange(block, actual),
+			)
 		}
-		foundMatch := false
-		for expectedIndex < len(desiredSequence) {
-			expected = desiredSequence[expectedIndex]
-			if (expected == ArgCount+"|"+ArgForEach && (actual == ArgCount || actual == ArgForEach)) ||
-				(expected == actual) {
-				foundMatch = true
-				break
-			}
-			expectedIndex++
-		}
-		if foundMatch {
-			expectedIndex++
-			actualIndex++
-			continue
-		}
-		return runner.EmitIssue(
-			r,
-			fmt.Sprintf("Out-of-order meta argument '%s' in %s '%s'. Expected sequence: %s",
-				actual, block.Type, blockLabels, strings.Join(desiredSequence, " -> ")),
-			metaArgRange(block, actual),
-		)
+
+		// Move to next expected + actual
+		expectedIndex++
+		actualIndex++
 	}
 	return nil
 }
