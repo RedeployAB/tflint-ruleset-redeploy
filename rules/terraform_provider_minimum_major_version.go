@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // TerraformProviderMinimumMajorVersionRule enforces that, if a provider's
@@ -91,7 +92,7 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkRequiredProvidersBlock(
 ) error {
 	for providerName, attr := range block.Body.Attributes {
 		if obj, ok := attr.Expr.(*hclsyntax.ObjectConsExpr); ok {
-			if err := r.checkProviderObject(obj, providerName, runner, attr.Range()); err != nil {
+			if err := r.checkProviderObject(obj, providerName, runner); err != nil {
 				return err
 			}
 		}
@@ -103,7 +104,6 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 	obj *hclsyntax.ObjectConsExpr,
 	providerName string,
 	runner tflint.Runner,
-	providerRange hcl.Range,
 ) error {
 	var versionString string
 	var versionRange hcl.Range
@@ -135,8 +135,11 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 			// If the expression is a string literal, we can decode it from kv.ValueExpr
 			if lit, ok := kvByKey(obj.Items, "version"); ok {
 				versionRange = lit.KeyExpr.Range()
-				if strLit, ok := lit.ValueExpr.(*hclsyntax.LiteralValueExpr); ok && strLit.Value.Type() == hcl.TypeString {
-					versionString = strLit.Value.AsString()
+				if strLit, ok := lit.ValueExpr.(*hclsyntax.LiteralValueExpr); ok {
+					v, diags := strLit.Value(nil)
+					if !diags.HasErrors() && v.Type() == cty.String {
+						versionString = v.AsString()
+					}
 				}
 			} else {
 				versionRange = it.Range

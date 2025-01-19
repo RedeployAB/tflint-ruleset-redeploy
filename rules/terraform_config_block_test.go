@@ -1,10 +1,10 @@
 package rules
 
 import (
-  "testing"
+	"testing"
 
-  hcl "github.com/hashicorp/hcl/v2"
-  "github.com/terraform-linters/tflint-plugin-sdk/helper"
+	hcl "github.com/hashicorp/hcl/v2"
+	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
 func TestTerraformConfigBlockFileRule(t *testing.T) {
@@ -31,8 +31,8 @@ func TestTerraformConfigBlockFileRule(t *testing.T) {
           Message: `"terraform" config block must appear in "terraform.tf", not "main.tf"`,
           Range: hcl.Range{
             Filename: "main.tf",
-            Start:    hcl.Pos{Line: 2, Column: 1},
-            End:      hcl.Pos{Line: 2, Column: 10},
+            Start:    hcl.Pos{Line: 1, Column: 1},
+            End:      hcl.Pos{Line: 1, Column: 10},
           },
         },
       },
