@@ -1,7 +1,7 @@
 ---
 name: Code linting
 
-on:
+on: # yamllint disable-line rule:truthy
   pull_request:
     branches:
       - main
@@ -51,6 +51,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINTER_RULES_PATH: "."
           FILTER_REGEX_EXCLUDE: "^.*/testdata/.*.tf$"
+          IGNORE_GENERATED_FILES: true
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_CHECKOV: false
           VALIDATE_GO: false

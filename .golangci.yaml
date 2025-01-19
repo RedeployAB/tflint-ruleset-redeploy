@@ -32,6 +32,7 @@ linters-settings:
       - ruleguard
   gocyclo:
     # minimal code complexity to report, 30 by default
+    # 10 is recommended, but 15 is a good compromise
     min-complexity: 15
   govet:
     enable:
