@@ -31,7 +31,8 @@ func main() {
 				rules.NewTerraformTagsArgumentRule(),
 				rules.NewTerraformProviderSourceOrderRule(),
 				rules.NewTerraformLocalsFileRule(),
-				rules.NewTerraformConfigBlockFileRule(), // <- Add this line
+				rules.NewTerraformConfigBlockFileRule(),
+				rules.NewTerraformProviderMinimumMajorVersionRule(), // Added this line
 			},
 		},
 	})
