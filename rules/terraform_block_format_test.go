@@ -203,33 +203,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "example" {
 				},
 			},
 		},
-	}
-
-	rule := NewTerraformBlockFormatRule()
-
-	for _, tc := range tests {
-		t.Run(tc.Name, func(t *testing.T) {
-			runner := helper.TestRunner(t, map[string]string{
-				"resource.tf": tc.Content,
-			})
-
-			if err := rule.Check(runner); err != nil {
-				t.Fatalf("Unexpected error occurred: %s", err)
-			}
-
-			helper.AssertIssues(t, tc.Issues, runner.Issues)
-		})
-	}
-
-	// Add tests for data, terraform, provider blocks
-}
-
-func TestTerraformBlockFormat_data_terraform_provider(t *testing.T) {
-	tests := []struct {
-		Name    string
-		Content string
-		Issues  helper.Issues
-	}{
+		// Additional test cases from the removed function
 		{
 			Name: "OK - single data block with first sub-block no blank line",
 			Content: `
@@ -305,12 +279,17 @@ provider "aws" {
 	}
 
 	rule := NewTerraformBlockFormatRule()
+
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			runner := helper.TestRunner(t, map[string]string{"resource.tf": tc.Content})
+			runner := helper.TestRunner(t, map[string]string{
+				"resource.tf": tc.Content,
+			})
+
 			if err := rule.Check(runner); err != nil {
 				t.Fatalf("Unexpected error occurred: %s", err)
 			}
+
 			helper.AssertIssues(t, tc.Issues, runner.Issues)
 		})
 	}
