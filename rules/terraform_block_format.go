@@ -117,7 +117,7 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 	})
 
 	// We also need the line of the block's opening brace
-	openBraceLine := block.DefRange().End.Line
+	openBraceLine := block.Body.Range().Start.Line - 1
 
 	var prevLine int
 	noPriorItems := true
