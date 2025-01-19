@@ -134,8 +134,8 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 			versionString = it.Value
 			// If the expression is a string literal, we can decode it from kv.ValueExpr
 			if lit, ok := kvByKey(obj.Items, "version"); ok {
-				versionRange = lit.KeyExpr.Range()
 				if strLit, ok := lit.ValueExpr.(*hclsyntax.LiteralValueExpr); ok {
+					versionRange = strLit.Range() // Use the value's range instead of the key's
 					v, diags := strLit.Value(nil)
 					if !diags.HasErrors() && v.Type() == cty.String {
 						versionString = v.AsString()
@@ -154,8 +154,12 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 	}
 	trimmed := strings.TrimSpace(versionString)
 
-	// Skip ~> or = constraints
-	if strings.Contains(trimmed, "~>") || strings.Contains(trimmed, "=") {
+	// We only skip if the constraint is approximate (contains "~>"),
+	// or if it starts with "=" (exact). But do NOT skip if it's ">=..." or "<=..."
+	if strings.Contains(trimmed, "~>") {
+		return nil
+	}
+	if strings.HasPrefix(trimmed, "=") {
 		return nil
 	}
 
