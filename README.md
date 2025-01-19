@@ -9,13 +9,12 @@ This repository contains a custom ruleset for TFLint.
 
 ## Installation
 
-> [!IMPORTANT]
-> This repository does not contain release binaries yet, so this
-> installation will not work. See the "Building the plugin" section
-> to get this ruleset working.
+> [!IMPORTANT] This repository does not contain release binaries yet, so this
+> installation will not work. See the "Building the plugin" section to get this
+> ruleset working.
 
-You can install the plugin with `tflint --init`. Declare a config
-in `.tflint.hcl` as follows:
+You can install the plugin with `tflint --init`. Declare a config in
+`.tflint.hcl` as follows:
 
 ```hcl
 plugin "redeploy" {
