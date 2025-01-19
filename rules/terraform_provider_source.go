@@ -1,13 +1,13 @@
 package rules
 
 import (
-  "fmt"
-  "sort"
-  "strings"
+	"fmt"
+	"sort"
+	"strings"
 
-  "github.com/hashicorp/hcl/v2"
-  "github.com/hashicorp/hcl/v2/hclsyntax"
-  "github.com/terraform-linters/tflint-plugin-sdk/tflint"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
 type TerraformProviderSourceOrderRule struct {
@@ -91,7 +91,7 @@ func (r *TerraformProviderSourceOrderRule) checkRequiredProvidersBlock(
     // attr.Expr should be an object, so parse it as an HCL syntax body
     // or skip if it’s not an object expression.
     if obj, ok := attr.Expr.(*hclsyntax.ObjectConsExpr); ok {
-      if err := r.checkProviderObject(obj, name, attr.Range(), runner); err != nil {
+      if err := r.checkProviderObject(obj, name, runner); err != nil {
         return err
       }
     }
@@ -102,7 +102,6 @@ func (r *TerraformProviderSourceOrderRule) checkRequiredProvidersBlock(
 func (r *TerraformProviderSourceOrderRule) checkProviderObject(
   obj *hclsyntax.ObjectConsExpr,
   providerName string,
-  rng hcl.Range,
   runner tflint.Runner,
 ) error {
   // Collect all attributes in lexical order
@@ -113,15 +112,15 @@ func (r *TerraformProviderSourceOrderRule) checkProviderObject(
   }
   var items []item
   for _, kv := range obj.Items {
-    keyName := strings.TrimSpace(hcl.ExprAsKeyword(kv.Key))
+    keyName := strings.TrimSpace(hcl.ExprAsKeyword(kv.KeyExpr))
     // If key extraction fails, skip
     if keyName == "" {
       continue
     }
     items = append(items, item{
       Key:      keyName,
-      Index:    kv.Key.Range().Start.Byte,
-      HCLRange: kv.Key.Range(),
+      Index:    kv.KeyExpr.Range().Start.Byte,
+      HCLRange: kv.KeyExpr.Range(),
     })
   }
   sort.Slice(items, func(i, j int) bool {

@@ -1,10 +1,10 @@
 package rules
 
 import (
-  "testing"
+	"testing"
 
-  hcl "github.com/hashicorp/hcl/v2"
-  "github.com/terraform-linters/tflint-plugin-sdk/helper"
+	hcl "github.com/hashicorp/hcl/v2"
+	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
 func TestTerraformProviderSourceOrderRule(t *testing.T) {
@@ -27,8 +27,8 @@ func TestTerraformProviderSourceOrderRule(t *testing.T) {
           Message: "Provider 'aws': 'version' must appear after 'source'",
           Range: hcl.Range{
             Filename: "resource.tf",
-            Start:    hcl.Pos{Line: 4, Column: 5},
-            End:      hcl.Pos{Line: 4, Column: 12},
+            Start:    hcl.Pos{Line: 4, Column: 7},
+            End:      hcl.Pos{Line: 4, Column: 14},
           },
         },
       },
