@@ -209,10 +209,3 @@ func pickAttrName(srcLine, verLine, last int) string {
 		return "source"
 	}
 }
-
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
