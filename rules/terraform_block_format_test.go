@@ -46,7 +46,7 @@ resource "azurerm_resource_provider_registration" "example" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 9},
+						End:      hcl.Pos{Line: 4, Column: 10},
 					},
 				},
 			},
@@ -81,7 +81,7 @@ resource "azurerm_resource_provider_registration" "example" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 9},
+						End:      hcl.Pos{Line: 4, Column: 10},
 					},
 				},
 			},
@@ -133,7 +133,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "example" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 7, Column: 3},
-						End:      hcl.Pos{Line: 7, Column: 29},
+						End:      hcl.Pos{Line: 7, Column: 26},
 					},
 				},
 				{
@@ -189,7 +189,7 @@ resource "azurerm_firewall_policy_rule_collection_group" "example" {
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 29},
+						End:      hcl.Pos{Line: 4, Column: 30},
 					},
 				},
 				{
