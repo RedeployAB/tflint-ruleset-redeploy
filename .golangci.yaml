@@ -2,10 +2,12 @@
 linters:
   # see also https://golangci-lint.run/usage/linters/#enabled-by-default
   enable:
+    - errchkjson
     - gocritic
     - gocyclo
     - godox
     - gofmt
     - goimports
-    - errchkjson
+    - govet
+    - unconvert
     - revive
