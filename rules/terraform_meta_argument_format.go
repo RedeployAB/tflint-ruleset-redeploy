@@ -118,14 +118,19 @@ func (r *TerraformMetaArgumentFormatRule) checkFormatting(block *hclsyntax.Block
 	// Get the block's source range
 	srcRange := block.DefRange()
 
-	// Read the file content
-	fileContent, err := runner.ReadFile(srcRange.Filename)
+	// Get the file content from runner.GetFiles()
+	files, err := runner.GetFiles()
 	if err != nil {
 		return err
 	}
+	hclFile, ok := files[srcRange.Filename]
+	if !ok || hclFile.Bytes == nil {
+		// If the file isn't found or has no content, we can return early or handle as needed.
+		return nil
+	}
 
 	// Convert file content into lines
-	lines := strings.Split(string(fileContent), "\n")
+	lines := strings.Split(string(hclFile.Bytes), "\n")
 
 	// Initialize indices for meta-arguments
 	var countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx int
