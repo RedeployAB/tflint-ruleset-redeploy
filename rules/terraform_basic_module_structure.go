@@ -7,31 +7,31 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-type TerraformStandardModuleStructureRule struct {
+type TerraformBasicModuleStructureRule struct {
 	tflint.DefaultRule
 }
 
-func NewTerraformStandardModuleStructureRule() *TerraformStandardModuleStructureRule {
-	return &TerraformStandardModuleStructureRule{}
+func NewTerraformBasicModuleStructureRule() *TerraformBasicModuleStructureRule {
+	return &TerraformBasicModuleStructureRule{}
 }
 
-func (r *TerraformStandardModuleStructureRule) Name() string {
-	return "terraform_standard_module_structure"
+func (r *TerraformBasicModuleStructureRule) Name() string {
+	return "terraform_basic_module_structure"
 }
 
-func (r *TerraformStandardModuleStructureRule) Enabled() bool {
+func (r *TerraformBasicModuleStructureRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformStandardModuleStructureRule) Severity() tflint.Severity {
+func (r *TerraformBasicModuleStructureRule) Severity() tflint.Severity {
 	return tflint.WARNING
 }
 
-func (r *TerraformStandardModuleStructureRule) Link() string {
+func (r *TerraformBasicModuleStructureRule) Link() string {
 	return ""
 }
 
-func (r *TerraformStandardModuleStructureRule) Check(runner tflint.Runner) error {
+func (r *TerraformBasicModuleStructureRule) Check(runner tflint.Runner) error {
 	requiredFiles := []string{
 		"main.tf",
 		"variables.tf",

@@ -7,7 +7,7 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
-func TestTerraformStandardModuleStructure(t *testing.T) {
+func TestTerraformBasicModuleStructure(t *testing.T) {
 	tests := []struct {
 		Name   string
 		Files  map[string]string
@@ -34,7 +34,7 @@ func TestTerraformStandardModuleStructure(t *testing.T) {
 			},
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformStandardModuleStructureRule(),
+					Rule:    NewTerraformBasicModuleStructureRule(),
 					Message: "Missing required file: locals.tf",
 					Range:   hcl.Range{Filename: "locals.tf"},
 				},
@@ -42,7 +42,7 @@ func TestTerraformStandardModuleStructure(t *testing.T) {
 		},
 	}
 
-	rule := NewTerraformStandardModuleStructureRule()
+	rule := NewTerraformBasicModuleStructureRule()
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {

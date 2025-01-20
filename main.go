@@ -27,7 +27,7 @@ func main() {
 				rules.NewTerraformMetaArgumentFormatRule(),
 				rules.NewTerraformResourceNameRule(),
 				rules.NewTerraformSourceFormatRule(),
-				rules.NewTerraformStandardModuleStructureRule(),
+				rules.NewTerraformBasicModuleStructureRule(),
 				rules.NewTerraformTagsArgumentRule(),
 				rules.NewTerraformProviderSourceOrderRule(),
 				rules.NewTerraformLocalsFileRule(),
