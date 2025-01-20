@@ -19,6 +19,11 @@ func TestTerraformMetaArgumentFormat(t *testing.T) {
 			Issues:  helper.Issues{},
 		},
 		{
+			Name:    "resource with multi-line for_each (no error)",
+			Content: readFixture(t, "meta_fmt_for_each_multiline.tf"),
+			Issues:  helper.Issues{},
+		},
+		{
 			Name:    "module with no meta arguments",
 			Content: readFixture(t, "meta_fmt_module_no_meta.tf"),
 			Issues:  helper.Issues{},

@@ -82,55 +82,17 @@ func (r *TerraformMetaArgumentFormatRule) detectMetaArgName(line string) string 
 	return ""
 }
 
-// gatherMetaArgumentIndices scans lines within the block range to locate
-// top/bottom meta-argument line indices.
-func (r *TerraformMetaArgumentFormatRule) gatherMetaArgumentIndices(
-	lines []string,
-	startLine, endLine int,
-) (countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx int) {
-	countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx = -1, -1, -1, -1
-
-	for lineNum := startLine; lineNum <= endLine && lineNum < len(lines); lineNum++ {
-		trimmed := strings.TrimSpace(lines[lineNum])
-		if trimmed == "" {
-			continue
-		}
-		argName := r.detectMetaArgName(trimmed)
-		if argName == "" {
-			continue
-		}
-
-		switch argName {
-		case ArgCount, ArgForEach:
-			if countForEachIdx < 0 {
-				countForEachIdx = lineNum
-			}
-		case ArgProvider:
-			if providerIdx < 0 {
-				providerIdx = lineNum
-			}
-		case ArgLifecycle:
-			if lifecycleIdx < 0 {
-				lifecycleIdx = lineNum
-			}
-		case ArgDependsOn:
-			if dependsOnIdx < 0 {
-				dependsOnIdx = lineNum
-			}
-		}
-	}
-	return countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx
-}
+// gatherMetaArgumentIndices is no longer needed and replaced by gatherMetaArgEndLines.
 
 // Helper for checking blank line after top meta-arguments
 func (r *TerraformMetaArgumentFormatRule) checkBlankLineAfterTopMetaArgs(
 	lines []string,
-	topIdx, endLine int,
+	topEndLine, endLine int,
 	srcRange hcl.Range,
 	runner tflint.Runner,
 ) error {
-	nextLineIdx := topIdx + 1
-	for nextLineIdx <= endLine {
+	nextLineIdx := topEndLine // Lines are 1-based; indices are 0-based
+	for nextLineIdx < endLine {
 		nextLine := strings.TrimSpace(lines[nextLineIdx])
 		switch {
 		case nextLine == "":
@@ -163,12 +125,12 @@ func (r *TerraformMetaArgumentFormatRule) checkBlankLineAfterTopMetaArgs(
 func (r *TerraformMetaArgumentFormatRule) checkBlankLineBeforeBottomMetaArgs(
 	lines []string,
 	argName string,
-	argIdx, startLine int,
+	argStartLine, startLine int,
 	srcRange hcl.Range,
 	runner tflint.Runner,
 ) error {
-	prevLineIdx := argIdx - 1
-	for prevLineIdx > startLine {
+	prevLineIdx := argStartLine - 2 // Move to the line before the argument
+	for prevLineIdx >= startLine {
 		prevLine := strings.TrimSpace(lines[prevLineIdx])
 		switch {
 		case prevLine == "":
@@ -181,8 +143,8 @@ func (r *TerraformMetaArgumentFormatRule) checkBlankLineBeforeBottomMetaArgs(
 			// Missing blank line
 			rng := hcl.Range{
 				Filename: srcRange.Filename,
-				Start:    hcl.Pos{Line: argIdx + 1, Column: 1},
-				End:      hcl.Pos{Line: argIdx + 1, Column: 1},
+				Start:    hcl.Pos{Line: argStartLine, Column: 1},
+				End:      hcl.Pos{Line: argStartLine, Column: 1},
 			}
 			msg := fmt.Sprintf("Expected a blank line before meta-argument '%s'", argName)
 			return runner.EmitIssue(r, msg, rng)
@@ -207,6 +169,44 @@ func (r *TerraformMetaArgumentFormatRule) processBody(body *hclsyntax.Body, runn
 	return nil
 }
 
+// gatherMetaArgEndLines uses the block's attributes/child blocks to compute where
+// each meta argument ends (last line). Called in checkBlock() just before we do
+// the blank-line checks.
+func (r *TerraformMetaArgumentFormatRule) gatherMetaArgEndLines(
+	block *hclsyntax.Block,
+) (countForEachEndLine, providerEndLine, lifecycleStartLine, dependsOnStartLine int) {
+	countForEachEndLine, providerEndLine, lifecycleStartLine, dependsOnStartLine = -1, -1, -1, -1
+
+	// Check each attribute
+	for _, attr := range block.Body.Attributes {
+		switch strings.ToLower(attr.Name) {
+		case ArgCount, ArgForEach:
+			if attr.Range().End.Line > countForEachEndLine {
+				countForEachEndLine = attr.Range().End.Line
+			}
+		case ArgProvider:
+			if attr.Range().End.Line > providerEndLine {
+				providerEndLine = attr.Range().End.Line
+			}
+		case ArgDependsOn:
+			if dependsOnStartLine == -1 || attr.Range().Start.Line < dependsOnStartLine {
+				dependsOnStartLine = attr.Range().Start.Line
+			}
+		}
+	}
+
+	// Check each child block (e.g. lifecycle)
+	for _, child := range block.Body.Blocks {
+		if strings.ToLower(child.Type) == ArgLifecycle {
+			if lifecycleStartLine == -1 || child.DefRange().Start.Line < lifecycleStartLine {
+				lifecycleStartLine = child.DefRange().Start.Line
+			}
+		}
+	}
+
+	return
+}
+
 // checkBlock checks blank lines after top and before bottom meta-arguments
 func (r *TerraformMetaArgumentFormatRule) checkBlock(
 	block *hclsyntax.Block,
@@ -225,35 +225,36 @@ func (r *TerraformMetaArgumentFormatRule) checkBlock(
 
 	lines := strings.Split(string(hclFile.Bytes), "\n")
 
-	// Parse lines from block start to end to locate meta-argument lines
 	startLine := srcRange.Start.Line - 1
 	endLine := srcRange.End.Line - 1
 	if endLine >= len(lines) {
 		endLine = len(lines) - 1
 	}
 
-	countForEachIdx, providerIdx, lifecycleIdx, dependsOnIdx :=
-		r.gatherMetaArgumentIndices(lines, startLine, endLine)
+	countForEachEndLine, providerEndLine, lifecycleStartLine, dependsOnStartLine :=
+		r.gatherMetaArgEndLines(block)
 
 	// Blank line after top meta-arguments
-	topIdx := internal.Max(countForEachIdx, providerIdx)
-	if topIdx >= 0 {
-		if err := r.checkBlankLineAfterTopMetaArgs(lines, topIdx, endLine, srcRange, runner); err != nil {
+	topEndLine := internal.Max(countForEachEndLine, providerEndLine)
+	if topEndLine >= 0 {
+		if err := r.checkBlankLineAfterTopMetaArgs(lines, topEndLine, endLine, srcRange, runner); err != nil {
 			return err
 		}
 	}
 
 	// Blank line before bottom meta-arguments
-	for argName, argIdx := range map[string]int{"lifecycle": lifecycleIdx, "depends_on": dependsOnIdx} {
-		if argIdx >= 0 {
+	for argName, argStartLine := range map[string]int{
+		"lifecycle":  lifecycleStartLine,
+		"depends_on": dependsOnStartLine,
+	} {
+		if argStartLine >= 0 {
 			if err := r.checkBlankLineBeforeBottomMetaArgs(
-				lines, argName, argIdx, startLine, srcRange, runner,
+				lines, argName, argStartLine, startLine, srcRange, runner,
 			); err != nil {
 				return err
 			}
 		}
 	}
-
 	// Done
 	return nil
 }
