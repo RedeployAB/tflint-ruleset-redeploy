@@ -90,25 +90,6 @@ func (r *TerraformResourceArgumentOrderRule) processBody(body *hclsyntax.Body, r
 // We skip meta arguments. Then we apply the same logic inside each sub-block, but
 // that recursion is done in processBody -> checkArgumentOrder.
 func (r *TerraformResourceArgumentOrderRule) checkArgumentOrder(block *hclsyntax.Block, runner tflint.Runner) error {
-	// Collect attributes vs sub-blocks
-	var attrs []string
-	var blocks []hclsyntax.Block
-
-	for _, attr := range block.Body.Attributes {
-		// If it's a recognized meta arg, skip
-		if isMetaArg(attr.Name) {
-			continue
-		}
-		attrs = append(attrs, attr.Name)
-	}
-	for _, child := range block.Body.Blocks {
-		// If it's recognized meta block, skip
-		if isMetaArg(child.Type) {
-			continue
-		}
-		blocks = append(blocks, *child)
-	}
-
 	// We want all attrs first, then all blocks in lexical order.
 	// Actually we only want to fail if a block appears, and then another attr *after* that block.
 	// We'll gather items in lexical order, ignoring meta arguments.
@@ -153,16 +134,13 @@ func (r *TerraformResourceArgumentOrderRule) checkArgumentOrder(block *hclsyntax
 	for _, it := range items {
 		if it.IsBlk {
 			seenBlock = true
-		} else {
-			// If we've already seen a block, having an attribute after it is invalid
-			if seenBlock {
-				if err := runner.EmitIssue(
-					r,
-					fmt.Sprintf("Argument '%s' must not come after a nested block", it.Name),
-					it.Range,
-				); err != nil {
-					return err
-				}
+		} else if seenBlock {
+			if err := runner.EmitIssue(
+				r,
+				fmt.Sprintf("Argument '%s' must not come after a nested block", it.Name),
+				it.Range,
+			); err != nil {
+				return err
 			}
 		}
 	}
