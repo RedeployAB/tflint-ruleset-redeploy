@@ -14,6 +14,8 @@ type TerraformProviderSourceOrderRule struct {
 	tflint.DefaultRule
 }
 
+const argSource = "source"
+
 func NewTerraformProviderSourceOrderRule() *TerraformProviderSourceOrderRule {
 	return &TerraformProviderSourceOrderRule{}
 }
@@ -116,35 +118,3 @@ func (r *TerraformProviderSourceOrderRule) checkProviderObject(
 		// If key extraction fails, skip
 		if keyName == "" {
 			continue
-		}
-		items = append(items, item{
-			Key:      keyName,
-			Index:    kv.KeyExpr.Range().Start.Byte,
-			HCLRange: kv.KeyExpr.Range(),
-		})
-	}
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Index < items[j].Index
-	})
-	var sourcePos, versionPos *item
-	for i := range items {
-		if items[i].Key == "source" {
-			sourcePos = &items[i]
-		}
-		if items[i].Key == "version" {
-			versionPos = &items[i]
-		}
-	}
-	// If both exist, ensure source is before version
-	if sourcePos != nil && versionPos != nil && versionPos.Index < sourcePos.Index {
-		return runner.EmitIssue(
-			r,
-			fmt.Sprintf(
-				"Provider '%s': 'version' must appear after 'source'",
-				providerName,
-			),
-			versionPos.HCLRange,
-		)
-	}
-	return nil
-}
