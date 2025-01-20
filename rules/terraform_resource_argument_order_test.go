@@ -83,6 +83,11 @@ func TestTerraformResourceArgumentOrder(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:     "Valid - tags argument is not flagged",
+			FileName: "resource_arg_order_ok_tags.tf",
+			Expected: helper.Issues{},
+		},
 	}
 
 	rule := NewTerraformResourceArgumentOrderRule()

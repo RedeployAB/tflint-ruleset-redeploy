@@ -13,7 +13,7 @@ import (
 // TerraformResourceArgumentOrderRule ensures that for resource/data/provider/terraform blocks:
 // Non-block attributes come first, followed by block attributes (sub-blocks).
 // This rule is recursive, so it checks nested blocks as well.
-// It ignores meta-arguments (count, for_each, depends_on, lifecycle, provider).
+// It ignores meta-arguments (count, for_each, depends_on, lifecycle, provider, tags).
 // Those are covered by other rules.
 type TerraformResourceArgumentOrderRule struct {
 	tflint.DefaultRule
@@ -149,7 +149,7 @@ func (r *TerraformResourceArgumentOrderRule) checkArgumentOrder(block *hclsyntax
 
 func isMetaArg(name string) bool {
 	switch strings.ToLower(name) {
-	case ArgCount, ArgForEach, ArgProvider, ArgDependsOn, ArgLifecycle:
+	case ArgCount, ArgForEach, ArgProvider, ArgDependsOn, ArgLifecycle, "tags":
 		return true
 	}
 	return false
