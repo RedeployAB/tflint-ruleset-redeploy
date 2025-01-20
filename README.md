@@ -1,11 +1,14 @@
 # Redeploy TFLint Ruleset
 
-This repository contains a custom ruleset for TFLint.
+This repository contains a custom ruleset for TFLint used for enforcing the
+Redeploy Terraform [style guide](https://redeploy.atlassian.net/wiki/spaces/ALZ/pages/508002343/Style+guide).
+
+It is currently a work in progress, rules will be added as they are developed.
 
 ## Requirements
 
 - TFLint v0.42+
-- Go v1.22
+- Go v1.23
 
 ## Installation
 
@@ -28,7 +31,8 @@ plugin "redeploy" {
 
 ## Rules
 
-This section will be added soon. Until then, refer to [`main.go`](main.go).
+This section will be added soon. Until then, refer to [`main.go`](main.go) to
+see a list of rules that are currently implemented.
 
 ## Building the plugin
 
