@@ -61,29 +61,6 @@ func (r *TerraformMetaArgumentFormatRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
-// detectMetaArgName checks whether the given trimmed line starts with
-// any recognized meta argument. Returns "" if not found.
-func (r *TerraformMetaArgumentFormatRule) detectMetaArgName(line string) string {
-	if strings.HasPrefix(line, "count ") || strings.HasPrefix(line, "count=") {
-		return ArgCount
-	}
-	if strings.HasPrefix(line, "for_each ") || strings.HasPrefix(line, "for_each=") {
-		return ArgForEach
-	}
-	if strings.HasPrefix(line, "provider ") || strings.HasPrefix(line, "provider=") {
-		return ArgProvider
-	}
-	if strings.HasPrefix(line, "lifecycle ") {
-		return ArgLifecycle
-	}
-	if strings.HasPrefix(line, "depends_on ") || strings.HasPrefix(line, "depends_on=") {
-		return ArgDependsOn
-	}
-	return ""
-}
-
-// gatherMetaArgumentIndices is no longer needed and replaced by gatherMetaArgEndLines.
-
 // Helper for checking blank line after top meta-arguments
 func (r *TerraformMetaArgumentFormatRule) checkBlankLineAfterTopMetaArgs(
 	lines []string,
