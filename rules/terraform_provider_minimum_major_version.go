@@ -19,6 +19,8 @@ type TerraformProviderMinimumMajorVersionRule struct {
 	tflint.DefaultRule
 }
 
+const argVersion = "version"
+
 func NewTerraformProviderMinimumMajorVersionRule() *TerraformProviderMinimumMajorVersionRule {
 	return &TerraformProviderMinimumMajorVersionRule{}
 }
@@ -107,7 +109,7 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 	var versionRange hcl.Range
 
 	for _, kv := range obj.Items {
-		if strings.TrimSpace(hcl.ExprAsKeyword(kv.KeyExpr)) != "version" {
+		if strings.TrimSpace(hcl.ExprAsKeyword(kv.KeyExpr)) != argVersion {
 			continue
 		}
 
@@ -149,27 +151,3 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 		// Good: has both min and max
 		return nil
 	case hasMin && !hasMax:
-		// Invalid: has a minimum but no max
-		return runner.EmitIssue(
-			r,
-			fmt.Sprintf(
-				"Provider '%s' has a minimum version constraint but no maximum (version=%q)",
-				providerName, trimmed,
-			),
-			versionRange,
-		)
-	case !hasMin && hasMax:
-		// Invalid: only a maximum constraint; a minimum version is required
-		return runner.EmitIssue(
-			r,
-			fmt.Sprintf(
-				"Provider '%s' has only a maximum version constraint; a minimum version is required (version=%q)",
-				providerName, trimmed,
-			),
-			versionRange,
-		)
-	default:
-		// Neither min nor max => skip
-		return nil
-	}
-}
