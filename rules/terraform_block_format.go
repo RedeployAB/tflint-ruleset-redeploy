@@ -105,6 +105,9 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 		return nil
 	}
 
+	// First, detect whether this block has attributes at all:
+	hasAttributes := len(block.Body.Attributes) > 0
+
 	type item struct {
 		Type      string
 		Range     hcl.Range
@@ -137,7 +140,9 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 		return items[i].StartLine < items[j].StartLine
 	})
 
-	previousEndLine := block.Body.Range().Start.Line
+	// Use DefRange().Start.Line for the line with the 'resource'/'data'/'provider' etc.
+	previousEndLine := block.DefRange().Start.Line
+
 	firstBlock := true
 
 	for _, it := range items {
@@ -146,16 +151,28 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 			continue
 		}
 
-		linesBetween := r.countNonCommentNonBlankLines(hclFile.Bytes, previousEndLine+1, it.StartLine)
+		linesBetween := it.StartLine - (previousEndLine + 1)
 
-		if firstBlock && previousEndLine == block.Body.Range().Start.Line {
-			if linesBetween != 0 {
-				if err := r.emitIssue(runner, it.Range,
-					"Block should appear immediately after opening brace when it's the first item (no blank lines)"); err != nil {
-					return err
+		// If this is the FIRST block in the parent:
+		if firstBlock {
+			// If the parent has no attributes at all, then 0 blank lines are allowed
+			// (i.e. the block must appear right after the brace). Otherwise, we require exactly one blank line.
+			if !hasAttributes {
+				// No attributes => expect 0 lines
+				if linesBetween != 0 {
+					return r.emitIssue(runner, it.Range,
+						"Block should appear immediately after opening brace when it's the first item (no blank lines)")
+				}
+			} else {
+				// We have attributes => expect exactly 1 blank line
+				if linesBetween != 1 {
+					return r.emitIssue(runner, it.Range,
+						"Expected exactly one blank line before this block")
 				}
 			}
+			firstBlock = false
 		} else {
+			// SUBSEQUENT block => always expect exactly 1 blank line
 			if linesBetween != 1 {
 				if err := r.emitIssue(runner, it.Range,
 					"Expected exactly one blank line before this block"); err != nil {
@@ -165,7 +182,6 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 		}
 
 		previousEndLine = it.EndLine
-		firstBlock = false
 	}
 
 	return nil
