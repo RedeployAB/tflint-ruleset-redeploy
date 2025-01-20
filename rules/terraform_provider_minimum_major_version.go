@@ -151,3 +151,22 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 		// Good: has both min and max
 		return nil
 	case hasMin && !hasMax:
+		// Invalid: has min but no max
+		return runner.EmitIssue(
+			r,
+			fmt.Sprintf("Provider '%s' has a minimum version constraint but no maximum (version=%q)", providerName, versionString),
+			versionRange,
+		)
+	case !hasMin && hasMax:
+		// Invalid: has max but no min
+		return runner.EmitIssue(
+			r,
+			fmt.Sprintf("Provider '%s' has only a maximum version constraint; a minimum version is required (version=%q)", providerName, versionString),
+			versionRange,
+		)
+	default:
+		// Neither min nor max constraints; possibly exact version?
+		// Skip
+		return nil
+	}
+}
