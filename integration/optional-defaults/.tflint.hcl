@@ -6,6 +6,6 @@ plugin "redeploy" {
   enabled = true
 }
 
-rule "terraform_standard_module_structure" {
+rule "terraform_basic_module_structure" {
   enabled = false
 }
