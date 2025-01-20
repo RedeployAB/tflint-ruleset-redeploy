@@ -90,7 +90,7 @@ func (r *TerraformProviderSourceOrderRule) checkRequiredProvidersBlock(
 	// The value is an object with `source` and/or `version` attributes.
 	// We want to ensure `source` appears before `version`.
 	for name, attr := range block.Body.Attributes {
-		// attr.Expr should be an object, so parse it as an HCL syntax body
+		// attr.Expr should be an object, so parse it as an HCL syntax object
 		// or skip if it’s not an object expression.
 		if obj, ok := attr.Expr.(*hclsyntax.ObjectConsExpr); ok {
 			if err := r.checkProviderObject(obj, name, runner); err != nil {
@@ -118,3 +118,37 @@ func (r *TerraformProviderSourceOrderRule) checkProviderObject(
 		// If key extraction fails, skip
 		if keyName == "" {
 			continue
+		}
+		items = append(items, item{
+			Key:      keyName,
+			Index:    kv.KeyExpr.Range().Start.Byte,
+			HCLRange: kv.KeyExpr.Range(),
+		})
+	}
+	// Sort items by their Index (position in file)
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].Index < items[j].Index
+	})
+
+	var sourcePos, versionPos *item
+	for i := range items {
+		if items[i].Key == argSource {
+			sourcePos = &items[i]
+		}
+		if items[i].Key == "version" {
+			versionPos = &items[i]
+		}
+	}
+	// If both are present, ensure source comes before version
+	if sourcePos != nil && versionPos != nil {
+		if sourcePos.Index > versionPos.Index {
+			// Report an issue
+			return runner.EmitIssue(
+				r,
+				fmt.Sprintf("Provider '%s': 'version' must appear after 'source'", providerName),
+				versionPos.HCLRange,
+			)
+		}
+	}
+	return nil
+}
