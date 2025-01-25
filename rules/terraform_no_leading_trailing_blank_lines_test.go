@@ -53,6 +53,11 @@ func TestTerraformNoLeadingTrailingBlankLinesRule(t *testing.T) {
 			File:   "leading_trailing_comment_ok_after_brace.tf",
 			Issues: helper.Issues{},
 		},
+		{
+			Name:   "OK - empty block with braces on the same line",
+			File:   "leading_trailing_blank_ok_empty_block.tf",
+			Issues: helper.Issues{},
+		},
 	}
 
 	rule := NewTerraformNoLeadingTrailingBlankLinesRule()
