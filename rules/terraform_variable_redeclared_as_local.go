@@ -5,12 +5,13 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
 // TerraformVariableRedeclaredAsLocalRule checks if a variable name (from a variable block)
-// is also declared in locals, emitting an error on the conflicting local.
+// is assigned directly to a local of the same name, emitting an error on the conflicting local.
 type TerraformVariableRedeclaredAsLocalRule struct {
 	tflint.DefaultRule
 }
@@ -93,7 +94,7 @@ func (r *TerraformVariableRedeclaredAsLocalRule) collectVariableNames(
 	}
 }
 
-// checkLocals scans for 'locals' blocks and checks for name conflicts with variables.
+// checkLocals scans for 'locals' blocks and checks for locals assigned directly from variables with the same name.
 func (r *TerraformVariableRedeclaredAsLocalRule) checkLocals(
 	body *hclsyntax.Body,
 	filename string,
@@ -105,13 +106,24 @@ func (r *TerraformVariableRedeclaredAsLocalRule) checkLocals(
 			// Each attribute in this block is a local variable
 			for attrName, attr := range block.Body.Attributes {
 				if variableNames[attrName] {
-					// Conflict found
-					if err := runner.EmitIssue(
-						r,
-						fmt.Sprintf("Local '%s' conflicts with a variable of the same name", attrName),
-						attr.Range(),
-					); err != nil {
-						return err
+					// Check if this local is assigned *directly* from var.<attrName>
+					scopeExpr, ok := attr.Expr.(*hclsyntax.ScopeTraversalExpr)
+					if ok && len(scopeExpr.Traversal) == 2 {
+						if root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot); ok && root.Name == "var" {
+							if second, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr); ok && second.Name == attrName {
+								// Emit an issue if it's a direct assignment local_name = var.local_name
+								if err := runner.EmitIssue(
+									r,
+									fmt.Sprintf(
+										"Local '%s' is assigned directly from variable '%s'. This should not be a simple mirror assignment.",
+										attrName, attrName,
+									),
+									attr.Range(),
+								); err != nil {
+									return err
+								}
+							}
+						}
 					}
 				}
 			}
