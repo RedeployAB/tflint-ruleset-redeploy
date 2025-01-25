@@ -10,9 +10,9 @@ import (
 
 func TestTerraformSingleBlankLinesRule(t *testing.T) {
 	tests := []struct {
-		Name    string
-		File    string
-		Issues  helper.Issues
+		Name   string
+		File   string
+		Issues helper.Issues
 	}{
 		{
 			Name:   "OK - single blank line only",
