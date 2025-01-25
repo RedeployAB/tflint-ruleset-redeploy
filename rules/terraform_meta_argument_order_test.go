@@ -34,7 +34,7 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'depends_on' in resource 'aws_instance example'. Expected sequence: count|for_each -> provider -> lifecycle -> depends_on",
+					Message: "Out-of-order meta argument 'depends_on' in resource 'aws_instance example'. Expected sequence: provider -> count|for_each -> lifecycle -> depends_on",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 3},

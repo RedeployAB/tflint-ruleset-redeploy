@@ -92,7 +92,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 func (r *TerraformArgumentOrderRule) getDesiredSequence(blockType string) []string {
 	switch blockType {
 	case TypeResource:
-		return []string{ArgCount + "|" + ArgForEach, ArgProvider, ArgLifecycle, ArgDependsOn}
+		return []string{ArgProvider, ArgCount + "|" + ArgForEach, ArgLifecycle, ArgDependsOn}
 	case TypeModule:
 		return []string{ArgCount + "|" + ArgForEach, ArgDependsOn}
 	default:
