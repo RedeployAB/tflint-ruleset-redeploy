@@ -135,29 +135,38 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	return nil
 }
 
+// We'll do simple textual checks, rather than cty-based (to avoid "not a string" panics).
 func isTypeBool(attr *hclsyntax.Attribute) (bool, error) {
-	val, diags := attr.Expr.Value(nil)
-	if diags.HasErrors() {
-		return false, nil
-	}
-	exprStr := strings.ToLower(strings.TrimSpace(val.AsString()))
-	return strings.EqualFold(exprStr, "boolean"), nil
+	src := getAttributeRawText(attr)
+	src = strings.ToLower(strings.TrimSpace(src))
+	// If user wrote 'type = bool', 'bool' will appear as the text.
+	// We check for "bool" exactly
+	return (src == "bool"), nil
 }
 
 func isAttrNull(attr *hclsyntax.Attribute) (bool, error) {
-	val, diags := attr.Expr.Value(nil)
-	if diags.HasErrors() {
-		return false, nil
-	}
-	exprStr := strings.ToLower(strings.TrimSpace(val.AsString()))
-	return strings.EqualFold(exprStr, "null"), nil
+	src := getAttributeRawText(attr)
+	src = strings.ToLower(strings.TrimSpace(src))
+	return (src == "null"), nil
 }
 
 func isAttrTrue(attr *hclsyntax.Attribute) (bool, error) {
-	val, diags := attr.Expr.Value(nil)
-	if diags.HasErrors() {
-		return false, nil
+	src := getAttributeRawText(attr)
+	src = strings.ToLower(strings.TrimSpace(src))
+	return (src == "true"), nil
+}
+
+// getAttributeRawText extracts the raw tokens for an attribute's right-hand side.
+// That way, we can parse simple "bool", "true", "null", etc. as plain text.
+func getAttributeRawText(attr *hclsyntax.Attribute) string {
+	tokens := hclsyntax.TokensForExpression(attr.Expr)
+	if len(tokens) == 1 {
+		// If there's exactly one token, return it (e.g. 'bool', 'null', 'true')
+		return tokens[0].Text
 	}
-	exprStr := strings.ToLower(strings.TrimSpace(val.AsString()))
-	return strings.EqualFold(exprStr, "true"), nil
+	var sb strings.Builder
+	for _, tk := range tokens {
+		sb.WriteString(tk.Text)
+	}
+	return sb.String()
 }
