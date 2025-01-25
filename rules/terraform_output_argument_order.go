@@ -10,7 +10,7 @@ import (
 )
 
 // TerraformOutputArgumentOrderRule checks that output blocks follow the order:
-// description, value, ephemeral, sensitive, depends_on
+// description, value, ephemeral, sensitive, precondition, depends_on
 type TerraformOutputArgumentOrderRule struct {
 	tflint.DefaultRule
 }
@@ -74,7 +74,7 @@ func (r *TerraformOutputArgumentOrderRule) processBody(body *hclsyntax.Body, run
 	return nil
 }
 
-// checkOutputBlock enforces the order description -> value -> ephemeral -> sensitive -> depends_on
+// checkOutputBlock enforces the order description -> value -> ephemeral -> sensitive -> precondition -> depends_on
 func (r *TerraformOutputArgumentOrderRule) checkOutputBlock(
 	block *hclsyntax.Block,
 	runner tflint.Runner,
@@ -124,7 +124,7 @@ func (r *TerraformOutputArgumentOrderRule) checkOutputBlock(
 	lastIndex := -1
 	for _, it := range items {
 		if it.Index < lastIndex {
-			msg := "Out-of-order argument '" + it.Name + "'. Expected sequence: description, value, ephemeral, sensitive, depends_on"
+			msg := "Out-of-order argument '" + it.Name + "'. Expected sequence: description, value, ephemeral, sensitive, precondition, depends_on"
 			return runner.EmitIssue(r, msg, it.Range)
 		}
 		lastIndex = it.Index
