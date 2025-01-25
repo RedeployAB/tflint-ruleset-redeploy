@@ -11,7 +11,9 @@ import (
 )
 
 // TerraformVariableArgumentOrderRule enforces argument order for variable blocks:
-//   description, type, default, sensitive, nullable, validation
+//
+//	description, type, default, sensitive, nullable, validation
+//
 // Any of these may be omitted, but if present, must follow that sequence.
 // For validation blocks, multiple occurrences are allowed, but all must appear after the others.
 type TerraformVariableArgumentOrderRule struct {
@@ -64,7 +66,7 @@ func (r *TerraformVariableArgumentOrderRule) Check(runner tflint.Runner) error {
 func (r *TerraformVariableArgumentOrderRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
 	for _, block := range body.Blocks {
 		// Only examine variable blocks
-		if strings.ToLower(block.Type) == "variable" {
+		if strings.ToLower(block.Type) == TypeVariable {
 			if err := r.checkVariableBlock(block, runner); err != nil {
 				return err
 			}

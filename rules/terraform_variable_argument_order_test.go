@@ -32,8 +32,8 @@ func TestTerraformVariableArgumentOrderRule(t *testing.T) {
 					Message: "Out-of-order argument 'type'. Expected sequence: description, type, default, sensitive, nullable, validation",
 					Range: hcl.Range{
 						Filename: "variables.tf",
-						Start:    hcl.Pos{Line: 5, Column: 3},
-						End:      hcl.Pos{Line: 5, Column: 14},
+						Start:    hcl.Pos{Line: 4, Column: 3},
+						End:      hcl.Pos{Line: 4, Column: 23},
 					},
 				},
 			},
@@ -44,11 +44,11 @@ func TestTerraformVariableArgumentOrderRule(t *testing.T) {
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformVariableArgumentOrderRule(),
-					Message: "Out-of-order argument 'validation'. Expected sequence: description, type, default, sensitive, nullable, validation",
+					Message: "Out-of-order argument 'default'. Expected sequence: description, type, default, sensitive, nullable, validation",
 					Range: hcl.Range{
 						Filename: "variables.tf",
-						Start:    hcl.Pos{Line: 6, Column: 1},
-						End:      hcl.Pos{Line: 6, Column: 1},
+						Start:    hcl.Pos{Line: 10, Column: 3},
+						End:      hcl.Pos{Line: 10, Column: 25},
 					},
 				},
 			},

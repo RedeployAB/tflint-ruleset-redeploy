@@ -67,7 +67,7 @@ func (r *TerraformVariableSensitiveRule) processBody(
 	runner tflint.Runner,
 ) error {
 	for _, block := range body.Blocks {
-		if strings.ToLower(block.Type) == "variable" {
+		if strings.ToLower(block.Type) == TypeVariable {
 			if err := r.checkVariableBlock(block, runner); err != nil {
 				return err
 			}
