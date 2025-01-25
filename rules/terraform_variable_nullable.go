@@ -105,8 +105,12 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 
 	// 1) If type = bool => default must not be null
 	if typeVal != nil && defaultVal != nil {
-		if isBool, _ := isTypeBool(typeVal, fileBytes); isBool {
-			if isDefaultNull, _ := isAttrNull(defaultVal, fileBytes); isDefaultNull {
+		if isBool, err := isTypeBool(typeVal, fileBytes); err != nil {
+			return err
+		} else if isBool {
+			if isDefaultNull, err := isAttrNull(defaultVal, fileBytes); err != nil {
+				return err
+			} else if isDefaultNull {
 				return runner.EmitIssue(
 					r,
 					"boolean variables cannot have default = null",
@@ -118,7 +122,9 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 
 	// 2) If default = null => must NOT define nullable
 	if defaultVal != nil {
-		if isDefaultNull, _ := isAttrNull(defaultVal, fileBytes); isDefaultNull {
+		if isDefaultNull, err := isAttrNull(defaultVal, fileBytes); err != nil {
+			return err
+		} else if isDefaultNull {
 			if nullableVal != nil {
 				return runner.EmitIssue(
 					r,
@@ -131,7 +137,9 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 
 	// 3) If nullable is declared => must be false
 	if nullableVal != nil {
-		if isNullableTrue, _ := isAttrTrue(nullableVal, fileBytes); isNullableTrue {
+		if isNullableTrue, err := isAttrTrue(nullableVal, fileBytes); err != nil {
+			return err
+		} else if isNullableTrue {
 			return runner.EmitIssue(
 				r,
 				"nullable should not be set to true (the default is already true)",
