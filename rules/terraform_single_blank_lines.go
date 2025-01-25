@@ -49,8 +49,8 @@ func (r *TerraformSingleBlankLinesRule) Check(runner tflint.Runner) error {
 			// Skip if parse error
 			continue
 		}
-		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
-			if err := r.checkBody(body, filename, runner); err != nil {
+		if _, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
+			if err := r.checkBody(filename, string(hclFile.Bytes), runner); err != nil {
 				return err
 			}
 		}
@@ -62,12 +62,11 @@ func (r *TerraformSingleBlankLinesRule) Check(runner tflint.Runner) error {
 // We do not parse the HCL structure deeply; we simply check raw lines for
 // multiple consecutive blank lines. If found, we emit an issue at that line.
 func (r *TerraformSingleBlankLinesRule) checkBody(
-	body *hclsyntax.Body,
 	filename string,
+	content string,
 	runner tflint.Runner,
 ) error {
 	// Grab the file content lines
-	content := runner.GetFileContent(filename)
 	lines := strings.Split(content, "\n")
 
 	blankCount := 0
