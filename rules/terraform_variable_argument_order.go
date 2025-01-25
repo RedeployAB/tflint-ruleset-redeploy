@@ -12,7 +12,7 @@ import (
 
 // TerraformVariableArgumentOrderRule enforces argument order for variable blocks:
 //
-//	description, type, default, sensitive, nullable, validation
+//	description, type, default, ephemeral, sensitive, nullable, validation
 //
 // Any of these may be omitted, but if present, must follow that sequence.
 // For validation blocks, multiple occurrences are allowed, but all must appear after the others.
@@ -84,7 +84,7 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 	runner tflint.Runner,
 ) error {
 	// Recognized order for attributes/blocks:
-	// description(0), type(1), default(2), sensitive(3), nullable(4), validation(5)
+	// description(0), type(1), default(2), ephemeral(3), sensitive(4), nullable(5), validation(6)
 	// Any of these may be omitted, but if present, must follow that sequence.
 	// For validation blocks, multiple occurrences are allowed, but all must appear after the others.
 
@@ -93,9 +93,10 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 		"description": 0,
 		"type":        1,
 		"default":     2,
-		"sensitive":   3,
-		"nullable":    4,
-		"validation":  5,
+		"ephemeral":   3,
+		"sensitive":   4,
+		"nullable":    5,
+		"validation":  6,
 	}
 
 	type item struct {
@@ -129,7 +130,7 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 		if lcType == "validation" {
 			items = append(items, item{
 				Name:  lcType,
-				Index: orderMap[lcType], // 5
+				Index: orderMap[lcType], // 6
 				Range: childBlock.DefRange(),
 				Start: childBlock.DefRange().Start.Byte,
 				IsBlk: true,
@@ -153,7 +154,10 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 	for _, it := range items {
 		if it.Index < lastIndex {
 			// Out-of-order argument found
-			msg := fmt.Sprintf("Out-of-order argument '%s'. Expected sequence: description, type, default, sensitive, nullable, validation", it.Name)
+			msg := fmt.Sprintf(
+				"Out-of-order argument '%s'. Expected sequence: description, type, default, ephemeral, sensitive, nullable, validation",
+				it.Name,
+			)
 			return runner.EmitIssue(r, msg, it.Range)
 		}
 		lastIndex = it.Index
