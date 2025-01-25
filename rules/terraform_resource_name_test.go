@@ -41,6 +41,18 @@ resource "azurerm_load_balancer" "load_balancer" {
 				},
 			},
 		},
+		{
+			Name: "handles null interpolation gracefully",
+			Content: `
+locals {
+  some_expression = null
+}
+resource "azurerm_load_balancer" "lb" {
+  # no repeated type
+}
+`,
+			Expected: helper.Issues{},
+		},
 	}
 
 	rule := NewTerraformResourceNameRule()
