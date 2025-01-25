@@ -90,6 +90,12 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) checkBlock(
 	startLine := block.Body.Range().Start.Line - 1
 	endLine := block.Body.Range().End.Line - 1
 
+	// If there's no actual interior lines (i.e. empty block),
+	// skip checks so that an empty resource {} won't trigger errors.
+	if (endLine - startLine) <= 1 {
+		return nil
+	}
+
 	// 1) Check line right after opening brace => must NOT be blank
 	if startLine+1 < len(lines) {
 		next := strings.TrimSpace(lines[startLine+1])
