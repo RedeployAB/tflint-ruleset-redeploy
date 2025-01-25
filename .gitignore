@@ -3,3 +3,4 @@ tflint-ruleset-redeploy
 tflint-ruleset-redeploy.exe
 .aider*
 .env
+super-linter*
