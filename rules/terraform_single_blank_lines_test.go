@@ -1,60 +1,32 @@
 package rules
 
 import (
+	hcl "github.com/hashicorp/hcl/v2"
+	"path/filepath"
 	"testing"
 
-	hcl "github.com/hashicorp/hcl/v2"
 	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
 func TestTerraformSingleBlankLinesRule(t *testing.T) {
 	tests := []struct {
 		Name    string
-		Content string
+		File    string
 		Issues  helper.Issues
 	}{
 		{
-			Name: "OK - single blank line only",
-			Content: `
-resource "random_uuid" "role_assignment" {
-  for_each = local.role_assignments
-
-  lifecycle {
-    replace_triggered_by = [
-      null_resource.role_assignment[each.key]
-    ]
-  }
-}
-`,
+			Name:   "OK - single blank line only",
+			File:   "blank_line_ok_single.tf",
 			Issues: helper.Issues{},
 		},
 		{
-			Name: "OK - no blank lines at all",
-			Content: `
-resource "random_uuid" "role_assignment" {
-  lifecycle {
-    replace_triggered_by = [
-      null_resource.role_assignment[each.key]
-    ]
-  }
-}
-`,
+			Name:   "OK - no blank lines at all",
+			File:   "blank_line_ok_none.tf",
 			Issues: helper.Issues{},
 		},
 		{
 			Name: "NOT OK - two consecutive blank lines",
-			Content: `
-resource "random_uuid" "role_assignment" {
-  for_each = local.role_assignments
-
-
-  lifecycle {
-    replace_triggered_by = [
-      null_resource.role_assignment[each.key]
-    ]
-  }
-}
-`,
+			File: "blank_line_not_ok_multiple.tf",
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformSingleBlankLinesRule(),
@@ -73,8 +45,10 @@ resource "random_uuid" "role_assignment" {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
+			// readFixture is found in rules/helper_test.go
+			content := readFixture(t, filepath.Join("testdata", tc.File))
 			runner := helper.TestRunner(t, map[string]string{
-				"resource.tf": tc.Content,
+				"resource.tf": content,
 			})
 
 			// Perform the check
