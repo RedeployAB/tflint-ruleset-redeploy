@@ -51,7 +51,7 @@ output "bad_order" {
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformOutputArgumentOrderRule(),
-					Message: "Out-of-order argument 'ephemeral'. Expected sequence: description, value, ephemeral, sensitive, depends_on",
+					Message: "Out-of-order argument 'ephemeral'. Expected sequence: description, value, ephemeral, sensitive, precondition, depends_on",
 					Range: hcl.Range{
 						Filename: "outputs.tf",
 						Start:    hcl.Pos{Line: 9, Column: 2},
