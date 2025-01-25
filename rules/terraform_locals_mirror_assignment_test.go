@@ -20,7 +20,7 @@ func TestTerraformLocalsMirrorAssignmentRule(t *testing.T) {
 variable "foo" {}
 
 locals {
-  bar = var.foo
+	bar = var.foo
 }
 `,
 			},
@@ -30,8 +30,8 @@ locals {
 					Message: "Local 'bar' is assigned directly from variable 'foo'. This should not be a simple mirror assignment.",
 					Range: hcl.Range{
 						Filename: "locals.tf",
-						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 13},
+						Start:    hcl.Pos{Line: 5, Column: 2},
+						End:      hcl.Pos{Line: 5, Column: 15},
 					},
 				},
 			},
@@ -43,7 +43,7 @@ locals {
 variable "hello" {}
 
 locals {
-  hello = lower(var.hello)
+	hello = lower(var.hello)
 }
 `,
 			},
@@ -54,11 +54,11 @@ locals {
 			Files: map[string]string{
 				"locals.tf": `
 variable "env" {
-  default = "dev"
+	default = "dev"
 }
 
 locals {
-  env = var.env
+	env = var.env
 }
 `,
 			},
@@ -68,7 +68,7 @@ locals {
 					Message: "Local 'env' is assigned directly from variable 'env'. This should not be a simple mirror assignment.",
 					Range: hcl.Range{
 						Filename: "locals.tf",
-						Start:    hcl.Pos{Line: 7, Column: 3},
+						Start:    hcl.Pos{Line: 7, Column: 2},
 						End:      hcl.Pos{Line: 7, Column: 15},
 					},
 				},
