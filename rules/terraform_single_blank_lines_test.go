@@ -1,9 +1,9 @@
 package rules
 
 import (
-	hcl "github.com/hashicorp/hcl/v2"
-	"path/filepath"
 	"testing"
+
+	hcl "github.com/hashicorp/hcl/v2"
 
 	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
@@ -30,11 +30,11 @@ func TestTerraformSingleBlankLinesRule(t *testing.T) {
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformSingleBlankLinesRule(),
-					Message: "More than one consecutive blank line found at line 6",
+					Message: "More than one consecutive blank line found at line 4",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 1},
-						End:      hcl.Pos{Line: 6, Column: 1},
+						Start:    hcl.Pos{Line: 4, Column: 1},
+						End:      hcl.Pos{Line: 4, Column: 1},
 					},
 				},
 			},
@@ -46,7 +46,7 @@ func TestTerraformSingleBlankLinesRule(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
 			// readFixture is found in rules/helper_test.go
-			content := readFixture(t, filepath.Join("testdata", tc.File))
+			content := readFixture(t, tc.File)
 			runner := helper.TestRunner(t, map[string]string{
 				"resource.tf": content,
 			})
