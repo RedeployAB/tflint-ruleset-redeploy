@@ -33,7 +33,7 @@ func TestTerraformVariableSensitiveRule(t *testing.T) {
 					Range: hcl.Range{
 						Filename: "variables.tf",
 						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 21},
+						End:      hcl.Pos{Line: 4, Column: 22},
 					},
 				},
 			},
