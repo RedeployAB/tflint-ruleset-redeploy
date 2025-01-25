@@ -160,23 +160,25 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 			if !hasAttributes {
 				// No attributes => expect 0 lines
 				if linesBetween != 0 {
-					return r.emitIssue(runner, it.Range,
-						"Block should appear immediately after opening brace when it's the first item (no blank lines)")
+					if err2 := r.emitIssue(runner, it.Range,
+						"Block should appear immediately after opening brace when it's the first item (no blank lines)"); err2 != nil {
+						return err2
+					}
 				}
 			} else {
 				// We have attributes => expect exactly 1 blank line
 				if linesBetween != 1 {
-					return r.emitIssue(runner, it.Range,
-						"Expected exactly one blank line before this block")
+					if err2 := r.emitIssue(runner, it.Range, "Expected exactly one blank line before this block"); err2 != nil {
+						return err2
+					}
 				}
 			}
 			firstBlock = false
 		} else {
 			// SUBSEQUENT block => always expect exactly 1 blank line
 			if linesBetween != 1 {
-				if err := r.emitIssue(runner, it.Range,
-					"Expected exactly one blank line before this block"); err != nil {
-					return err
+				if err2 := r.emitIssue(runner, it.Range, "Expected exactly one blank line before this block"); err2 != nil {
+					return err2
 				}
 			}
 		}
