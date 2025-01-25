@@ -9,23 +9,45 @@ import (
 
 func TestTerraformOutputArgumentOrderRule(t *testing.T) {
 	tests := []struct {
-		Name   string
-		File   string
-		Issues helper.Issues
+		Name    string
+		Content string
+		Issues  helper.Issues
 	}{
 		{
-			Name:   "OK - minimal (only value)",
-			File:   "output_arg_order_ok_minimal.tf",
+			Name: "OK - minimal (only value)",
+			Content: `
+output "min_output" {
+  value = "just a test"
+}
+`,
 			Issues: helper.Issues{},
 		},
 		{
-			Name:   "OK - all attributes in correct order",
-			File:   "output_arg_order_ok_full.tf",
+			Name: "OK - all attributes in correct order",
+			Content: `
+output "full_output" {
+  description = "some desc"
+  value       = "some val"
+  ephemeral   = true
+  sensitive   = true
+  depends_on  = []
+}
+`,
 			Issues: helper.Issues{},
 		},
 		{
 			Name: "NOT OK - 'sensitive' comes before 'ephemeral'",
-			File: "output_arg_order_not_ok_sens_before_ephemeral.tf",
+			Content: `
+output "bad_order" {
+
+  description = "some desc"
+
+  value = "some val"
+
+  sensitive = true
+  ephemeral = true
+}
+`,
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformOutputArgumentOrderRule(),
@@ -44,9 +66,8 @@ func TestTerraformOutputArgumentOrderRule(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			content := readFixture(t, tc.File)
 			runner := helper.TestRunner(t, map[string]string{
-				"outputs.tf": content,
+				"outputs.tf": tc.Content,
 			})
 
 			if err := rule.Check(runner); err != nil {
