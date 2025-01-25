@@ -1,7 +1,6 @@
 package rules
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 
@@ -81,11 +80,12 @@ func (r *TerraformOutputArgumentOrderRule) checkOutputBlock(
 	runner tflint.Runner,
 ) error {
 	orderMap := map[string]int{
-		"description": 0,
-		"value":       1,
-		"ephemeral":   2,
-		"sensitive":   3,
-		"depends_on":  4,
+		"description":  0,
+		"value":        1,
+		"ephemeral":    2,
+		"sensitive":    3,
+		"precondition": 4,
+		"depends_on":   5,
 	}
 
 	type item struct {
