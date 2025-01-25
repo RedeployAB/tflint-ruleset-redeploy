@@ -30,9 +30,9 @@ type item struct {
 // countBlankLinesIgnoringComments returns how many "blank lines" exist
 // between fromLine (inclusive) and toLine (exclusive), treating comment-only
 // lines (# or //) as blank. It returns:
-//  - 0 if there are zero lines that are purely blank/comment,
-//  - 1 if there is exactly one group of contiguous blank/comment lines,
-//    - 2 or more if multiple separate blocks of blank/comment lines appear.
+//   - 0 if there are zero lines that are purely blank/comment,
+//   - 1 if there is exactly one group of contiguous blank/comment lines,
+//   - 2 or more if multiple separate blocks of blank/comment lines appear.
 func (r *TerraformBlockFormatRule) countBlankLinesIgnoringComments(
 	lines []string,
 	fromLine, toLine int,
@@ -170,7 +170,15 @@ func (r *TerraformBlockFormatRule) checkItemsSpacing(
 	hasAttributes bool,
 	runner tflint.Runner,
 ) error {
-	lines := strings.Split(runner.GetFileContent(block.Body.Range().Filename), "\n")
+	files, err := runner.GetFiles()
+	if err != nil {
+		return err
+	}
+	hclFile, ok := files[block.Body.Range().Filename]
+	if !ok || hclFile.Bytes == nil {
+		return nil
+	}
+	lines := strings.Split(string(hclFile.Bytes), "\n")
 
 	// Helper functions to check spacing logic:
 	checkFirstBlockSpacing := func(linesBetween int, rng hcl.Range) error {
