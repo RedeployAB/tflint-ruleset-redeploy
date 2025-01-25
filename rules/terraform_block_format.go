@@ -19,6 +19,14 @@ type TerraformBlockFormatRule struct {
 	tflint.DefaultRule
 }
 
+// item represents either an attribute or nested block inside our target block
+type item struct {
+	Type      string
+	Range     hcl.Range
+	StartLine int
+	EndLine   int
+}
+
 func NewTerraformBlockFormatRule() *TerraformBlockFormatRule {
 	return &TerraformBlockFormatRule{}
 }
@@ -87,46 +95,17 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 		return nil
 	}
 
-	// Introduce helper functions to check spacing logic:
-	checkFirstBlockSpacing := func(linesBetween int, rng hcl.Range, hasAttrs bool) error {
-		if !hasAttrs {
-			// No attributes => expect 0 blank lines
-			if linesBetween != 0 {
-				if err2 := r.emitIssue(runner, rng,
-					"Block should appear immediately after opening brace when it's the first item (no blank lines)"); err2 != nil {
-					return err2
-				}
-			}
-		} else {
-			// Has attributes => expect exactly 1 blank line
-			if linesBetween != 1 {
-				if err2 := r.emitIssue(runner, rng, "Expected exactly one blank line before this block"); err2 != nil {
-					return err2
-				}
-			}
-		}
-		return nil
-	}
-
-	checkSubsequentBlockSpacing := func(linesBetween int, rng hcl.Range) error {
-		// Always expect exactly 1 blank line for subsequent blocks
-		if linesBetween != 1 {
-			if err2 := r.emitIssue(runner, rng, "Expected exactly one blank line before this block"); err2 != nil {
-				return err2
-			}
-		}
-		return nil
-	}
-
-	// First, detect whether this block has attributes at all:
+	// Gather items (attributes/blocks) in lexical order
 	hasAttributes := len(block.Body.Attributes) > 0
-
-	type item struct {
-		Type      string
-		Range     hcl.Range
-		StartLine int
-		EndLine   int
+	items, err2 := r.collectItems(block)
+	if err2 != nil {
+		return err2
 	}
+
+	return r.checkItemsSpacing(items, block, hasAttributes, runner)
+}
+
+func (r *TerraformBlockFormatRule) collectItems(block *hclsyntax.Block) ([]item, error) {
 	var items []item
 
 	for _, attr := range block.Body.Attributes {
@@ -137,13 +116,13 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 			EndLine:   attr.Range().End.Line,
 		})
 	}
-	for _, blk2 := range block.Body.Blocks {
-		blkStart := blk2.Body.Range().Start.Line
-		blkEnd := blk2.Body.Range().End.Line
+	for _, childBlk := range block.Body.Blocks {
+		blkStart := childBlk.DefRange().Start.Line
+		blkEnd := childBlk.Body.Range().End.Line
 
 		items = append(items, item{
 			Type:      TypeBlock,
-			Range:     blk2.DefRange(),
+			Range:     childBlk.DefRange(),
 			StartLine: blkStart,
 			EndLine:   blkEnd,
 		})
@@ -153,9 +132,42 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 		return items[i].StartLine < items[j].StartLine
 	})
 
+	return items, nil
+}
+
+func (r *TerraformBlockFormatRule) checkItemsSpacing(
+	items []item,
+	block *hclsyntax.Block,
+	hasAttributes bool,
+	runner tflint.Runner,
+) error {
+	// Helper functions to check spacing logic:
+	checkFirstBlockSpacing := func(linesBetween int, rng hcl.Range) error {
+		if !hasAttributes {
+			// No attributes => expect 0 blank lines
+			if linesBetween != 0 {
+				return r.emitIssue(runner, rng,
+					"Block should appear immediately after opening brace when it's the first item (no blank lines)")
+			}
+		} else {
+			// Has attributes => expect exactly 1 blank line
+			if linesBetween != 1 {
+				return r.emitIssue(runner, rng, "Expected exactly one blank line before this block")
+			}
+		}
+		return nil
+	}
+
+	checkSubsequentBlockSpacing := func(linesBetween int, rng hcl.Range) error {
+		// Always expect exactly 1 blank line for subsequent blocks
+		if linesBetween != 1 {
+			return r.emitIssue(runner, rng, "Expected exactly one blank line before this block")
+		}
+		return nil
+	}
+
 	// Use DefRange().Start.Line for the line with the 'resource'/'data'/'provider' etc.
 	previousEndLine := block.DefRange().Start.Line
-
 	firstBlock := true
 
 	for _, it := range items {
@@ -165,9 +177,8 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 		}
 
 		linesBetween := it.StartLine - (previousEndLine + 1)
-
 		if firstBlock {
-			if err2 := checkFirstBlockSpacing(linesBetween, it.Range, hasAttributes); err2 != nil {
+			if err2 := checkFirstBlockSpacing(linesBetween, it.Range); err2 != nil {
 				return err2
 			}
 			firstBlock = false
@@ -176,7 +187,6 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 				return err2
 			}
 		}
-
 		previousEndLine = it.EndLine
 	}
 
