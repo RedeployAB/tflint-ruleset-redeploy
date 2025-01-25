@@ -17,7 +17,7 @@ func TestTerraformOutputArgumentOrderRule(t *testing.T) {
 			Name: "OK - minimal (only value)",
 			Content: `
 output "min_output" {
-  value = "just a test"
+	value = "just a test"
 }
 `,
 			Issues: helper.Issues{},
@@ -26,11 +26,11 @@ output "min_output" {
 			Name: "OK - all attributes in correct order",
 			Content: `
 output "full_output" {
-  description = "some desc"
-  value       = "some val"
-  ephemeral   = true
-  sensitive   = true
-  depends_on  = []
+	description = "some desc"
+	value       = "some val"
+	ephemeral   = true
+	sensitive   = true
+	depends_on  = []
 }
 `,
 			Issues: helper.Issues{},
@@ -40,22 +40,22 @@ output "full_output" {
 			Content: `
 output "bad_order" {
 
-  description = "some desc"
+	description = "some desc"
 
-  value = "some val"
+	value = "some val"
 
-  sensitive = true
-  ephemeral = true
+	sensitive = true
+	ephemeral = true
 }
 `,
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformOutputArgumentOrderRule(),
-					Message: "Out-of-order argument 'sensitive'. Expected sequence: description, value, ephemeral, sensitive, depends_on",
+					Message: "Out-of-order argument 'ephemeral'. Expected sequence: description, value, ephemeral, sensitive, depends_on",
 					Range: hcl.Range{
 						Filename: "outputs.tf",
-						Start:    hcl.Pos{Line: 7, Column: 3},
-						End:      hcl.Pos{Line: 7, Column: 17},
+						Start:    hcl.Pos{Line: 9, Column: 2},
+						End:      hcl.Pos{Line: 9, Column: 18},
 					},
 				},
 			},
