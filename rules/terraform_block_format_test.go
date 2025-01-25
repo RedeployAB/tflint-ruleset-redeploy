@@ -160,6 +160,11 @@ func TestTerraformBlockFormat(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:    "OK - block with preceding comment before sub-block",
+			Content: readFixture(t, "block_fmt_ok_comment_before_block.tf"),
+			Issues:  helper.Issues{},
+		},
 	}
 
 	rule := NewTerraformBlockFormatRule()
