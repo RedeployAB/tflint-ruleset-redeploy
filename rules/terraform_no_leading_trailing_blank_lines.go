@@ -1,7 +1,6 @@
 package rules
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -80,8 +79,14 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) checkBlock(
 	filename string,
 	runner tflint.Runner,
 ) error {
-	linesRaw := runner.GetFileContent(filename)
-	lines := strings.Split(linesRaw, "\n")
+	hclFile, err := runner.GetFile(filename)
+	if err != nil {
+		return err
+	}
+	if hclFile.Bytes == nil {
+		return nil
+	}
+	lines := strings.Split(string(hclFile.Bytes), "\n")
 	startLine := block.Body.Range().Start.Line - 1
 	endLine := block.Body.Range().End.Line - 1
 

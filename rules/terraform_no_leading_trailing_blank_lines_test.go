@@ -27,8 +27,8 @@ func TestTerraformNoLeadingTrailingBlankLinesRule(t *testing.T) {
 					Message: "No blank or comment line allowed immediately after '{'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 3, Column: 1},
-						End:      hcl.Pos{Line: 3, Column: 1},
+						Start:    hcl.Pos{Line: 2, Column: 1},
+						End:      hcl.Pos{Line: 2, Column: 1},
 					},
 				},
 			},
@@ -42,8 +42,8 @@ func TestTerraformNoLeadingTrailingBlankLinesRule(t *testing.T) {
 					Message: "No blank or comment line allowed immediately before '}'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 8, Column: 1},
-						End:      hcl.Pos{Line: 8, Column: 1},
+						Start:    hcl.Pos{Line: 6, Column: 1},
+						End:      hcl.Pos{Line: 6, Column: 1},
 					},
 				},
 			},
@@ -55,7 +55,7 @@ func TestTerraformNoLeadingTrailingBlankLinesRule(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
 			// readFixture is found in rules/helper_test.go
-			content := readFixture(t, "testdata/"+tc.File)
+			content := readFixture(t, tc.File)
 			runner := helper.TestRunner(t, map[string]string{
 				"resource.tf": content,
 			})
