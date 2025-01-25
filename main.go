@@ -40,6 +40,7 @@ func main() {
 				rules.NewTerraformVariableNullableRule(),
 				rules.NewTerraformVariableSensitiveRule(),
 				rules.NewTerraformOutputSensitiveRule(),
+				rules.NewTerraformVariableEphemeralRule(), // <-- Added new rule here
 				rules.NewTerraformVariableArgumentOrderRule(),
 				rules.NewTerraformLocalsMirrorAssignmentRule(),
 				rules.NewTerraformOutputArgumentOrderRule(),
