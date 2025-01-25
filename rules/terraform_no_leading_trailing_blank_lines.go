@@ -90,33 +90,33 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) checkBlock(
 	startLine := block.Body.Range().Start.Line - 1
 	endLine := block.Body.Range().End.Line - 1
 
-	// 1) Check line right after opening brace => must NOT be blank (or comment)
+	// 1) Check line right after opening brace => must NOT be blank
 	if startLine+1 < len(lines) {
 		next := strings.TrimSpace(lines[startLine+1])
-		if next == "" || strings.HasPrefix(next, "#") || strings.HasPrefix(next, "//") {
+		if next == "" {
 			rng := hcl.Range{
 				Filename: filename,
 				Start:    hcl.Pos{Line: startLine + 2, Column: 1},
 				End:      hcl.Pos{Line: startLine + 2, Column: 1},
 			}
 			return runner.EmitIssue(r,
-				"No blank or comment line allowed immediately after '{'",
+				"No blank line allowed immediately after '{'",
 				rng,
 			)
 		}
 	}
 
-	// 2) Check line right before closing brace => must NOT be blank (or comment)
+	// 2) Check line right before closing brace => must NOT be blank
 	if endLine-1 >= 0 {
 		prev := strings.TrimSpace(lines[endLine-1])
-		if prev == "" || strings.HasPrefix(prev, "#") || strings.HasPrefix(prev, "//") {
+		if prev == "" {
 			rng := hcl.Range{
 				Filename: filename,
 				Start:    hcl.Pos{Line: endLine, Column: 1},
 				End:      hcl.Pos{Line: endLine, Column: 1},
 			}
 			return runner.EmitIssue(r,
-				"No blank or comment line allowed immediately before '}'",
+				"No blank line allowed immediately before '}'",
 				rng,
 			)
 		}

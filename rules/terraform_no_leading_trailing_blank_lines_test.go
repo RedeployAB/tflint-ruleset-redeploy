@@ -24,7 +24,7 @@ func TestTerraformNoLeadingTrailingBlankLinesRule(t *testing.T) {
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformNoLeadingTrailingBlankLinesRule(),
-					Message: "No blank or comment line allowed immediately after '{'",
+					Message: "No blank line allowed immediately after '{'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 1},
@@ -39,7 +39,7 @@ func TestTerraformNoLeadingTrailingBlankLinesRule(t *testing.T) {
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformNoLeadingTrailingBlankLinesRule(),
-					Message: "No blank or comment line allowed immediately before '}'",
+					Message: "No blank line allowed immediately before '}'",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 6, Column: 1},
@@ -47,6 +47,11 @@ func TestTerraformNoLeadingTrailingBlankLinesRule(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			Name:   "OK - comment line after opening brace",
+			File:   "leading_trailing_comment_ok_after_brace.tf",
+			Issues: helper.Issues{},
 		},
 	}
 
