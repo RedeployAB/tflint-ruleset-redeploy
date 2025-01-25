@@ -109,7 +109,7 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 	src = strings.ToLower(strings.TrimSpace(src))
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
-	if src == "false" {
+	if src == StringFalse {
 		return runner.EmitIssue(
 			r,
 			"sensitive should not be set to false (omit instead)",

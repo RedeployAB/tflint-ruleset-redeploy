@@ -18,4 +18,7 @@ const (
 
 	// For modules
 	TypeModule = "module"
+
+	// Common string constants
+	StringFalse = "false"
 )

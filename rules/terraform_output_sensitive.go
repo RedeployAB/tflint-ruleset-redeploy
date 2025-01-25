@@ -8,9 +8,6 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-// We'll store the string "false" in a constant to address the goconst linter warning.
-const falseString = "false"
-
 // TerraformOutputSensitiveRule checks for correct usage of the "sensitive" attribute in output blocks.
 // "sensitive" should only be set to true; if false, it should be omitted.
 type TerraformOutputSensitiveRule struct {
@@ -109,7 +106,7 @@ func (r *TerraformOutputSensitiveRule) checkOutputBlock(
 	src = strings.ToLower(strings.TrimSpace(src))
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
-	if src == falseString {
+	if src == StringFalse {
 		return runner.EmitIssue(
 			r,
 			"sensitive should not be set to false (omit instead)",
