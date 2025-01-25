@@ -11,7 +11,7 @@ import (
 )
 
 // TerraformLocalsMirrorAssignmentRule checks if a local variable is assigned directly
-// from a variable of the same name, emitting an error on the conflicting local.
+// from a variable (var.some_var), emitting an error on the local assignment.
 type TerraformLocalsMirrorAssignmentRule struct {
 	tflint.DefaultRule
 }
@@ -60,7 +60,7 @@ func (r *TerraformLocalsMirrorAssignmentRule) Check(runner tflint.Runner) error 
 		}
 	}
 
-	// Second pass: check for conflicts in locals
+	// Second pass: check for direct assignments in locals
 	for filename, hclFile := range files {
 		if hclFile == nil || hclFile.Bytes == nil {
 			continue
@@ -94,7 +94,7 @@ func (r *TerraformLocalsMirrorAssignmentRule) collectVariableNames(
 	}
 }
 
-// checkLocals scans for 'locals' blocks and checks for locals assigned directly from variables with the same name.
+// checkLocals scans for 'locals' blocks and checks for locals assigned directly from variables.
 func (r *TerraformLocalsMirrorAssignmentRule) checkLocals(
 	body *hclsyntax.Body,
 	filename string,
@@ -105,23 +105,21 @@ func (r *TerraformLocalsMirrorAssignmentRule) checkLocals(
 		if strings.EqualFold(block.Type, TypeLocals) {
 			// Each attribute in this block is a local variable
 			for attrName, attr := range block.Body.Attributes {
-				if variableNames[attrName] {
-					// Check if this local is assigned *directly* from var.<attrName>
-					scopeExpr, ok := attr.Expr.(*hclsyntax.ScopeTraversalExpr)
-					if ok && len(scopeExpr.Traversal) == 2 {
-						if root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot); ok && root.Name == "var" {
-							if second, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr); ok && second.Name == attrName {
-								// Emit an issue if it's a direct assignment local_name = var.local_name
-								if err := runner.EmitIssue(
-									r,
-									fmt.Sprintf(
-										"Local '%s' is assigned directly from variable '%s'. This should not be a simple mirror assignment.",
-										attrName, attrName,
-									),
-									attr.Range(),
-								); err != nil {
-									return err
-								}
+				// Check if this local is assigned *directly* from var.<something>
+				scopeExpr, ok := attr.Expr.(*hclsyntax.ScopeTraversalExpr)
+				if ok && len(scopeExpr.Traversal) == 2 {
+					if root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot); ok && root.Name == "var" {
+						if second, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr); ok {
+							// Emit an issue for any direct assignment local_name = var.<something>
+							if err := runner.EmitIssue(
+								r,
+								fmt.Sprintf(
+									"Local '%s' is assigned directly from variable '%s'. This should not be a simple mirror assignment.",
+									attrName, second.Name,
+								),
+								attr.Range(),
+							); err != nil {
+								return err
 							}
 						}
 					}

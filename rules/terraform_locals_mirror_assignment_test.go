@@ -14,7 +14,7 @@ func TestTerraformLocalsMirrorAssignmentRule(t *testing.T) {
 		Issues helper.Issues
 	}{
 		{
-			Name: "OK - local name differs => no issues",
+			Name: "NOT OK - local name differs => direct assignment not allowed",
 			Files: map[string]string{
 				"locals.tf": `
 variable "foo" {}
@@ -24,7 +24,17 @@ locals {
 }
 `,
 			},
-			Issues: helper.Issues{},
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformLocalsMirrorAssignmentRule(),
+					Message: "Local 'bar' is assigned directly from variable 'foo'. This should not be a simple mirror assignment.",
+					Range: hcl.Range{
+						Filename: "locals.tf",
+						Start:    hcl.Pos{Line: 4, Column: 3},
+						End:      hcl.Pos{Line: 4, Column: 13},
+					},
+				},
+			},
 		},
 		{
 			Name: "OK - same local name, but uses an expression => no issues",
