@@ -41,6 +41,7 @@ func main() {
 				rules.NewTerraformVariableSensitiveRule(),
 				rules.NewTerraformOutputSensitiveRule(),
 				rules.NewTerraformVariableArgumentOrderRule(),
+				rules.NewTerraformVariableRedeclaredAsLocalRule(), // Added new rule here
 			},
 		},
 	})
