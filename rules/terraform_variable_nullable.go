@@ -76,6 +76,71 @@ func (r *TerraformVariableNullableRule) processBody(
 	return nil
 }
 
+func (r *TerraformVariableNullableRule) checkBoolDefaultNotNull(
+	typeVal, defaultVal *hclsyntax.Attribute,
+	fileBytes []byte,
+	runner tflint.Runner,
+) error {
+	if typeVal != nil && defaultVal != nil {
+		isBool, err := isTypeBool(typeVal, fileBytes)
+		if err != nil {
+			return err
+		}
+		if isBool {
+			isDefaultNull, err := isAttrNull(defaultVal, fileBytes)
+			if err != nil {
+				return err
+			}
+			if isDefaultNull {
+				return runner.EmitIssue(
+					r,
+					"boolean variables cannot have default = null",
+					defaultVal.Range(),
+				)
+			}
+		}
+	}
+	return nil
+}
+
+func (r *TerraformVariableNullableRule) checkNullDefaultAndNullableNotDeclared(
+	defaultVal, nullableVal *hclsyntax.Attribute,
+	fileBytes []byte,
+	runner tflint.Runner,
+) error {
+	isDefaultNull, err := isAttrNull(defaultVal, fileBytes)
+	if err != nil {
+		return err
+	}
+	if isDefaultNull && nullableVal != nil {
+		return runner.EmitIssue(
+			r,
+			"nullable must not be declared if default = null",
+			nullableVal.Range(),
+		)
+	}
+	return nil
+}
+
+func (r *TerraformVariableNullableRule) checkNullableFalseIfDeclared(
+	nullableVal *hclsyntax.Attribute,
+	fileBytes []byte,
+	runner tflint.Runner,
+) error {
+	isNullableTrue, err := isAttrTrue(nullableVal, fileBytes)
+	if err != nil {
+		return err
+	}
+	if isNullableTrue {
+		return runner.EmitIssue(
+			r,
+			"nullable should not be set to true (the default is already true)",
+			nullableVal.Range(),
+		)
+	}
+	return nil
+}
+
 func (r *TerraformVariableNullableRule) checkVariableBlock(
 	block *hclsyntax.Block,
 	runner tflint.Runner,
@@ -104,49 +169,24 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	}
 
 	// 1) If type = bool => default must not be null
-	if typeVal != nil && defaultVal != nil {
-		if isBool, err := isTypeBool(typeVal, fileBytes); err != nil {
-			return err
-		} else if isBool {
-			if isDefaultNull, err := isAttrNull(defaultVal, fileBytes); err != nil {
-				return err
-			} else if isDefaultNull {
-				return runner.EmitIssue(
-					r,
-					"boolean variables cannot have default = null",
-					defaultVal.Range(),
-				)
-			}
-		}
+	if err := r.checkBoolDefaultNotNull(typeVal, defaultVal, fileBytes, runner); err != nil {
+		return err
 	}
 
 	// 2) If default = null => must NOT define nullable
 	if defaultVal != nil {
-		if isDefaultNull, err := isAttrNull(defaultVal, fileBytes); err != nil {
+		if err := r.checkNullDefaultAndNullableNotDeclared(defaultVal, nullableVal, fileBytes, runner); err != nil {
 			return err
-		} else if isDefaultNull {
-			if nullableVal != nil {
-				return runner.EmitIssue(
-					r,
-					"nullable must not be declared if default = null",
-					nullableVal.Range(),
-				)
-			}
 		}
 	}
 
 	// 3) If nullable is declared => must be false
 	if nullableVal != nil {
-		if isNullableTrue, err := isAttrTrue(nullableVal, fileBytes); err != nil {
+		if err := r.checkNullableFalseIfDeclared(nullableVal, fileBytes, runner); err != nil {
 			return err
-		} else if isNullableTrue {
-			return runner.EmitIssue(
-				r,
-				"nullable should not be set to true (the default is already true)",
-				nullableVal.Range(),
-			)
 		}
 	}
+
 	return nil
 }
 
