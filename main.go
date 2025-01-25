@@ -39,8 +39,8 @@ func main() {
 				rules.NewTerraformModuleDependsOnRule(),
 				rules.NewTerraformVariableNullableRule(),
 				rules.NewTerraformVariableSensitiveRule(),
-				rules.NewTerraformOutputSensitiveRule(), // Added the new rule here
-				rules.NewTerraformVariableArgumentOrderRule(), // <-- Add new rule
+				rules.NewTerraformOutputSensitiveRule(),
+				rules.NewTerraformVariableArgumentOrderRule(),
 			},
 		},
 	})
