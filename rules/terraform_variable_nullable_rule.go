@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
@@ -84,6 +85,13 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	var nullableVal *hclsyntax.Attribute
 	var typeVal *hclsyntax.Attribute
 
+	// We'll need the raw file bytes for slicing
+	files, err := runner.GetFiles()
+	if err != nil {
+		return err
+	}
+	fileBytes := files[block.DefRange().Filename].Bytes
+
 	// Gather relevant attributes
 	for _, attr := range block.Body.Attributes {
 		switch strings.ToLower(attr.Name) {
@@ -98,8 +106,8 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 
 	// 1) If type = bool => default must not be null
 	if typeVal != nil && defaultVal != nil {
-		if isBool, _ := isTypeBool(typeVal); isBool {
-			if isDefaultNull, _ := isAttrNull(defaultVal); isDefaultNull {
+		if isBool, _ := isTypeBool(typeVal, fileBytes); isBool {
+			if isDefaultNull, _ := isAttrNull(defaultVal, fileBytes); isDefaultNull {
 				return runner.EmitIssue(
 					r,
 					"boolean variables cannot have default = null",
@@ -111,7 +119,7 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 
 	// 2) If default = null => must NOT define nullable
 	if defaultVal != nil {
-		if isDefaultNull, _ := isAttrNull(defaultVal); isDefaultNull {
+		if isDefaultNull, _ := isAttrNull(defaultVal, fileBytes); isDefaultNull {
 			if nullableVal != nil {
 				return runner.EmitIssue(
 					r,
@@ -124,7 +132,7 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 
 	// 3) If nullable is declared => must be false
 	if nullableVal != nil {
-		if isNullableTrue, _ := isAttrTrue(nullableVal); isNullableTrue {
+		if isNullableTrue, _ := isAttrTrue(nullableVal, fileBytes); isNullableTrue {
 			return runner.EmitIssue(
 				r,
 				"nullable should not be set to true (the default is already true)",
@@ -135,38 +143,37 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	return nil
 }
 
-// We'll do simple textual checks, rather than cty-based (to avoid "not a string" panics).
-func isTypeBool(attr *hclsyntax.Attribute) (bool, error) {
-	src := getAttributeRawText(attr)
+// We'll do simple textual checks by slicing the file bytes from the attribute’s expression Range.
+func isTypeBool(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
+	src := getAttributeRawText(attr, fileBytes)
 	src = strings.ToLower(strings.TrimSpace(src))
-	// If user wrote 'type = bool', 'bool' will appear as the text.
-	// We check for "bool" exactly
 	return (src == "bool"), nil
 }
 
-func isAttrNull(attr *hclsyntax.Attribute) (bool, error) {
-	src := getAttributeRawText(attr)
+func isAttrNull(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
+	src := getAttributeRawText(attr, fileBytes)
 	src = strings.ToLower(strings.TrimSpace(src))
 	return (src == "null"), nil
 }
 
-func isAttrTrue(attr *hclsyntax.Attribute) (bool, error) {
-	src := getAttributeRawText(attr)
+func isAttrTrue(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
+	src := getAttributeRawText(attr, fileBytes)
 	src = strings.ToLower(strings.TrimSpace(src))
 	return (src == "true"), nil
 }
 
-// getAttributeRawText extracts the raw tokens for an attribute's right-hand side.
-// That way, we can parse simple "bool", "true", "null", etc. as plain text.
-func getAttributeRawText(attr *hclsyntax.Attribute) string {
-	tokens := hclsyntax.TokensForExpression(attr.Expr)
-	if len(tokens) == 1 {
-		// If there's exactly one token, return it (e.g. 'bool', 'null', 'true')
-		return tokens[0].Text
+// getAttributeRawText slices the original file bytes from the attribute’s expression range.
+// Then we can match "bool", "true", "null", etc. as plain text.
+func getAttributeRawText(attr *hclsyntax.Attribute, fileBytes []byte) string {
+	rng := attr.Expr.Range()
+
+	// Validate we don't go out-of-bounds
+	if rng.End.Byte > len(fileBytes) {
+		return ""
 	}
-	var sb strings.Builder
-	for _, tk := range tokens {
-		sb.WriteString(tk.Text)
+	if rng.Start.Byte >= rng.End.Byte {
+		return ""
 	}
-	return sb.String()
+
+	return string(fileBytes[rng.Start.Byte:rng.End.Byte])
 }
