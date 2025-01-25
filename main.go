@@ -37,7 +37,8 @@ func main() {
 				rules.NewTerraformSingleBlankLinesRule(),
 				rules.NewTerraformNoLeadingTrailingBlankLinesRule(),
 				rules.NewTerraformModuleDependsOnRule(),
-				rules.NewTerraformVariableNullableRule(), // Added the new rule here
+				rules.NewTerraformVariableNullableRule(),
+				rules.NewTerraformVariableSensitiveRule(),
 			},
 		},
 	})
