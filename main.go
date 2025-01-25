@@ -33,7 +33,9 @@ func main() {
 				rules.NewTerraformLocalsFileRule(),
 				rules.NewTerraformConfigBlockFileRule(),
 				rules.NewTerraformProviderMinimumMajorVersionRule(),
-				rules.NewTerraformResourceArgumentOrderRule(), // <-- Add this line
+				rules.NewTerraformResourceArgumentOrderRule(),
+				rules.NewTerraformSingleBlankLinesRule(),
+				rules.NewTerraformNoLeadingTrailingBlankLinesRule(), // <-- Add this line
 			},
 		},
 	})
