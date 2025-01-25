@@ -17,7 +17,7 @@ func TestTerraformVariableSensitiveRule(t *testing.T) {
 			Name: "OK - no sensitive declared",
 			Content: `
 variable "test" {
-  description = "no sensitive declared"
+	description = "no sensitive declared"
 }
 `,
 			Issues: helper.Issues{},
@@ -26,8 +26,8 @@ variable "test" {
 			Name: "OK - sensitive = true",
 			Content: `
 variable "test" {
-  description = "sensitive true"
-  sensitive   = true
+	description = "sensitive true"
+	sensitive   = true
 }
 `,
 			Issues: helper.Issues{},
@@ -36,9 +36,9 @@ variable "test" {
 			Name: "NOT OK - sensitive = false",
 			Content: `
 variable "test" {
-  description = "sensitive false"
+	description = "sensitive false"
 
-  sensitive = false     
+	sensitive = false
 }
 `,
 			Issues: helper.Issues{
@@ -47,8 +47,8 @@ variable "test" {
 					Message: "sensitive should not be set to false (omit instead)",
 					Range: hcl.Range{
 						Filename: "variables.tf",
-						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 22},
+						Start:    hcl.Pos{Line: 5, Column: 2},
+						End:      hcl.Pos{Line: 5, Column: 19},
 					},
 				},
 			},

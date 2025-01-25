@@ -17,7 +17,7 @@ func TestTerraformVariableEphemeralRule(t *testing.T) {
 			Name: "OK - ephemeral not set",
 			Content: `
 variable "test" {
-  description = "some test"
+	description = "some test"
 }
 `,
 			Issues: helper.Issues{},
@@ -26,8 +26,8 @@ variable "test" {
 			Name: "OK - ephemeral = true",
 			Content: `
 variable "test" {
-  description = "another test"
-  ephemeral   = true
+	description = "another test"
+	ephemeral   = true
 }
 `,
 			Issues: helper.Issues{},
@@ -36,9 +36,9 @@ variable "test" {
 			Name: "NOT OK - ephemeral = false",
 			Content: `
 variable "test" {
-  description = "another test"
+	description = "another test"
 
-  ephemeral = false     
+	ephemeral = false
 }
 `,
 			Issues: helper.Issues{
@@ -47,8 +47,8 @@ variable "test" {
 					Message: "ephemeral should not be set to false (omit instead)",
 					Range: hcl.Range{
 						Filename: "variables.tf",
-						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 24},
+						Start:    hcl.Pos{Line: 5, Column: 2},
+						End:      hcl.Pos{Line: 5, Column: 19},
 					},
 				},
 			},

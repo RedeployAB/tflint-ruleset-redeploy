@@ -17,9 +17,9 @@ func TestTerraformVariableNullableRule(t *testing.T) {
 			Name: "OK - nullable = false, bool default = true",
 			Content: `
 variable "test" {
-  type     = bool
-  default  = true
-  nullable = false
+	type     = bool
+	default  = true
+	nullable = false
 }
 `,
 			Issues: helper.Issues{},
@@ -28,8 +28,8 @@ variable "test" {
 			Name: "OK - no default, nullable = false",
 			Content: `
 variable "test" {
-  type     = bool
-  nullable = false
+	type     = bool
+	nullable = false
 }
 `,
 			Issues: helper.Issues{},
@@ -38,7 +38,7 @@ variable "test" {
 			Name: "NOT OK - nullable set to true",
 			Content: `
 variable "test" {
-  nullable = true
+	nullable = true
 }
 `,
 			Issues: helper.Issues{
@@ -47,8 +47,8 @@ variable "test" {
 					Message: "nullable should not be set to true (the default is already true)",
 					Range: hcl.Range{
 						Filename: "variables.tf",
-						Start:    hcl.Pos{Line: 3, Column: 3},
-						End:      hcl.Pos{Line: 3, Column: 21},
+						Start:    hcl.Pos{Line: 3, Column: 2},
+						End:      hcl.Pos{Line: 3, Column: 17},
 					},
 				},
 			},
@@ -57,9 +57,9 @@ variable "test" {
 			Name: "NOT OK - boolean var with default = null",
 			Content: `
 variable "test" {
-  type = bool
+	type = bool
 
-  default = null       
+	default = null
 }
 `,
 			Issues: helper.Issues{
@@ -68,8 +68,8 @@ variable "test" {
 					Message: "boolean variables cannot have default = null",
 					Range: hcl.Range{
 						Filename: "variables.tf",
-						Start:    hcl.Pos{Line: 4, Column: 3},
-						End:      hcl.Pos{Line: 4, Column: 21},
+						Start:    hcl.Pos{Line: 5, Column: 2},
+						End:      hcl.Pos{Line: 5, Column: 16},
 					},
 				},
 			},
@@ -78,8 +78,8 @@ variable "test" {
 			Name: "NOT OK - default = null but has nullable declared",
 			Content: `
 variable "test" {
-  default  = null
-  nullable = false
+	default  = null
+	nullable = false
 }
 `,
 			Issues: helper.Issues{
@@ -88,8 +88,8 @@ variable "test" {
 					Message: "nullable must not be declared if default = null",
 					Range: hcl.Range{
 						Filename: "variables.tf",
-						Start:    hcl.Pos{Line: 5, Column: 3},
-						End:      hcl.Pos{Line: 5, Column: 22},
+						Start:    hcl.Pos{Line: 4, Column: 2},
+						End:      hcl.Pos{Line: 4, Column: 18},
 					},
 				},
 			},
