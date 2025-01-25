@@ -3,6 +3,7 @@ package rules
 import (
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
@@ -135,17 +136,28 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 }
 
 func isTypeBool(attr *hclsyntax.Attribute) (bool, error) {
-	// Simplify: check if the expression is "bool"
-	exprStr := strings.ToLower(strings.TrimSpace(attr.Expr.Range().ExtractString()))
-	return exprStr == "bool", nil
+	val, diags := attr.Expr.Value(nil)
+	if diags.HasErrors() {
+		return false, nil
+	}
+	exprStr := strings.ToLower(strings.TrimSpace(val.AsString()))
+	return strings.EqualFold(exprStr, "boolean"), nil
 }
 
 func isAttrNull(attr *hclsyntax.Attribute) (bool, error) {
-	exprStr := strings.TrimSpace(attr.Expr.Range().ExtractString())
+	val, diags := attr.Expr.Value(nil)
+	if diags.HasErrors() {
+		return false, nil
+	}
+	exprStr := strings.ToLower(strings.TrimSpace(val.AsString()))
 	return strings.EqualFold(exprStr, "null"), nil
 }
 
 func isAttrTrue(attr *hclsyntax.Attribute) (bool, error) {
-	exprStr := strings.ToLower(strings.TrimSpace(attr.Expr.Range().ExtractString()))
-	return exprStr == "true", nil
+	val, diags := attr.Expr.Value(nil)
+	if diags.HasErrors() {
+		return false, nil
+	}
+	exprStr := strings.ToLower(strings.TrimSpace(val.AsString()))
+	return strings.EqualFold(exprStr, "true"), nil
 }
