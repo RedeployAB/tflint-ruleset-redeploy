@@ -6,9 +6,11 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
+// Used for reading test fixtures
 func readFixture(t *testing.T, filename string) string {
 	path := filepath.Join("testdata", filename)
 	content, err := os.ReadFile(path)
@@ -23,10 +25,10 @@ func TestGetAttributeRawText(t *testing.T) {
 	// that GetAttributeRawText() retrieves each attribute's raw text correctly.
 	source := `
 variable "test" {
-  description = "Just a test"
-  type        = bool
-  default     = null
-  sensitive   = false
+	description = "Just a test"
+	type        = bool
+	default     = null
+	sensitive   = false
 }
 `
 
