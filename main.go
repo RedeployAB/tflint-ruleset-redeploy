@@ -35,7 +35,8 @@ func main() {
 				rules.NewTerraformProviderMinimumMajorVersionRule(),
 				rules.NewTerraformResourceArgumentOrderRule(),
 				rules.NewTerraformSingleBlankLinesRule(),
-				rules.NewTerraformNoLeadingTrailingBlankLinesRule(), // <-- Add this line
+				rules.NewTerraformNoLeadingTrailingBlankLinesRule(),
+				rules.NewTerraformModuleDependsOnRule(),
 			},
 		},
 	})
