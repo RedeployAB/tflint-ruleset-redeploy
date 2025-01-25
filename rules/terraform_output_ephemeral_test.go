@@ -1,0 +1,73 @@
+package rules
+
+import (
+	"testing"
+
+	hcl "github.com/hashicorp/hcl/v2"
+	"github.com/terraform-linters/tflint-plugin-sdk/helper"
+)
+
+func TestTerraformOutputEphemeralRule(t *testing.T) {
+	tests := []struct {
+		Name    string
+		Content string
+		Issues  helper.Issues
+	}{
+		{
+			Name: "OK - ephemeral not set",
+			Content: `
+output "something" {
+  value = "test"
+}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "OK - ephemeral = true",
+			Content: `
+output "something" {
+  value     = "test"
+  ephemeral = true
+}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "NOT OK - ephemeral = false",
+			Content: `
+output "something" {
+  value     = "test"
+
+  ephemeral = false
+}
+`,
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformOutputEphemeralRule(),
+					Message: "ephemeral should not be set to false (omit instead)",
+					Range: hcl.Range{
+						Filename: "outputs.tf",
+						Start:    hcl.Pos{Line: 5, Column: 3},
+						End:      hcl.Pos{Line: 5, Column: 20},
+					},
+				},
+			},
+		},
+	}
+
+	rule := NewTerraformOutputEphemeralRule()
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{
+				"outputs.tf": tc.Content,
+			})
+
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			helper.AssertIssues(t, tc.Issues, runner.Issues)
+		})
+	}
+}
