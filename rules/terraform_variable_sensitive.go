@@ -3,7 +3,6 @@ package rules
 import (
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
@@ -105,7 +104,7 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 	}
 	fileBytes := files[block.DefRange().Filename].Bytes
 
-	src := getAttributeRawText(sensitiveAttr, fileBytes)
+	src := GetAttributeRawText(sensitiveAttr, fileBytes)
 	src = strings.ToLower(strings.TrimSpace(src))
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
@@ -118,16 +117,4 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 	}
 
 	return nil
-}
-
-// Reuse same helper as in terraform_variable_nullable.go
-func getAttributeRawText(attr *hclsyntax.Attribute, fileBytes []byte) string {
-	rng := attr.Expr.Range()
-	if rng.End.Byte > len(fileBytes) {
-		return ""
-	}
-	if rng.Start.Byte >= rng.End.Byte {
-		return ""
-	}
-	return string(fileBytes[rng.Start.Byte:rng.End.Byte])
 }

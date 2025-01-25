@@ -3,7 +3,6 @@ package rules
 import (
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
@@ -144,35 +143,19 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 
 // We'll do simple textual checks by slicing the file bytes from the attribute’s expression Range.
 func isTypeBool(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := getAttributeRawText(attr, fileBytes)
+	src := GetAttributeRawText(attr, fileBytes)
 	src = strings.ToLower(strings.TrimSpace(src))
 	return (src == "bool"), nil
 }
 
 func isAttrNull(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := getAttributeRawText(attr, fileBytes)
+	src := GetAttributeRawText(attr, fileBytes)
 	src = strings.ToLower(strings.TrimSpace(src))
 	return (src == "null"), nil
 }
 
 func isAttrTrue(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := getAttributeRawText(attr, fileBytes)
+	src := GetAttributeRawText(attr, fileBytes)
 	src = strings.ToLower(strings.TrimSpace(src))
 	return (src == "true"), nil
-}
-
-// getAttributeRawText slices the original file bytes from the attribute’s expression range.
-// Then we can match "bool", "true", "null", etc. as plain text.
-func getAttributeRawText(attr *hclsyntax.Attribute, fileBytes []byte) string {
-	rng := attr.Expr.Range()
-
-	// Validate we don't go out-of-bounds
-	if rng.End.Byte > len(fileBytes) {
-		return ""
-	}
-	if rng.Start.Byte >= rng.End.Byte {
-		return ""
-	}
-
-	return string(fileBytes[rng.Start.Byte:rng.End.Byte])
 }
