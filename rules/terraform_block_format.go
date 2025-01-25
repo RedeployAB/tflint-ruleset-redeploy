@@ -27,6 +27,35 @@ type item struct {
 	EndLine   int
 }
 
+// countBlankLinesIgnoringComments returns how many "blank lines" exist
+// between fromLine (inclusive) and toLine (exclusive), treating comment-only
+// lines (# or //) as blank. It returns:
+//   - 0 if there are zero lines that are purely blank/comment,
+//   - 1 if there is exactly one group of contiguous blank/comment lines,
+//   - 2 or more if multiple separate blocks of blank/comment lines appear.
+func (r *TerraformBlockFormatRule) countBlankLinesIgnoringComments(
+	lines []string,
+	fromLine, toLine int,
+) int {
+	if fromLine >= toLine {
+		return 0
+	}
+	seenBlock := 0
+	inBlankBlock := false
+	for i := fromLine; i < toLine && i < len(lines); i++ {
+		s := strings.TrimSpace(lines[i])
+		if s == "" || strings.HasPrefix(s, "#") || strings.HasPrefix(s, "//") {
+			if !inBlankBlock {
+				seenBlock++
+				inBlankBlock = true
+			}
+		} else {
+			inBlankBlock = false
+		}
+	}
+	return seenBlock
+}
+
 func NewTerraformBlockFormatRule() *TerraformBlockFormatRule {
 	return &TerraformBlockFormatRule{}
 }
@@ -141,6 +170,16 @@ func (r *TerraformBlockFormatRule) checkItemsSpacing(
 	hasAttributes bool,
 	runner tflint.Runner,
 ) error {
+	files, err := runner.GetFiles()
+	if err != nil {
+		return err
+	}
+	hclFile, ok := files[block.Body.Range().Filename]
+	if !ok || hclFile.Bytes == nil {
+		return nil
+	}
+	lines := strings.Split(string(hclFile.Bytes), "\n")
+
 	// Helper functions to check spacing logic:
 	checkFirstBlockSpacing := func(linesBetween int, rng hcl.Range) error {
 		if !hasAttributes {
@@ -176,7 +215,12 @@ func (r *TerraformBlockFormatRule) checkItemsSpacing(
 			continue
 		}
 
-		linesBetween := it.StartLine - (previousEndLine + 1)
+		// Instead of raw arithmetic, we count ignoring comment-only lines
+		linesBetween := r.countBlankLinesIgnoringComments(
+			lines,
+			previousEndLine, // fromLine (inclusive)
+			it.StartLine,    // toLine   (exclusive)
+		)
 		if firstBlock {
 			if err2 := checkFirstBlockSpacing(linesBetween, it.Range); err2 != nil {
 				return err2
