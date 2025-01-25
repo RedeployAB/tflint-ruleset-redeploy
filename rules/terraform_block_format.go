@@ -39,24 +39,6 @@ func (r *TerraformBlockFormatRule) Link() string {
 	return ""
 }
 
-// countNonCommentNonBlankLines returns how many lines in [startLine, endLine]
-// aren't purely comments (# or //) or whitespace.
-func (r *TerraformBlockFormatRule) countNonCommentNonBlankLines(content []byte, startLine, endLine int) int {
-	lines := strings.Split(string(content), "\n")
-	count := 0
-	for i := startLine - 1; i < endLine && i < len(lines); i++ {
-		trimmed := strings.TrimSpace(lines[i])
-		if trimmed == "" {
-			continue
-		}
-		if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "//") {
-			continue
-		}
-		count++
-	}
-	return count
-}
-
 func (r *TerraformBlockFormatRule) Check(runner tflint.Runner) error {
 	files, err := runner.GetFiles()
 	if err != nil {
@@ -174,12 +156,9 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 				}
 			}
 			firstBlock = false
-		} else {
-			// SUBSEQUENT block => always expect exactly 1 blank line
-			if linesBetween != 1 {
-				if err2 := r.emitIssue(runner, it.Range, "Expected exactly one blank line before this block"); err2 != nil {
-					return err2
-				}
+		} else if linesBetween != 1 {
+			if err2 := r.emitIssue(runner, it.Range, "Expected exactly one blank line before this block"); err2 != nil {
+				return err2
 			}
 		}
 
