@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/RedeployAB/tflint-ruleset-redeploy/internal"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
@@ -117,7 +116,7 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, run
 		return nil
 	}
 
-	lastOfTheTwo := internal.Max(sourceLine, versionLine)
+	lastOfTheTwo := Max(sourceLine, versionLine)
 	if lastOfTheTwo < 0 {
 		return nil
 	}

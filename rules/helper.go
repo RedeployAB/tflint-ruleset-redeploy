@@ -16,3 +16,11 @@ func GetAttributeRawText(attr *hclsyntax.Attribute, fileBytes []byte) string {
 	}
 	return string(fileBytes[rng.Start.Byte:rng.End.Byte])
 }
+
+// Max returns the maximum of two integers
+func Max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
