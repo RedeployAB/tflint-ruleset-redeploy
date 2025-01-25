@@ -8,6 +8,8 @@ const (
 	TypeProvider  = "provider"
 	TypeAttr      = "attr"
 	TypeBlock     = "block"
+	TypeVariable  = "variable"
+	TypeLocals    = "locals"
 
 	// Meta argument names
 	ArgDependsOn = "depends_on"
