@@ -17,7 +17,7 @@ func TestTerraformOutputEphemeralRule(t *testing.T) {
 			Name: "OK - ephemeral not set",
 			Content: `
 output "something" {
-  value = "test"
+	value = "test"
 }
 `,
 			Issues: helper.Issues{},
@@ -26,8 +26,8 @@ output "something" {
 			Name: "OK - ephemeral = true",
 			Content: `
 output "something" {
-  value     = "test"
-  ephemeral = true
+	value     = "test"
+	ephemeral = true
 }
 `,
 			Issues: helper.Issues{},
@@ -36,9 +36,9 @@ output "something" {
 			Name: "NOT OK - ephemeral = false",
 			Content: `
 output "something" {
-  value     = "test"
+	value     = "test"
 
-  ephemeral = false
+	ephemeral = false
 }
 `,
 			Issues: helper.Issues{
@@ -47,8 +47,8 @@ output "something" {
 					Message: "ephemeral should not be set to false (omit instead)",
 					Range: hcl.Range{
 						Filename: "outputs.tf",
-						Start:    hcl.Pos{Line: 5, Column: 3},
-						End:      hcl.Pos{Line: 5, Column: 20},
+						Start:    hcl.Pos{Line: 5, Column: 2},
+						End:      hcl.Pos{Line: 5, Column: 19},
 					},
 				},
 			},
