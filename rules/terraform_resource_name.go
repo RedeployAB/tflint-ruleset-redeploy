@@ -40,9 +40,7 @@ func (r *TerraformResourceNameRule) Check(runner tflint.Runner) error {
 				LabelNames: []string{"type", "name"},
 			},
 		},
-	}, &hclext.ModuleContentOptions{
-		IgnoreTerraformErrors: true,
-	})
+	}, nil)
 	if err != nil {
 		return err
 	}
