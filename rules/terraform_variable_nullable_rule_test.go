@@ -32,8 +32,8 @@ func TestTerraformVariableNullableRule(t *testing.T) {
 					Message: "nullable should not be set to true (the default is already true)",
 					Range: hcl.Range{
 						Filename: "variables.tf",
-						Start:    hcl.Pos{Line: 7, Column: 1},
-						End:      hcl.Pos{Line: 7, Column: 1},
+						Start:    hcl.Pos{Line: 4, Column: 3},
+						End:      hcl.Pos{Line: 4, Column: 21},
 					},
 				},
 			},
@@ -47,8 +47,8 @@ func TestTerraformVariableNullableRule(t *testing.T) {
 					Message: "boolean variables cannot have default = null",
 					Range: hcl.Range{
 						Filename: "variables.tf",
-						Start:    hcl.Pos{Line: 6, Column: 1},
-						End:      hcl.Pos{Line: 6, Column: 1},
+						Start:    hcl.Pos{Line: 4, Column: 3},
+						End:      hcl.Pos{Line: 4, Column: 21},
 					},
 				},
 			},
@@ -62,8 +62,8 @@ func TestTerraformVariableNullableRule(t *testing.T) {
 					Message: "nullable must not be declared if default = null",
 					Range: hcl.Range{
 						Filename: "variables.tf",
-						Start:    hcl.Pos{Line: 8, Column: 1},
-						End:      hcl.Pos{Line: 8, Column: 1},
+						Start:    hcl.Pos{Line: 5, Column: 3},
+						End:      hcl.Pos{Line: 5, Column: 22},
 					},
 				},
 			},
@@ -73,7 +73,7 @@ func TestTerraformVariableNullableRule(t *testing.T) {
 	rule := NewTerraformVariableNullableRule()
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			content := readFixture(t, "testdata/"+tc.File)
+			content := readFixture(t, tc.File)
 			runner := helper.TestRunner(t, map[string]string{
 				"variables.tf": content,
 			})
