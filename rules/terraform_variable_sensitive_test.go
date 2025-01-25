@@ -9,23 +9,38 @@ import (
 
 func TestTerraformVariableSensitiveRule(t *testing.T) {
 	tests := []struct {
-		Name   string
-		File   string
-		Issues helper.Issues
+		Name    string
+		Content string
+		Issues  helper.Issues
 	}{
 		{
-			Name:   "OK - no sensitive declared",
-			File:   "variable_sensitive_ok_none.tf",
+			Name: "OK - no sensitive declared",
+			Content: `
+variable "test" {
+  description = "no sensitive declared"
+}
+`,
 			Issues: helper.Issues{},
 		},
 		{
-			Name:   "OK - sensitive = true",
-			File:   "variable_sensitive_ok_true.tf",
+			Name: "OK - sensitive = true",
+			Content: `
+variable "test" {
+  description = "sensitive true"
+  sensitive   = true
+}
+`,
 			Issues: helper.Issues{},
 		},
 		{
 			Name: "NOT OK - sensitive = false",
-			File: "variable_sensitive_not_ok_false.tf",
+			Content: `
+variable "test" {
+  description = "sensitive false"
+
+  sensitive = false     
+}
+`,
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformVariableSensitiveRule(),
@@ -44,9 +59,8 @@ func TestTerraformVariableSensitiveRule(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			content := readFixture(t, tc.File)
 			runner := helper.TestRunner(t, map[string]string{
-				"variables.tf": content,
+				"variables.tf": tc.Content,
 			})
 
 			if err := rule.Check(runner); err != nil {

@@ -9,23 +9,38 @@ import (
 
 func TestTerraformVariableEphemeralRule(t *testing.T) {
 	tests := []struct {
-		Name   string
-		File   string
-		Issues helper.Issues
+		Name    string
+		Content string
+		Issues  helper.Issues
 	}{
 		{
-			Name:   "OK - ephemeral not set",
-			File:   "variable_ephemeral_ok1.tf",
+			Name: "OK - ephemeral not set",
+			Content: `
+variable "test" {
+  description = "some test"
+}
+`,
 			Issues: helper.Issues{},
 		},
 		{
-			Name:   "OK - ephemeral = true",
-			File:   "variable_ephemeral_ok2.tf",
+			Name: "OK - ephemeral = true",
+			Content: `
+variable "test" {
+  description = "another test"
+  ephemeral   = true
+}
+`,
 			Issues: helper.Issues{},
 		},
 		{
 			Name: "NOT OK - ephemeral = false",
-			File: "variable_ephemeral_not_ok1.tf",
+			Content: `
+variable "test" {
+  description = "another test"
+
+  ephemeral = false     
+}
+`,
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformVariableEphemeralRule(),
@@ -44,9 +59,8 @@ func TestTerraformVariableEphemeralRule(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			content := readFixture(t, tc.File)
 			runner := helper.TestRunner(t, map[string]string{
-				"variables.tf": content,
+				"variables.tf": tc.Content,
 			})
 
 			if err := rule.Check(runner); err != nil {
