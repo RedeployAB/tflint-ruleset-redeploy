@@ -3,6 +3,7 @@ package rules
 import (
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
@@ -43,7 +44,7 @@ func (r *TerraformModuleDependsOnRule) Check(runner tflint.Runner) error {
 			continue
 		}
 
-		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, 0)
+		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
 		if diags.HasErrors() {
 			// skip parse errors
 			continue
@@ -67,7 +68,7 @@ func (r *TerraformModuleDependsOnRule) processBody(body *hclsyntax.Body, runner 
 					rng := attr.Range()
 					if err := runner.EmitIssue(
 						r,
-						"'depends_on' detected in module block - not recommended",
+						"'depends_on' should not be used for modules",
 						rng,
 					); err != nil {
 						return err
