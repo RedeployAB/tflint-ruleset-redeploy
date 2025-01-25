@@ -27,8 +27,8 @@ func TestTerraformModuleDependsOnRule(t *testing.T) {
 					Message: "'depends_on' should not be used for modules",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 4, Column: 1},
-						End:      hcl.Pos{Line: 4, Column: 1},
+						Start:    hcl.Pos{Line: 3, Column: 3},
+						End:      hcl.Pos{Line: 3, Column: 30},
 					},
 				},
 			},
@@ -39,7 +39,7 @@ func TestTerraformModuleDependsOnRule(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
-			content := readFixture(t, "testdata/"+tc.File)
+			content := readFixture(t, tc.File)
 			runner := helper.TestRunner(t, map[string]string{
 				"resource.tf": content,
 			})
