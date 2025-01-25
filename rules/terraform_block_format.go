@@ -87,6 +87,37 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 		return nil
 	}
 
+	// Introduce helper functions to check spacing logic:
+	checkFirstBlockSpacing := func(linesBetween int, rng hcl.Range, hasAttrs bool) error {
+		if !hasAttrs {
+			// No attributes => expect 0 blank lines
+			if linesBetween != 0 {
+				if err2 := r.emitIssue(runner, rng,
+					"Block should appear immediately after opening brace when it's the first item (no blank lines)"); err2 != nil {
+					return err2
+				}
+			}
+		} else {
+			// Has attributes => expect exactly 1 blank line
+			if linesBetween != 1 {
+				if err2 := r.emitIssue(runner, rng, "Expected exactly one blank line before this block"); err2 != nil {
+					return err2
+				}
+			}
+		}
+		return nil
+	}
+
+	checkSubsequentBlockSpacing := func(linesBetween int, rng hcl.Range) error {
+		// Always expect exactly 1 blank line for subsequent blocks
+		if linesBetween != 1 {
+			if err2 := r.emitIssue(runner, rng, "Expected exactly one blank line before this block"); err2 != nil {
+				return err2
+			}
+		}
+		return nil
+	}
+
 	// First, detect whether this block has attributes at all:
 	hasAttributes := len(block.Body.Attributes) > 0
 
@@ -135,29 +166,13 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 
 		linesBetween := it.StartLine - (previousEndLine + 1)
 
-		// If this is the FIRST block in the parent:
 		if firstBlock {
-			// If the parent has no attributes at all, then 0 blank lines are allowed
-			// (i.e. the block must appear right after the brace). Otherwise, we require exactly one blank line.
-			if !hasAttributes {
-				// No attributes => expect 0 lines
-				if linesBetween != 0 {
-					if err2 := r.emitIssue(runner, it.Range,
-						"Block should appear immediately after opening brace when it's the first item (no blank lines)"); err2 != nil {
-						return err2
-					}
-				}
-			} else {
-				// We have attributes => expect exactly 1 blank line
-				if linesBetween != 1 {
-					if err2 := r.emitIssue(runner, it.Range, "Expected exactly one blank line before this block"); err2 != nil {
-						return err2
-					}
-				}
+			if err2 := checkFirstBlockSpacing(linesBetween, it.Range, hasAttributes); err2 != nil {
+				return err2
 			}
 			firstBlock = false
-		} else if linesBetween != 1 {
-			if err2 := r.emitIssue(runner, it.Range, "Expected exactly one blank line before this block"); err2 != nil {
+		} else {
+			if err2 := checkSubsequentBlockSpacing(linesBetween, it.Range); err2 != nil {
 				return err2
 			}
 		}
