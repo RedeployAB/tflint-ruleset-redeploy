@@ -10,33 +10,33 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-// TerraformLocalDirectMirrorAssignmentRule checks if a local variable is assigned directly
+// TerraformLocalsMirrorAssignmentRule checks if a local variable is assigned directly
 // from a variable of the same name, emitting an error on the conflicting local.
-type TerraformLocalDirectMirrorAssignmentRule struct {
+type TerraformLocalsMirrorAssignmentRule struct {
 	tflint.DefaultRule
 }
 
-func NewTerraformLocalDirectMirrorAssignmentRule() *TerraformLocalDirectMirrorAssignmentRule {
-	return &TerraformLocalDirectMirrorAssignmentRule{}
+func NewTerraformLocalsMirrorAssignmentRule() *TerraformLocalsMirrorAssignmentRule {
+	return &TerraformLocalsMirrorAssignmentRule{}
 }
 
-func (r *TerraformLocalDirectMirrorAssignmentRule) Name() string {
-	return "terraform_local_direct_mirror_assignment"
+func (r *TerraformLocalsMirrorAssignmentRule) Name() string {
+	return "terraform_locals_mirror_assignment"
 }
 
-func (r *TerraformLocalDirectMirrorAssignmentRule) Enabled() bool {
+func (r *TerraformLocalsMirrorAssignmentRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformLocalDirectMirrorAssignmentRule) Severity() tflint.Severity {
+func (r *TerraformLocalsMirrorAssignmentRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
-func (r *TerraformLocalDirectMirrorAssignmentRule) Link() string {
+func (r *TerraformLocalsMirrorAssignmentRule) Link() string {
 	return ""
 }
 
-func (r *TerraformLocalDirectMirrorAssignmentRule) Check(runner tflint.Runner) error {
+func (r *TerraformLocalsMirrorAssignmentRule) Check(runner tflint.Runner) error {
 	// Gather variable names from 'variable' blocks
 	variableNames := make(map[string]bool)
 
@@ -80,7 +80,7 @@ func (r *TerraformLocalDirectMirrorAssignmentRule) Check(runner tflint.Runner) e
 }
 
 // collectVariableNames recursively scans for 'variable' blocks and collects their names.
-func (r *TerraformLocalDirectMirrorAssignmentRule) collectVariableNames(
+func (r *TerraformLocalsMirrorAssignmentRule) collectVariableNames(
 	body *hclsyntax.Body,
 	variableNames map[string]bool,
 ) {
@@ -95,14 +95,14 @@ func (r *TerraformLocalDirectMirrorAssignmentRule) collectVariableNames(
 }
 
 // checkLocals scans for 'locals' blocks and checks for locals assigned directly from variables with the same name.
-func (r *TerraformLocalDirectMirrorAssignmentRule) checkLocals(
+func (r *TerraformLocalsMirrorAssignmentRule) checkLocals(
 	body *hclsyntax.Body,
 	filename string,
 	variableNames map[string]bool,
 	runner tflint.Runner,
 ) error {
 	for _, block := range body.Blocks {
-		if strings.EqualFold(block.Type, "locals") {
+		if strings.EqualFold(block.Type, TypeLocals) {
 			// Each attribute in this block is a local variable
 			for attrName, attr := range block.Body.Attributes {
 				if variableNames[attrName] {

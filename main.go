@@ -41,7 +41,7 @@ func main() {
 				rules.NewTerraformVariableSensitiveRule(),
 				rules.NewTerraformOutputSensitiveRule(),
 				rules.NewTerraformVariableArgumentOrderRule(),
-				rules.NewTerraformLocalDirectMirrorAssignmentRule(), // Updated rule name here
+				rules.NewTerraformLocalsMirrorAssignmentRule(),
 			},
 		},
 	})
