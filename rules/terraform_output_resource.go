@@ -130,7 +130,7 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 			return runner.EmitIssue(
 				r,
 				"Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
-				valAttr.Range,
+				valAttr.Range(),
 			)
 		}
 	}
