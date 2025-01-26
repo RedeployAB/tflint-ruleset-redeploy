@@ -19,7 +19,7 @@ func TestTerraformOutputResourceRule(t *testing.T) {
 resource "aws_instance" "example" {}
 
 output "out_ok" {
-  value = aws_instance.example.id
+	value = aws_instance.example.id
 }
 `,
 			Issues: helper.Issues{},
@@ -30,7 +30,7 @@ output "out_ok" {
 resource "aws_instance" "example" {}
 
 output "out_bad" {
-  value = aws_instance.example
+	value = aws_instance.example
 }
 `,
 			Issues: helper.Issues{
@@ -39,8 +39,8 @@ output "out_bad" {
 					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 5, Column: 10},
-						End:      hcl.Pos{Line: 5, Column: 33},
+						Start:    hcl.Pos{Line: 5, Column: 2},
+						End:      hcl.Pos{Line: 5, Column: 30},
 					},
 				},
 			},
@@ -51,7 +51,7 @@ output "out_bad" {
 data "aws_caller_identity" "current" {}
 
 output "caller" {
-  value = data.aws_caller_identity.current
+	value = data.aws_caller_identity.current
 }
 `,
 			Issues: helper.Issues{
@@ -60,8 +60,8 @@ output "caller" {
 					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 5, Column: 10},
-						End:      hcl.Pos{Line: 5, Column: 46},
+						Start:    hcl.Pos{Line: 5, Column: 2},
+						End:      hcl.Pos{Line: 5, Column: 42},
 					},
 				},
 			},
