@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
@@ -215,10 +216,27 @@ func stepEqual(a, b hcl.Traverser) bool {
 		if bTyped, ok := b.(hcl.TraverseAttr); ok {
 			return aTyped.Name == bTyped.Name
 		}
+		// If a is TraverseAttr and b is TraverseIndex with the same string key, treat them as equal
+		if bIndex, ok := b.(hcl.TraverseIndex); ok {
+			if indexVal, okVal := bIndex.Key.(cty.Value); okVal && indexVal.Type() == cty.String {
+				if indexVal.AsString() == aTyped.Name {
+					return true
+				}
+			}
+		}
 	case hcl.TraverseIndex:
 		switch b.(type) {
 		case hcl.TraverseIndex, hcl.TraverseSplat:
 			return true
+		}
+		// If a is TraverseIndex with a string key, and b is TraverseAttr with the same string name,
+		// treat them as the same step. This handles references like aws_instance["example"] vs. .example.
+		if bAttr, okb := b.(hcl.TraverseAttr); okb {
+			if indexVal, okVal := aTyped.Key.(cty.Value); okVal && indexVal.Type() == cty.String {
+				if indexVal.AsString() == bAttr.Name {
+					return true
+				}
+			}
 		}
 	case hcl.TraverseSplat:
 		switch b.(type) {
