@@ -159,10 +159,10 @@ func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Travers
 		// it actually references a sub-attribute in one parse step, so it's partial.
 		if attr, ok := trav[1].(hcl.TraverseAttr); ok {
 			// If the attribute name includes "[*].", e.g. "multiple[*].id",
-                	// this indicates a splat usage plus a final attribute => partial
-                	if strings.Contains(attr.Name, "[*].") {
-                		return false
-                	}
+			// this indicates a splat usage plus a final attribute => partial
+			if strings.Contains(attr.Name, "[*].") {
+				return false
+			}
 			if strings.Contains(attr.Name, ".") {
 				return false // referencing a sub-attribute
 			}
@@ -250,7 +250,22 @@ func stepEqual(a, b hcl.Traverser) bool {
 	switch aTyped := a.(type) {
 	case hcl.TraverseRoot:
 		if bTyped, ok := b.(hcl.TraverseRoot); ok {
-			return aTyped.Name == bTyped.Name
+			// If they're identical, great.
+			if aTyped.Name == bTyped.Name {
+				return true
+			}
+			// If b is "multiple[*].foo" and a is "multiple", consider them equal for prefix filtering
+			if strings.HasPrefix(bTyped.Name, aTyped.Name+"[") ||
+				strings.HasPrefix(bTyped.Name, aTyped.Name+".") {
+				return true
+			}
+			// And vice-versa (b is the shorter name, a is the splatted version).
+			if strings.HasPrefix(aTyped.Name, bTyped.Name+"[") ||
+				strings.HasPrefix(aTyped.Name, bTyped.Name+".") {
+				return true
+			}
+
+			return false
 		}
 	case hcl.TraverseAttr:
 		if bTyped, ok := b.(hcl.TraverseAttr); ok {
@@ -286,13 +301,13 @@ func stepEqual(a, b hcl.Traverser) bool {
 		}
 	case hcl.TraverseSplat:
 		// If we have a splat, and the other side is an index with key "*",
- 		// treat them as equivalent. We want them recognized as the same step
- 		// for prefix filtering.
+		// treat them as equivalent. We want them recognized as the same step
+		// for prefix filtering.
 		if bIndex, ok := b.(hcl.TraverseIndex); ok {
-				if bIndex.Key.Type() == cty.String && bIndex.Key.AsString() == "*" {
-					return true
-				}
+			if bIndex.Key.Type() == cty.String && bIndex.Key.AsString() == "*" {
+				return true
 			}
+		}
 		if _, ok := b.(hcl.TraverseSplat); ok {
 			return true
 		}
