@@ -182,7 +182,7 @@ func TestTerraformBlockFormat(t *testing.T) {
 
 			helper.AssertIssues(t, tc.Issues, runner.Issues)
 		})
-	})
+	}
 
 	t.Run("variable block tests", func(t *testing.T) {
 		tests := []struct {
@@ -213,15 +213,16 @@ variable "example" {
 						Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
 						Range: hcl.Range{
 							Filename: "resource.tf",
-							Start:    hcl.Pos{Line: 3, Column: 1},
-							End:      hcl.Pos{Line: 3, Column: 11},
+							Start:    hcl.Pos{Line: 2, Column: 1},
+							End:      hcl.Pos{Line: 2, Column: 19},
 						},
 					},
 				},
 			},
 		}
-		rule := NewTerraformBlockFormatRule()
+
 		for _, tc := range tests {
+			tc := tc // capture range variable
 			t.Run(tc.Name, func(t *testing.T) {
 				runner := helper.TestRunner(t, map[string]string{
 					"resource.tf": tc.Content,
@@ -264,15 +265,16 @@ output "example" {
 						Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
 						Range: hcl.Range{
 							Filename: "resource.tf",
-							Start:    hcl.Pos{Line: 3, Column: 1},
-							End:      hcl.Pos{Line: 3, Column: 9},
+							Start:    hcl.Pos{Line: 2, Column: 1},
+							End:      hcl.Pos{Line: 2, Column: 17},
 						},
 					},
 				},
 			},
 		}
-		rule := NewTerraformBlockFormatRule()
+
 		for _, tc := range tests {
+			tc := tc // capture range variable
 			t.Run(tc.Name, func(t *testing.T) {
 				runner := helper.TestRunner(t, map[string]string{
 					"resource.tf": tc.Content,
