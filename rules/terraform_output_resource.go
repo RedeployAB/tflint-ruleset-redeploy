@@ -129,7 +129,7 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 			return runner.EmitIssue(
 				r,
 				"Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
-				valAttr.Range,
+				valAttr.Range(),
 			)
 		}
 	}
@@ -147,6 +147,11 @@ func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Travers
 		// But if the attribute includes a dot (e.g. "example.id"),
 		// it actually references a sub-attribute in one parse step, so it's partial.
 		if attr, ok := trav[1].(hcl.TraverseAttr); ok {
+			// If the attribute name includes "[*].", e.g. "multiple[*].id",
+                	// this indicates a splat usage plus a final attribute => partial
+                	if strings.Contains(attr.Name, "[*].") {
+                		return false
+                	}
 			if strings.Contains(attr.Name, ".") {
 				return false // referencing a sub-attribute
 			}
@@ -158,6 +163,25 @@ func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Travers
 			switch root.Name {
 			case "var", "local", "module":
 				return false
+			case "data":
+				// "data.<type>.<name>" => entire
+				return true
+			}
+		}
+
+		// If the middle step is an index or splat for "*",
+		// but there's a final attribute step, then it's partial.
+		// Example: aws_instance.multiple[*].id => partial, not entire.
+		switch mid := trav[1].(type) {
+		case hcl.TraverseIndex:
+			if mid.Key.Type() == cty.String && mid.Key.AsString() == "*" {
+				if _, ok := trav[2].(hcl.TraverseAttr); ok {
+					return false // partial reference
+				}
+			}
+		case hcl.TraverseSplat:
+			if _, ok := trav[2].(hcl.TraverseAttr); ok {
+				return false // partial reference
 			}
 		}
 
@@ -230,9 +254,16 @@ func stepEqual(a, b hcl.Traverser) bool {
 			}
 		}
 	case hcl.TraverseIndex:
-		switch b.(type) {
-		case hcl.TraverseIndex, hcl.TraverseSplat:
-			return true
+		// If the key is "*", we consider it equivalent to a splat
+		if aTyped.Key.Type() == cty.String && aTyped.Key.AsString() == "*" {
+			if _, isSplat := b.(hcl.TraverseSplat); isSplat {
+				return true
+			}
+		}
+		if bIndex, ok := b.(hcl.TraverseIndex); ok {
+			if aTyped.Key.RawEquals(bIndex.Key) {
+				return true
+			}
 		}
 		// If a is TraverseIndex with a string key, and b is TraverseAttr with the same string name
 		if bAttr, ok := b.(hcl.TraverseAttr); ok {
@@ -243,8 +274,15 @@ func stepEqual(a, b hcl.Traverser) bool {
 			}
 		}
 	case hcl.TraverseSplat:
-		switch b.(type) {
-		case hcl.TraverseIndex, hcl.TraverseSplat:
+		// If we have a splat, and the other side is an index with key "*",
+ 		// treat them as equivalent. We want them recognized as the same step
+ 		// for prefix filtering.
+		if bIndex, ok := b.(hcl.TraverseIndex); ok {
+				if bIndex.Key.Type() == cty.String && bIndex.Key.AsString() == "*" {
+					return true
+				}
+			}
+		if _, ok := b.(hcl.TraverseSplat); ok {
 			return true
 		}
 	}
