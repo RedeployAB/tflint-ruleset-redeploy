@@ -95,7 +95,7 @@ output "some_output" {
 resource "ephemeral" "test" {}
 
 output "ok_ephemeral" {
-  value = ephemeral.test.id
+	value = ephemeral.test.id
 }
 `,
 			Issues: helper.Issues{},
@@ -113,7 +113,7 @@ output "ok_ephemeral" {
 resource "ephemeral" "test" {}
 
 output "bad_ephemeral" {
-  value = ephemeral.test
+	value = ephemeral.test
 }
 `,
 			Issues: helper.Issues{
@@ -122,7 +122,7 @@ output "bad_ephemeral" {
 					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 5, Column: 3},
+						Start:    hcl.Pos{Line: 5, Column: 2},
 						End:      hcl.Pos{Line: 5, Column: 24},
 					},
 				},
