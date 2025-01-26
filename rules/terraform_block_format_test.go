@@ -182,7 +182,7 @@ func TestTerraformBlockFormat(t *testing.T) {
 
 			helper.AssertIssues(t, tc.Issues, runner.Issues)
 		})
-	})
+	}
 
 	t.Run("variable block tests", func(t *testing.T) {
 		tests := []struct {
