@@ -57,7 +57,7 @@ func (r *TerraformBlockOrderRule) Check(runner tflint.Runner) error {
 			continue
 		}
 		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
-			if err := r.checkTopLevelBlocks(body, filename, runner); err != nil {
+			if err := r.checkTopLevelBlocks(body, runner); err != nil {
 				return err
 			}
 		}
@@ -67,7 +67,6 @@ func (r *TerraformBlockOrderRule) Check(runner tflint.Runner) error {
 
 func (r *TerraformBlockOrderRule) checkTopLevelBlocks(
 	body *hclsyntax.Body,
-	filename string,
 	runner tflint.Runner,
 ) error {
 	// The required order:

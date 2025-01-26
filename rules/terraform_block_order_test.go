@@ -17,7 +17,7 @@ func TestTerraformBlockOrderRule(t *testing.T) {
 			Name: "OK - all blocks in correct order",
 			Content: `
 terraform {
-  required_version = ">= 1.0.0"
+	required_version = ">= 1.0.0"
 }
 
 provider "aws" {}
@@ -52,8 +52,8 @@ provider "aws" {}
 					Message: "Out-of-order block 'provider'. Expected order: terraform -> provider -> data -> resource",
 					Range: hcl.Range{
 						Filename: "test.tf",
-						Start:    hcl.Pos{Line: 5, Column: 1},
-						End:      hcl.Pos{Line: 5, Column: 20},
+						Start:    hcl.Pos{Line: 6, Column: 1},
+						End:      hcl.Pos{Line: 6, Column: 15},
 					},
 				},
 			},
