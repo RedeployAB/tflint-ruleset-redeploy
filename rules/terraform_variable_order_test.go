@@ -19,10 +19,10 @@ func TestTerraformVariableOrderRule(t *testing.T) {
 variable "alpha" {}
 variable "beta" {}
 variable "delta" {
-  default = true
+	default = true
 }
 variable "gamma" {
-  default = "some default"
+	default = "some default"
 }
 `,
 			Issues: helper.Issues{},
@@ -31,7 +31,7 @@ variable "gamma" {
 			Name: "NOT OK - optional before required",
 			Content: `
 variable "bar" {
-  default = 123
+	default = 123
 }
 variable "foo" {}
 `,
@@ -42,7 +42,7 @@ variable "foo" {}
 					Range: hcl.Range{
 						Filename: "test.tf",
 						Start:    hcl.Pos{Line: 5, Column: 1},
-						End:      hcl.Pos{Line: 5, Column: 20},
+						End:      hcl.Pos{Line: 5, Column: 15},
 					},
 				},
 			},
@@ -60,7 +60,7 @@ variable "aaa" {}
 					Range: hcl.Range{
 						Filename: "test.tf",
 						Start:    hcl.Pos{Line: 3, Column: 1},
-						End:      hcl.Pos{Line: 3, Column: 20},
+						End:      hcl.Pos{Line: 3, Column: 15},
 					},
 				},
 			},
@@ -69,10 +69,10 @@ variable "aaa" {}
 			Name: "NOT OK - optional out of alphabetical order",
 			Content: `
 variable "opt_x" {
-  default = 1
+	default = 1
 }
 variable "opt_a" {
-  default = 2
+	default = 2
 }
 `,
 			Issues: helper.Issues{
@@ -82,7 +82,7 @@ variable "opt_a" {
 					Range: hcl.Range{
 						Filename: "test.tf",
 						Start:    hcl.Pos{Line: 5, Column: 1},
-						End:      hcl.Pos{Line: 5, Column: 22},
+						End:      hcl.Pos{Line: 5, Column: 17},
 					},
 				},
 			},
