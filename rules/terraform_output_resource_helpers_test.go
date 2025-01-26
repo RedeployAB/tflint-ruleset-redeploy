@@ -219,3 +219,11 @@ func TestIsFullResourceReference(t *testing.T) {
 				hcl.TraverseRoot{Name: "aws_instance"},
 			},
 			Expected: false,
+		},
+		{
+			Name: "Two-step => entire resource => true",
+			Traversal: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "example"},
+			},
+			Expected: true,
