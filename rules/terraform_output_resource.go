@@ -200,8 +200,8 @@ func isPrefix(t1, t2 hcl.Traversal) bool {
 	return true
 }
 
-// stepEqual does a basic comparison of hcl.TraverseStep steps
-func stepEqual(a, b hcl.TraverseStep) bool {
+// stepEqual does a basic comparison of hcl.Traverser steps
+func stepEqual(a, b hcl.Traverser) bool {
 	switch aTyped := a.(type) {
 	case hcl.TraverseRoot:
 		if bTyped, ok := b.(hcl.TraverseRoot); ok {
