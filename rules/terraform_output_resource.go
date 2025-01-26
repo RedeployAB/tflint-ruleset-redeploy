@@ -4,6 +4,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
@@ -49,12 +51,14 @@ func (r *TerraformOutputResourceRule) Check(runner tflint.Runner) error {
 		if hclFile == nil || hclFile.Bytes == nil {
 			continue
 		}
-		syntaxFile, diags := hcl.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
+		// Use hclsyntax.ParseConfig instead of hcl.ParseConfig
+		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
 		if diags.HasErrors() {
 			continue
 		}
 
-		if body, ok := syntaxFile.Body.(*hcl.Body); ok {
+		// Cast syntaxFile.Body to *hclsyntax.Body
+		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
 			if err := r.processBody(body, runner); err != nil {
 				return err
 			}
@@ -63,14 +67,14 @@ func (r *TerraformOutputResourceRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
-func (r *TerraformOutputResourceRule) processBody(body *hcl.Body, runner tflint.Runner) error {
+func (r *TerraformOutputResourceRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
 	for _, blk := range body.Blocks {
 		if strings.EqualFold(blk.Type, TypeOutput) {
 			if err := r.checkOutputBlock(blk, runner); err != nil {
 				return err
 			}
 		}
-		// Recurse
+		// Recurse into nested blocks
 		if err := r.processBody(blk.Body, runner); err != nil {
 			return err
 		}
@@ -98,7 +102,7 @@ func isDataOrResourceRef(trav hcl.Traversal) bool {
 
 // checkOutputBlock inspects if the "value" attribute references an entire resource/data.
 func (r *TerraformOutputResourceRule) checkOutputBlock(
-	block *hcl.Block,
+	block *hclsyntax.Block,
 	runner tflint.Runner,
 ) error {
 	valAttr, ok := block.Body.Attributes["value"]
@@ -113,8 +117,7 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 		return nil
 	}
 
-	// To avoid catching partial references (like "aws_instance.foo" as part of
-	// "aws_instance.foo.id"), we'll skip any traversal that is a prefix of a longer one.
+	// To avoid catching partial references, we'll skip any traversal that is a prefix of a longer one.
 	filtered := filterPrefixTraversals(traversals)
 
 	// If any of the filtered traversals is a "bare" reference => report
@@ -127,7 +130,7 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 			return runner.EmitIssue(
 				r,
 				"Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
-				valAttr.Range(),
+				valAttr.Range,
 			)
 		}
 	}
@@ -146,7 +149,7 @@ func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Travers
 		return true
 	case 3:
 		// e.g., data.resource_type.resource_name
-		// The second step must be the resource/data type, the third is the resource/data name
+		// The first step must be "data"
 		if root, okRoot := trav[0].(hcl.TraverseRoot); !okRoot || root.Name != "data" {
 			return false
 		}
@@ -171,7 +174,7 @@ outer:
 				continue
 			}
 			if isPrefix(t1, t2) {
-				// skip t1 if it's a prefix of t2
+				// Skip t1 if it's a prefix of t2
 				continue outer
 			}
 		}
@@ -212,8 +215,7 @@ func stepEqual(a, b hcl.Traverser) bool {
 		}
 	case hcl.TraverseIndex:
 		if _, ok := b.(hcl.TraverseIndex); ok {
-			// We can't trivially check the Key equality, but to confirm prefix
-			// we just confirm they're both index steps.
+			// Confirm they're both index steps
 			return true
 		}
 	case hcl.TraverseSplat:
