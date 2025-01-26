@@ -60,7 +60,8 @@ func (r *TerraformOutputResourceRule) Check(runner tflint.Runner) error {
 
 		// Cast syntaxFile.Body to *hclsyntax.Body
 		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
-			if err := r.processBody(body, runner); err != nil {
+			blocks := r.collectOutputBlocks(body)
+			if err := r.checkAllOutputBlocks(blocks, runner); err != nil {
 				return err
 			}
 		}
@@ -68,15 +69,27 @@ func (r *TerraformOutputResourceRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
-func (r *TerraformOutputResourceRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
+// collectOutputBlocks gathers all "output" blocks from the HCL body recursively.
+func (r *TerraformOutputResourceRule) collectOutputBlocks(body *hclsyntax.Body) []*hclsyntax.Block {
+	var outputs []*hclsyntax.Block
+
 	for _, blk := range body.Blocks {
 		if strings.EqualFold(blk.Type, TypeOutput) {
-			if err := r.checkOutputBlock(blk, runner); err != nil {
-				return err
-			}
+			outputs = append(outputs, blk)
 		}
-		// Recurse into nested blocks
-		if err := r.processBody(blk.Body, runner); err != nil {
+		nested := r.collectOutputBlocks(blk.Body)
+		outputs = append(outputs, nested...)
+	}
+	return outputs
+}
+
+// checkAllOutputBlocks checks each output block for entire resource references.
+func (r *TerraformOutputResourceRule) checkAllOutputBlocks(
+	blocks []*hclsyntax.Block,
+	runner tflint.Runner,
+) error {
+	for _, blk := range blocks {
+		if err := r.checkOutputBlock(blk, runner); err != nil {
 			return err
 		}
 	}
