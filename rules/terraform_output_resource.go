@@ -111,13 +111,18 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	expr := valAttr.Expr
 
 	// We parse the expression and see if it's a traversal referencing a resource or data.
-	traversals := expr.Variables()
-	if len(traversals) == 0 {
+	original := expr.Variables()
+	if len(original) == 0 {
 		return nil
 	}
 
+	var canonical []hcl.Traversal
+	for _, trav := range original {
+		canonical = append(canonical, canonicalizeTraversal(trav))
+	}
+
 	// To avoid catching partial references, we'll skip any traversal that is a prefix of a longer one.
-	filtered := filterPrefixTraversals(traversals)
+	filtered := filterPrefixTraversals(canonical)
 
 	// If any of the filtered traversals is a "bare" reference => report
 	for _, trav := range filtered {
@@ -141,74 +146,25 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 // e.g., "aws_instance.foo", "aws_instance.foo[0]", "aws_instance.foo[*]",
 // or "data.aws_instance.foo" with no sub-attributes after the name.
 func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Traversal) bool {
-	// If an attribute step ends with "[*]" and there's still another step after it,
-	// that implies something like "aws_instance.multiple[*].id" => partial => skip
-	for i := 0; i < len(trav)-1; i++ {
-		if attr, ok := trav[i].(hcl.TraverseAttr); ok {
-			if strings.HasSuffix(attr.Name, "[*]") {
-				// There's another step after "multiple[*]" => partial reference
-				return false
-			}
-		}
+	length := len(trav)
+
+	if length < 2 {
+		return false // Not sufficient to be entire resource reference
 	}
 
-	switch len(trav) {
-	case 2:
-		// e.g., resource.resource_name
-		// But if the attribute includes a dot (e.g. "example.id"),
-		// it actually references a sub-attribute in one parse step, so it's partial.
-		if attr, ok := trav[1].(hcl.TraverseAttr); ok {
-			// If the attribute name includes "[*].", e.g. "multiple[*].id",
-			// this indicates a splat usage plus a final attribute => partial
-			if strings.Contains(attr.Name, "[*].") {
-				return false
-			}
-			if strings.Contains(attr.Name, ".") {
-				return false // referencing a sub-attribute
-			}
-		}
-		return true
-	case 3:
-		// If the first step is var/local/module => not a resource => skip
-		if root, ok := trav[0].(hcl.TraverseRoot); ok {
-			switch root.Name {
-			case "var", "local", "module":
-				return false
-			case "data":
-				// "data.<type>.<name>" => entire
-				return true
-			}
-		}
-
-		// If the middle step is an index or splat for "*",
-		// but there's a final attribute step, then it's partial.
-		// Example: aws_instance.multiple[*].id => partial, not entire.
-		switch mid := trav[1].(type) {
-		case hcl.TraverseIndex:
-			if mid.Key.Type() == cty.String && mid.Key.AsString() == "*" {
-				if _, ok := trav[2].(hcl.TraverseAttr); ok {
-					return false // partial reference
-				}
-			}
-		case hcl.TraverseSplat:
-			if _, ok := trav[2].(hcl.TraverseAttr); ok {
-				return false // partial reference
-			}
-		}
-
-		// If the last step is an attribute, it means we're referencing a sub-attribute (partial).
-		// If it's an index or a splat, it's entire.
-		switch trav[2].(type) {
-		case hcl.TraverseAttr:
-			return false // partial reference
-		default:
-			return true // entire reference
-		}
-
-	default:
-		// If there's a 4th step (like .id), then it's partial => skip
+	// If the traversal ends with an attribute, it's referencing a sub-attribute => partial
+	if _, ok := trav[length-1].(hcl.TraverseAttr); ok {
 		return false
 	}
+
+	// The traversal does not end with an attribute, so potentially entire resource reference
+
+	// Now check if it's a resource or data reference
+	if !isDataOrResourceRef(trav) {
+		return false
+	}
+
+	return true
 }
 
 // filterPrefixTraversals removes any traversal that is a strict prefix of another longer traversal.
@@ -250,67 +206,113 @@ func stepEqual(a, b hcl.Traverser) bool {
 	switch aTyped := a.(type) {
 	case hcl.TraverseRoot:
 		if bTyped, ok := b.(hcl.TraverseRoot); ok {
-			// If they're identical, great.
-			if aTyped.Name == bTyped.Name {
-				return true
-			}
-			// If b is "multiple[*].foo" and a is "multiple", consider them equal for prefix filtering
-			if strings.HasPrefix(bTyped.Name, aTyped.Name+"[") ||
-				strings.HasPrefix(bTyped.Name, aTyped.Name+".") {
-				return true
-			}
-			// And vice-versa (b is the shorter name, a is the splatted version).
-			if strings.HasPrefix(aTyped.Name, bTyped.Name+"[") ||
-				strings.HasPrefix(aTyped.Name, bTyped.Name+".") {
-				return true
-			}
-
-			return false
+			return aTyped.Name == bTyped.Name
 		}
 	case hcl.TraverseAttr:
 		if bTyped, ok := b.(hcl.TraverseAttr); ok {
 			return aTyped.Name == bTyped.Name
 		}
-		// If a is TraverseAttr and b is TraverseIndex with the same string key, treat them as equal
-		if bIndex, ok := b.(hcl.TraverseIndex); ok {
-			if bIndex.Key.Type() == cty.String {
-				if bIndex.Key.AsString() == aTyped.Name {
-					return true
-				}
-			}
-		}
 	case hcl.TraverseIndex:
-		// If the key is "*", we consider it equivalent to a splat
-		if aTyped.Key.Type() == cty.String && aTyped.Key.AsString() == "*" {
-			if _, isSplat := b.(hcl.TraverseSplat); isSplat {
-				return true
-			}
-		}
-		if bIndex, ok := b.(hcl.TraverseIndex); ok {
-			if aTyped.Key.RawEquals(bIndex.Key) {
-				return true
-			}
-		}
-		// If a is TraverseIndex with a string key, and b is TraverseAttr with the same string name
-		if bAttr, ok := b.(hcl.TraverseAttr); ok {
-			if aTyped.Key.Type() == cty.String {
-				if aTyped.Key.AsString() == bAttr.Name {
-					return true
-				}
-			}
+		if bTyped, ok := b.(hcl.TraverseIndex); ok {
+			return aTyped.Key.RawEquals(bTyped.Key)
 		}
 	case hcl.TraverseSplat:
-		// If we have a splat, and the other side is an index with key "*",
-		// treat them as equivalent. We want them recognized as the same step
-		// for prefix filtering.
-		if bIndex, ok := b.(hcl.TraverseIndex); ok {
-			if bIndex.Key.Type() == cty.String && bIndex.Key.AsString() == "*" {
-				return true
-			}
-		}
-		if _, ok := b.(hcl.TraverseSplat); ok {
-			return true
-		}
+		_, ok := b.(hcl.TraverseSplat)
+		return ok
 	}
 	return false
+}
+
+// canonicalizeTraversal breaks up any hcl.TraverseAttr that includes [*] or [index] or . into multiple steps.
+func canonicalizeTraversal(trav hcl.Traversal) hcl.Traversal {
+	var result hcl.Traversal
+
+	for _, step := range trav {
+		switch s := step.(type) {
+		case hcl.TraverseAttr:
+			// If s.Name includes brackets or dots, split it
+			subSteps := splitAttrName(s.Name)
+			// subSteps might be ["multiple", "[*]", "id"]
+			// We convert each piece into the right kind of traverser
+			for _, sub := range subSteps {
+				if sub == "[*]" {
+					result = append(result, hcl.TraverseSplat{})
+				} else if strings.HasPrefix(sub, "[") && strings.HasSuffix(sub, "]") {
+					// e.g. "[0]" => TraverseIndex with key=0
+					indexKey := strings.Trim(sub, "[]")
+					result = append(result, makeIndexStep(indexKey))
+				} else {
+					// Plain attribute
+					result = append(result, hcl.TraverseAttr{Name: sub})
+				}
+			}
+
+		default:
+			// Keep TraverseRoot, TraverseIndex, TraverseSplat as-is
+			result = append(result, step)
+		}
+	}
+
+	return result
+}
+
+// splitAttrName splits an attribute like "multiple[*].id" into ["multiple", "[*]", "id"].
+func splitAttrName(name string) []string {
+	// Walk through name and cut on "." or bracket groups.
+	// We want to preserve bracket groups as separate tokens: "[*]", "[0]", etc.
+
+	var parts []string
+	var buf strings.Builder
+
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+
+		switch c {
+		case '.':
+			// dot means we finished one part
+			if buf.Len() > 0 {
+				parts = append(parts, buf.String())
+				buf.Reset()
+			}
+		case '[':
+			// flush anything we had before '['
+			if buf.Len() > 0 {
+				parts = append(parts, buf.String())
+				buf.Reset()
+			}
+			// now read until closing ']'
+			j := i + 1
+			for j < len(name) && name[j] != ']' {
+				j++
+			}
+			if j < len(name) && name[j] == ']' {
+				// j is at the ']'
+				parts = append(parts, name[i:j+1]) // e.g. "[*]" or "[0]"
+				i = j // skip ahead
+			} else {
+				// If no closing ']', treat as normal character
+				buf.WriteByte(c)
+			}
+		default:
+			buf.WriteByte(c)
+		}
+	}
+
+	if buf.Len() > 0 {
+		parts = append(parts, buf.String())
+	}
+	return parts
+}
+
+// makeIndexStep tries to parse "[0]" into a numeric index step, or "*" into a splat, etc.
+func makeIndexStep(keyStr string) hcl.Traverser {
+	if keyStr == "*" {
+		return hcl.TraverseSplat{}
+	}
+	// try to parse int
+	if idxVal, err := cty.ParseNumberVal(keyStr); err == nil {
+		return hcl.TraverseIndex{Key: idxVal}
+	}
+	// fallback to string key
+	return hcl.TraverseIndex{Key: cty.StringVal(keyStr)}
 }
