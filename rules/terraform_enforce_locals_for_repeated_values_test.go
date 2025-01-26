@@ -46,8 +46,8 @@ resource "another_resource" "stuff" {
 					Message: `Value "myvalue" repeated 3 times. Consider a local variable.`,
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 3, Column: 9},
-						End:      hcl.Pos{Line: 3, Column: 21},
+						Start:    hcl.Pos{Line: 3, Column: 2},
+						End:      hcl.Pos{Line: 3, Column: 19},
 					},
 				},
 				{
@@ -55,8 +55,8 @@ resource "another_resource" "stuff" {
 					Message: `Value "myvalue" repeated 3 times. Consider a local variable.`,
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 4, Column: 9},
-						End:      hcl.Pos{Line: 4, Column: 21},
+						Start:    hcl.Pos{Line: 4, Column: 2},
+						End:      hcl.Pos{Line: 4, Column: 19},
 					},
 				},
 				{
@@ -64,8 +64,8 @@ resource "another_resource" "stuff" {
 					Message: `Value "myvalue" repeated 3 times. Consider a local variable.`,
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 8, Column: 8},
-						End:      hcl.Pos{Line: 8, Column: 20},
+						Start:    hcl.Pos{Line: 8, Column: 2},
+						End:      hcl.Pos{Line: 8, Column: 18},
 					},
 				},
 			},
@@ -125,8 +125,8 @@ rule "terraform_enforce_locals_for_repeated_values" {
 				Message: `Value "repeated" repeated 2 times. Consider a local variable.`,
 				Range: hcl.Range{
 					Filename: "main.tf",
-					Start:    hcl.Pos{Line: 3, Column: 9},
-					End:      hcl.Pos{Line: 3, Column: 23},
+					Start:    hcl.Pos{Line: 3, Column: 3},
+					End:      hcl.Pos{Line: 3, Column: 21},
 				},
 			},
 			{
@@ -134,8 +134,8 @@ rule "terraform_enforce_locals_for_repeated_values" {
 				Message: `Value "repeated" repeated 2 times. Consider a local variable.`,
 				Range: hcl.Range{
 					Filename: "main.tf",
-					Start:    hcl.Pos{Line: 4, Column: 10},
-					End:      hcl.Pos{Line: 4, Column: 24},
+					Start:    hcl.Pos{Line: 4, Column: 3},
+					End:      hcl.Pos{Line: 4, Column: 21},
 				},
 			},
 		}, runner.Issues)
@@ -200,8 +200,8 @@ rule "terraform_enforce_locals_for_repeated_values" {
 				Message: `Value "solo" repeated 1 times. Consider a local variable.`,
 				Range: hcl.Range{
 					Filename: "main.tf",
-					Start:    hcl.Pos{Line: 3, Column: 9},
-					End:      hcl.Pos{Line: 3, Column: 17},
+					Start:    hcl.Pos{Line: 3, Column: 3},
+					End:      hcl.Pos{Line: 3, Column: 16},
 				},
 			},
 		}, runner.Issues)
