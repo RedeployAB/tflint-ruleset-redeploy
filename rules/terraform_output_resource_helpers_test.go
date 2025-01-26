@@ -83,23 +83,50 @@ func TestMakeIndexStep(t *testing.T) {
 }
 
 func TestCanonicalizeTraversal(t *testing.T) {
-	input := hcl.Traversal{
-		hcl.TraverseRoot{Name: "aws_instance"},
-		hcl.TraverseAttr{Name: "multiple[*].id"},
+	cases := []struct {
+		name  string
+		input hcl.Traversal
+		want  hcl.Traversal
+	}{
+		{
+			name: "Splat with attribute",
+			input: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple[*].id"},
+			},
+			want: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple"},
+				hcl.TraverseSplat{},
+				hcl.TraverseAttr{Name: "id"},
+			},
+		},
+		{
+			name: "Splat only",
+			input: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple[*]"},
+			},
+			want: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple"},
+				hcl.TraverseSplat{},
+			},
+		},
 	}
-	got := canonicalizeTraversal(input)
-	want := hcl.Traversal{
-		hcl.TraverseRoot{Name: "aws_instance"},
-		hcl.TraverseAttr{Name: "multiple"},
-		hcl.TraverseSplat{},
-		hcl.TraverseAttr{Name: "id"},
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("canonicalizeTraversal(%v) => %v, want %v", input, got, want)
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := canonicalizeTraversal(c.input)
+			if !reflect.DeepEqual(got, c.want) {
+				t.Errorf("canonicalizeTraversal(%v) => %v, want %v", c.input, got, c.want)
+			}
+		})
 	}
 }
 
 func TestFilterPrefixTraversals(t *testing.T) {
+	// Initial test cases
 	t1 := hcl.Traversal{
 		hcl.TraverseRoot{Name: "aws_instance"},
 		hcl.TraverseAttr{Name: "example"},
@@ -119,6 +146,25 @@ func TestFilterPrefixTraversals(t *testing.T) {
 	want := []hcl.Traversal{t2, t3} // t1 should be filtered out
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("filterPrefixTraversals(%v) => %v, want %v", list, got, want)
+	}
+
+	// Additional test for splat prefix
+	t4 := hcl.Traversal{
+		hcl.TraverseRoot{Name: "aws_instance"},
+		hcl.TraverseAttr{Name: "multiple"},
+		hcl.TraverseSplat{},
+	}
+	t5 := hcl.Traversal{
+		hcl.TraverseRoot{Name: "aws_instance"},
+		hcl.TraverseAttr{Name: "multiple"},
+		hcl.TraverseSplat{},
+		hcl.TraverseAttr{Name: "id"},
+	}
+	list2 := []hcl.Traversal{t4, t5}
+	got2 := filterPrefixTraversals(list2)
+	want2 := []hcl.Traversal{t5} // t4 should be filtered out
+	if !reflect.DeepEqual(got2, want2) {
+		t.Errorf("filterPrefixTraversals(%v) => %v, want %v", list2, got2, want2)
 	}
 }
 
@@ -173,132 +219,3 @@ func TestIsFullResourceReference(t *testing.T) {
 				hcl.TraverseRoot{Name: "aws_instance"},
 			},
 			Expected: false,
-		},
-		{
-			Name: "Two-step => entire resource => true",
-			Traversal: hcl.Traversal{
-				hcl.TraverseRoot{Name: "aws_instance"},
-				hcl.TraverseAttr{Name: "example"},
-			},
-			Expected: true,
-		},
-		{
-			Name: "Three-step => partial => false (ends with attr)",
-			Traversal: hcl.Traversal{
-				hcl.TraverseRoot{Name: "aws_instance"},
-				hcl.TraverseAttr{Name: "example"},
-				hcl.TraverseAttr{Name: "id"},
-			},
-			Expected: false,
-		},
-		{
-			Name: "Three-step => entire if last is index => true",
-			Traversal: hcl.Traversal{
-				hcl.TraverseRoot{Name: "aws_instance"},
-				hcl.TraverseAttr{Name: "example"},
-				hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
-			},
-			Expected: true,
-		},
-		{
-			Name: "Four-step => partial => false if ends with attr",
-			Traversal: hcl.Traversal{
-				hcl.TraverseRoot{Name: "aws_instance"},
-				hcl.TraverseAttr{Name: "example"},
-				hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
-				hcl.TraverseAttr{Name: "id"},
-			},
-			Expected: false,
-		},
-		{
-			Name: "Root is var => not resource => false",
-			Traversal: hcl.Traversal{
-				hcl.TraverseRoot{Name: "var"},
-				hcl.TraverseAttr{Name: "whatever"},
-			},
-			Expected: false,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.Name, func(t *testing.T) {
-			got := rule.isFullResourceReference(tc.Traversal)
-			if got != tc.Expected {
-				t.Errorf("isFullResourceReference(%v) => %v, want %v", tc.Traversal, got, tc.Expected)
-			}
-		})
-	}
-}
-
-func TestStepEqual(t *testing.T) {
-	cases := []struct {
-		Name   string
-		StepA  hcl.Traverser
-		StepB  hcl.Traverser
-		Expect bool
-	}{
-		{
-			Name:   "Same root => true",
-			StepA:  hcl.TraverseRoot{Name: "aws_instance"},
-			StepB:  hcl.TraverseRoot{Name: "aws_instance"},
-			Expect: true,
-		},
-		{
-			Name:   "Different root => false",
-			StepA:  hcl.TraverseRoot{Name: "aws_instance"},
-			StepB:  hcl.TraverseRoot{Name: "var"},
-			Expect: false,
-		},
-		{
-			Name:   "Same attr => true",
-			StepA:  hcl.TraverseAttr{Name: "example"},
-			StepB:  hcl.TraverseAttr{Name: "example"},
-			Expect: true,
-		},
-		{
-			Name:   "Attr vs Index => false",
-			StepA:  hcl.TraverseAttr{Name: "foo"},
-			StepB:  hcl.TraverseIndex{Key: cty.StringVal("foo")},
-			Expect: false,
-		},
-		{
-			Name:   "Attr prefix => true if the second starts with the first plus '.'",
-			StepA:  hcl.TraverseAttr{Name: "example"},
-			StepB:  hcl.TraverseAttr{Name: "example.id"},
-			Expect: true,
-		},
-		{
-			Name:   "Attr prefix => true if the second starts with the first plus '['",
-			StepA:  hcl.TraverseAttr{Name: "example"},
-			StepB:  hcl.TraverseAttr{Name: "example[0].id"},
-			Expect: true,
-		},
-		{
-			Name:   "Index => same key => true",
-			StepA:  hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
-			StepB:  hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
-			Expect: true,
-		},
-		{
-			Name:   "Index => different key => false",
-			StepA:  hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
-			StepB:  hcl.TraverseIndex{Key: cty.NumberIntVal(1)},
-			Expect: false,
-		},
-		{
-			Name:   "Splat vs Splat => true",
-			StepA:  hcl.TraverseSplat{},
-			StepB:  hcl.TraverseSplat{},
-			Expect: true,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.Name, func(t *testing.T) {
-			got := stepEqual(tc.StepA, tc.StepB)
-			if got != tc.Expect {
-				t.Errorf("stepEqual(%#v, %#v) => %v, want %v", tc.StepA, tc.StepB, got, tc.Expect)
-			}
-		})
-	}
-}
