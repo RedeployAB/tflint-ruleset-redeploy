@@ -160,20 +160,25 @@ func (r *TerraformOutputResourceRule) isFullResourceReference(trav hcl.Traversal
 		return false
 	}
 
-	// If we only have two steps (e.g. "aws_instance.example"),
+	// Special handling: if the root is "data", then a 3-step reference (data + 2 attributes) is "entire data resource".
+	// e.g. data.aws_caller_identity.current => length=3 => entire
+	if trav[0].(hcl.TraverseRoot).Name == "data" && length == 3 {
+		return true
+	}
+
+	// If we only have two steps (e.g., "aws_instance.example"),
 	// that is the entire resource (no sub-attributes).
 	if length == 2 {
 		return true
 	}
 
 	// If it ends with an attribute, then we assume it's referencing
-	// some sub-attribute (e.g., "aws_instance.example.id") => partial => no error.
+	// some sub-attribute => partial => no error.
 	if endsWithAttribute(trav) {
 		return false
 	}
 
-	// Anything else (e.g. "aws_instance.example[0]" or "aws_instance.example[*]")
-	// is an entire resource reference => return true.
+	// Otherwise (e.g., "aws_instance.example[0]", "aws_instance.example[*]", etc.), it's entire.
 	return true
 }
 
@@ -245,18 +250,7 @@ func stepEqual(a, b hcl.Traverser) bool {
 		}
 	case hcl.TraverseAttr:
 		if bTyped, ok := b.(hcl.TraverseAttr); ok {
-			// If they're exactly the same, return true
-			if aTyped.Name == bTyped.Name {
-				return true
-			}
-			// If b's name starts with aTyped.Name plus "." or "[", treat as prefix-equal
-			if strings.HasPrefix(bTyped.Name, aTyped.Name+".") || strings.HasPrefix(bTyped.Name, aTyped.Name+"[") {
-				return true
-			}
-			// Also check the opposite direction:
-			if strings.HasPrefix(aTyped.Name, bTyped.Name+".") || strings.HasPrefix(aTyped.Name, bTyped.Name+"[") {
-				return true
-			}
+			return aTyped.Name == bTyped.Name
 		}
 	case hcl.TraverseIndex:
 		if bTyped, ok := b.(hcl.TraverseIndex); ok {
@@ -284,7 +278,7 @@ func canonicalizeTraversal(trav hcl.Traversal) hcl.Traversal {
 				if sub == "[*]" {
 					result = append(result, hcl.TraverseSplat{})
 				} else if strings.HasPrefix(sub, "[") && strings.HasSuffix(sub, "]") {
-					// e.g. "[0]" => TraverseIndex with key=0
+					// e.g., "[0]" => TraverseIndex with key=0
 					indexKey := strings.Trim(sub, "[]")
 					result = append(result, makeIndexStep(indexKey))
 				} else {
@@ -333,7 +327,7 @@ func splitAttrName(name string) []string {
 			}
 			if j < len(name) && name[j] == ']' {
 				// j is at the ']'
-				parts = append(parts, name[i:j+1]) // e.g. "[*]" or "[0]"
+				parts = append(parts, name[i:j+1]) // e.g., "[*]" or "[0]"
 				i = j                              // skip ahead
 			} else {
 				// If no closing ']', treat as normal character
