@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
@@ -50,12 +49,12 @@ func (r *TerraformOutputResourceRule) Check(runner tflint.Runner) error {
 		if hclFile == nil || hclFile.Bytes == nil {
 			continue
 		}
-		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
+		syntaxFile, diags := hcl.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
 		if diags.HasErrors() {
 			continue
 		}
 
-		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
+		if body, ok := syntaxFile.Body.(*hcl.Body); ok {
 			if err := r.processBody(body, runner); err != nil {
 				return err
 			}
@@ -64,7 +63,7 @@ func (r *TerraformOutputResourceRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
-func (r *TerraformOutputResourceRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
+func (r *TerraformOutputResourceRule) processBody(body *hcl.Body, runner tflint.Runner) error {
 	for _, blk := range body.Blocks {
 		if strings.EqualFold(blk.Type, TypeOutput) {
 			if err := r.checkOutputBlock(blk, runner); err != nil {
@@ -81,7 +80,7 @@ func (r *TerraformOutputResourceRule) processBody(body *hclsyntax.Body, runner t
 
 // isDataOrResourceRef returns true if the traversal root is "data" or
 // neither var/local/module nor empty (thus presumably a resource).
-// Also treat "ephemeral" as a resource root (per user request).
+// Also treat "ephemeral" as a resource root.
 func isDataOrResourceRef(trav hcl.Traversal) bool {
 	if len(trav) == 0 {
 		return false
@@ -99,7 +98,7 @@ func isDataOrResourceRef(trav hcl.Traversal) bool {
 
 // checkOutputBlock inspects if the "value" attribute references an entire resource/data.
 func (r *TerraformOutputResourceRule) checkOutputBlock(
-	block *hclsyntax.Block,
+	block *hcl.Block,
 	runner tflint.Runner,
 ) error {
 	valAttr, ok := block.Body.Attributes["value"]
@@ -136,72 +135,27 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	return nil
 }
 
-// detectSplatInAttr checks if any TraverseAttr name contains "[*]" because the
-// Terraform parser may parse "resource_name[*]" as an Attr step. If so,
-// we consider that partial (like a splat), not a bare resource reference.
-func detectSplatInAttr(trav hcl.Traversal) bool {
-	for _, step := range trav {
-		if attr, ok := step.(hcl.TraverseAttr); ok {
-			if strings.Contains(attr.Name, "[*]") {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // isEntireResourceReference checks if the traversal looks like a bare resource reference
-// e.g., "aws_instance.foo" or "data.aws_instance.foo" with no sub-attributes after the name.
+// e.g., "aws_instance.foo", "aws_instance.foo[0]", "aws_instance.foo[*]",
+// or "data.aws_instance.foo" with no sub-attributes after the name.
 func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Traversal) bool {
-	// If the parser lumps "[*]" into an Attr name, treat it like a partial reference:
-	if detectSplatInAttr(trav) {
-		return false
-	}
-
-	// We only consider it a “bare” entire resource if:
-	//   1) trav length == 2: e.g., [Root("aws_instance"), Attr("my_example")]
-	//   2) trav length == 3 and trav[0] == "data": e.g., [Root("data"), Attr("aws_iam_user"), Attr("blah")]
-	//   3) No indexing or extra sub-attributes
-	//
-	// If any step is TraverseIndex(...) or TraverseSplat or if we have more than these minimal steps,
-	// it's partial or an attribute => ignore
-
 	switch len(trav) {
 	case 2:
 		// e.g., resource.resource_name
-		// Ensure no indexing
-		if hasIndexOrSplat(trav) {
-			return false
-		}
+		// If there's no attribute after resource_name (even with index/splat), it's entire resource
 		return true
 	case 3:
 		// e.g., data.resource_type.resource_name
-		root, okRoot := trav[0].(hcl.TraverseRoot)
-		if !okRoot || root.Name != "data" {
+		// The second step must be the resource/data type, the third is the resource/data name
+		if root, okRoot := trav[0].(hcl.TraverseRoot); !okRoot || root.Name != "data" {
 			return false
 		}
-		// Ensure no indexing
-		if hasIndexOrSplat(trav) {
-			return false
-		}
+		// No further attributes, so entire resource
 		return true
 	default:
+		// If there's a 4th step (like .id), then it's partial => skip
 		return false
 	}
-}
-
-// hasIndexOrSplat returns true if the traversal has any bracket index steps or splat steps.
-func hasIndexOrSplat(trav hcl.Traversal) bool {
-	for _, step := range trav {
-		if _, ok := step.(hcl.TraverseIndex); ok {
-			return true
-		}
-		// Also treat splat as an index-like step that means partial attribute access
-		if _, ok := step.(hcl.TraverseSplat); ok {
-			return true
-		}
-	}
-	return false
 }
 
 // filterPrefixTraversals removes any traversal that is a strict prefix of another

@@ -172,6 +172,68 @@ output "splat_output" {
 		},
 	)
 
+	// NOT OK - entire resource with explicit zero index
+	tests = append(tests,
+		struct {
+			Name    string
+			Content string
+			Issues  helper.Issues
+		}{
+			Name: "NOT OK - references entire resource with index",
+			Content: `
+resource "aws_instance" "indexed" {
+  count = 2
+}
+
+output "bad_index" {
+  value = aws_instance.indexed[0]
+}
+`,
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Range: hcl.Range{
+						Filename: "main.tf",
+						Start:    hcl.Pos{Line: 7, Column: 3},
+						End:      hcl.Pos{Line: 7, Column: 31},
+					},
+				},
+			},
+		},
+	)
+
+	// NOT OK - entire resource set with splat
+	tests = append(tests,
+		struct {
+			Name    string
+			Content string
+			Issues  helper.Issues
+		}{
+			Name: "NOT OK - references entire resource with splat",
+			Content: `
+resource "aws_instance" "splat" {
+  count = 2
+}
+
+output "bad_splat" {
+  value = aws_instance.splat[*]
+}
+`,
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Range: hcl.Range{
+						Filename: "main.tf",
+						Start:    hcl.Pos{Line: 7, Column: 3},
+						End:      hcl.Pos{Line: 7, Column: 29},
+					},
+				},
+			},
+		},
+	)
+
 	rule := NewTerraformOutputResourceRule()
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
