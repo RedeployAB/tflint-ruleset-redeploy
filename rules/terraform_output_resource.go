@@ -90,16 +90,18 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	}
 	expr := valAttr.Expr
 
-	// We parse the expression and see if it’s a single traversal referencing a resource or data
-	// e.g. "aws_instance.foo" or "data.aws_instance.foo" with no sub-attributes
+	// We parse the expression and see if it’s a traversal referencing a resource or data.
 	traversals := expr.Variables()
 	if len(traversals) == 0 {
 		return nil
 	}
 
-	// If *any* of the traversals is a "bare" reference to resource/data => report
-	for _, trav := range traversals {
-		// trav is a hcl.Traversal
+	// To avoid catching partial references (like "aws_instance.foo" as part of
+	// "aws_instance.foo.id"), we'll skip any traversal that is a prefix of a longer one.
+	filtered := filterPrefixTraversals(traversals)
+
+	// If any of the filtered traversals is a "bare" reference => report
+	for _, trav := range filtered {
 		if r.isEntireResourceReference(trav) {
 			return runner.EmitIssue(
 				r,
@@ -113,25 +115,26 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 }
 
 // isEntireResourceReference checks if the traversal looks like a bare resource reference
-// E.g. "aws_instance.foo" or "data.aws_instance.foo" with no sub-attributes after the name.
+// e.g., "aws_instance.foo" or "data.aws_instance.foo" with no sub-attributes after the name.
 func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Traversal) bool {
 	// We only consider it a “bare” entire resource if:
-	//   1) trav length == 2: e.g. [Root("aws_instance"), Attr("my_example")]
-	//   2) trav length == 3 and trav[0] == "data": e.g. [Root("data"), Attr("aws_iam_user"), Attr("blah")]
+	//   1) trav length == 2: e.g., [Root("aws_instance"), Attr("my_example")]
+	//   2) trav length == 3 and trav[0] == "data": e.g., [Root("data"), Attr("aws_iam_user"), Attr("blah")]
 	//   3) No indexing or extra sub-attributes
 	//
-	// If any step is TraverseIndex(...) or if we have more than these minimal steps, it's partial or an attribute => ignore
+	// If any step is TraverseIndex(...) or if we have more than these minimal steps,
+	// it's partial or an attribute => ignore
 
 	switch len(trav) {
 	case 2:
-		// e.g. resource.resource_name
+		// e.g., resource.resource_name
 		// Ensure no indexing
 		if hasIndex(trav) {
 			return false
 		}
 		return true
 	case 3:
-		// e.g. data.resource_name.example
+		// e.g., data.resource_type.resource_name
 		root, okRoot := trav[0].(hcl.TraverseRoot)
 		if !okRoot || root.Name != "data" {
 			return false
@@ -150,6 +153,68 @@ func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Travers
 func hasIndex(trav hcl.Traversal) bool {
 	for _, step := range trav {
 		if _, ok := step.(hcl.TraverseIndex); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// filterPrefixTraversals removes any traversal that is a strict prefix of another
+// longer traversal. This happens, e.g., when Terraform's parser enumerates both
+// "aws_instance.foo" and "aws_instance.foo.id".
+func filterPrefixTraversals(all []hcl.Traversal) []hcl.Traversal {
+	var result []hcl.Traversal
+
+outer:
+	for i, t1 := range all {
+		for j, t2 := range all {
+			if i == j {
+				continue
+			}
+			if isPrefix(t1, t2) {
+				// skip t1 if it's a prefix of t2
+				continue outer
+			}
+		}
+		// If we reach here, t1 is not a prefix of any longer traversal
+		result = append(result, t1)
+	}
+	return result
+}
+
+// isPrefix returns true if t1 is strictly a prefix (same steps in order) of t2,
+// and t2 has more steps. For example:
+//   t1 = [Root("aws_instance"), Attr("foo")]
+//   t2 = [Root("aws_instance"), Attr("foo"), Attr("id")]
+// => isPrefix(t1, t2) == true
+func isPrefix(t1, t2 hcl.Traversal) bool {
+	if len(t1) >= len(t2) {
+		return false
+	}
+	// Compare each step
+	for i := range t1 {
+		if !stepEqual(t1[i], t2[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// stepEqual does a basic comparison of hcl.TraverseStep steps
+func stepEqual(a, b hcl.TraverseStep) bool {
+	switch aTyped := a.(type) {
+	case hcl.TraverseRoot:
+		if bTyped, ok := b.(hcl.TraverseRoot); ok {
+			return aTyped.Name == bTyped.Name
+		}
+	case hcl.TraverseAttr:
+		if bTyped, ok := b.(hcl.TraverseAttr); ok {
+			return aTyped.Name == bTyped.Name
+		}
+	case hcl.TraverseIndex:
+		if _, ok := b.(hcl.TraverseIndex); ok {
+			// We can't trivially check the Key equality, but to confirm prefix
+			// we just confirm they're both index steps.
 			return true
 		}
 	}
