@@ -96,6 +96,23 @@ func (r *TerraformOutputResourceRule) checkAllOutputBlocks(
 	return nil
 }
 
+// gatherTraversals canonicalizes and filters out prefix traversals
+func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hcl.Traversal {
+	original := expr.Variables()
+	if len(original) == 0 {
+		return nil
+	}
+
+	var canonical []hcl.Traversal
+	for _, trav := range original {
+		canonical = append(canonical, canonicalizeTraversal(trav))
+	}
+
+	// To avoid catching partial references, we'll skip any traversal
+	// that is a prefix of a longer one.
+	return filterPrefixTraversals(canonical)
+}
+
 // checkOutputBlock inspects if the "value" attribute references an entire resource/data.
 func (r *TerraformOutputResourceRule) checkOutputBlock(
 	block *hclsyntax.Block,
@@ -107,22 +124,14 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	}
 	expr := valAttr.Expr
 
-	// We parse the expression and see if it's a traversal referencing a resource or data.
-	original := expr.Variables()
-	if len(original) == 0 {
+	// Use new helper
+	traversals := r.gatherTraversals(expr)
+	if len(traversals) == 0 {
 		return nil
 	}
 
-	var canonical []hcl.Traversal
-	for _, trav := range original {
-		canonical = append(canonical, canonicalizeTraversal(trav))
-	}
-
-	// To avoid catching partial references, we'll skip any traversal that is a prefix of a longer one.
-	filtered := filterPrefixTraversals(canonical)
-
-	// If any of the filtered traversals is a "bare" reference => report
-	for _, trav := range filtered {
+	// If any of the traversals is a "bare" resource reference => report
+	for _, trav := range traversals {
 		// Only check if the root is "data" or a resource
 		if !isResourceRootTraversal(trav) {
 			continue
