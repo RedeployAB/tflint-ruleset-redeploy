@@ -155,19 +155,20 @@ func (r *TerraformEnforceLocalsForRepeatedValuesRule) collectLiteral(
 ) error {
 	switch expr := attr.Expr.(type) {
 	case *hclsyntax.LiteralValueExpr:
-		// Ignore booleans
-		if expr.Value.Type().IsBoolType() {
+		// Parse raw text. If it's "true"/"false", skip; else treat as a literal.
+		raw := GetAttributeRawText(attr, fileBytes)
+		raw = strings.TrimSpace(raw)
+		lowered := strings.ToLower(raw)
+		if lowered == "true" || lowered == "false" {
+			// skip booleans
 			return nil
 		}
-		// Collect string literals
-		if expr.Value.Type().IsStringType() {
-			val := expr.Value.AsString()
-			if val != "" {
-				out[val] = append(out[val], literalOccurrence{
-					Filename: filename,
-					Range:    attr.Range(),
-				})
-			}
+		// If it's not empty, consider it repeated
+		if raw != "" {
+			out[raw] = append(out[raw], literalOccurrence{
+				Filename: filename,
+				Range:    attr.Range(),
+			})
 		}
 	case *hclsyntax.TemplateExpr:
 		// Handle simple templates without interpolation
