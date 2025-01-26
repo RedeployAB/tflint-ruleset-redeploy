@@ -136,9 +136,28 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	return nil
 }
 
+// detectSplatInAttr checks if any TraverseAttr name contains "[*]" because the
+// Terraform parser may parse "resource_name[*]" as an Attr step. If so,
+// we consider that partial (like a splat), not a bare resource reference.
+func detectSplatInAttr(trav hcl.Traversal) bool {
+	for _, step := range trav {
+		if attr, ok := step.(hcl.TraverseAttr); ok {
+			if strings.Contains(attr.Name, "[*]") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // isEntireResourceReference checks if the traversal looks like a bare resource reference
 // e.g., "aws_instance.foo" or "data.aws_instance.foo" with no sub-attributes after the name.
 func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Traversal) bool {
+	// If the parser lumps "[*]" into an Attr name, treat it like a partial reference:
+	if detectSplatInAttr(trav) {
+		return false
+	}
+
 	// We only consider it a “bare” entire resource if:
 	//   1) trav length == 2: e.g., [Root("aws_instance"), Attr("my_example")]
 	//   2) trav length == 3 and trav[0] == "data": e.g., [Root("data"), Attr("aws_iam_user"), Attr("blah")]
