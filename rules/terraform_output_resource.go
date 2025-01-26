@@ -250,7 +250,26 @@ func stepEqual(a, b hcl.Traverser) bool {
 		}
 	case hcl.TraverseAttr:
 		if bTyped, ok := b.(hcl.TraverseAttr); ok {
-			return aTyped.Name == bTyped.Name
+			// If they're exactly the same, return true
+			if aTyped.Name == bTyped.Name {
+				return true
+			}
+			// If b's name starts with aTyped.Name + "." or "[", treat as prefix
+			if strings.HasPrefix(bTyped.Name, aTyped.Name+".") ||
+				strings.HasPrefix(bTyped.Name, aTyped.Name+"[") {
+				return true
+			}
+			// Also check the opposite direction:
+			if strings.HasPrefix(aTyped.Name, bTyped.Name+".") ||
+				strings.HasPrefix(aTyped.Name, bTyped.Name+"[") {
+				return true
+			}
+
+			// NEW: If one side has "multiple[*]" and the other just has "multiple",
+			// also treat them as "prefix" for filtering.
+			if aTyped.Name+"[*]" == bTyped.Name || bTyped.Name+"[*]" == aTyped.Name {
+				return true
+			}
 		}
 	case hcl.TraverseIndex:
 		if bTyped, ok := b.(hcl.TraverseIndex); ok {

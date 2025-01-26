@@ -2,7 +2,6 @@ package rules
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -23,12 +22,16 @@ func TestSplitAttrName(t *testing.T) {
 			Expect: []string{"some", "resource", "name"},
 		},
 		{
-			Input:  "name_with[brackets]",
-			Expect: []string{"name_with[brackets]"},
+			Input:  "name_with[\"brackets\"]",
+			Expect: []string{"name_with", "[\"brackets\"]"},
 		},
 		{
 			Input:  "name.with.dots[and][brackets]",
 			Expect: []string{"name", "with", "dots", "[and]", "[brackets]"},
+		},
+		{
+			Input:  "data.resource[0].name",
+			Expect: []string{"data", "resource", "[0]", "name"},
 		},
 	}
 
@@ -69,6 +72,62 @@ func TestCanonicalizeTraversal(t *testing.T) {
 				hcl.TraverseRoot{Name: "aws_instance"},
 				hcl.TraverseAttr{Name: "multiple"},
 				hcl.TraverseSplat{},
+			},
+		},
+		{
+			name: "Splat separated",
+			input: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple"},
+				hcl.TraverseSplat{},
+			},
+			want: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple"},
+				hcl.TraverseSplat{},
+			},
+		},
+		{
+			name: "Attributes only",
+			input: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple"},
+				hcl.TraverseAttr{Name: "id"},
+			},
+			want: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple"},
+				hcl.TraverseAttr{Name: "id"},
+			},
+		},
+		{
+			name: "Number index",
+			input: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple"},
+				hcl.TraverseIndex{Key: cty.NumberIntVal(1)},
+				hcl.TraverseAttr{Name: "id"},
+			},
+			want: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple"},
+				hcl.TraverseIndex{Key: cty.NumberIntVal(1)},
+				hcl.TraverseAttr{Name: "id"},
+			},
+		},
+		{
+			name: "Key index",
+			input: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple"},
+				hcl.TraverseIndex{Key: cty.StringVal("key")},
+				hcl.TraverseAttr{Name: "id"},
+			},
+			want: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "multiple"},
+				hcl.TraverseIndex{Key: cty.StringVal("key")},
+				hcl.TraverseAttr{Name: "id"},
 			},
 		},
 	}
@@ -153,6 +212,18 @@ func TestStepEqual(t *testing.T) {
 			StepA:  hcl.TraverseAttr{Name: "id"},
 			StepB:  hcl.TraverseAttr{Name: "name"},
 			Expect: false,
+		},
+		{
+			Name:   "TraverseAttr with prefix",
+			StepA:  hcl.TraverseAttr{Name: "example"},
+			StepB:  hcl.TraverseAttr{Name: "example.id"},
+			Expect: true,
+		},
+		{
+			Name:   "TraverseAttr with splat",
+			StepA:  hcl.TraverseAttr{Name: "multiple"},
+			StepB:  hcl.TraverseAttr{Name: "multiple[*]"},
+			Expect: true,
 		},
 		{
 			Name:   "Splat steps equal",
