@@ -254,20 +254,31 @@ func stepEqual(a, b hcl.Traverser) bool {
 			if aTyped.Name == bTyped.Name {
 				return true
 			}
-			// If b's name starts with aTyped.Name + "." or "[", treat as prefix
+
+			// Already existing prefix checks
 			if strings.HasPrefix(bTyped.Name, aTyped.Name+".") ||
-				strings.HasPrefix(bTyped.Name, aTyped.Name+"[") {
+			   strings.HasPrefix(bTyped.Name, aTyped.Name+"[") {
 				return true
 			}
-			// Also check the opposite direction:
 			if strings.HasPrefix(aTyped.Name, bTyped.Name+".") ||
-				strings.HasPrefix(aTyped.Name, bTyped.Name+"[") {
+			   strings.HasPrefix(aTyped.Name, bTyped.Name+"[") {
 				return true
 			}
 
-			// NEW: If one side has "multiple[*]" and the other just has "multiple",
-			// also treat them as "prefix" for filtering.
+			// If one side is "multiple" and the other is "multiple[*]", treat them as prefix
 			if aTyped.Name+"[*]" == bTyped.Name || bTyped.Name+"[*]" == aTyped.Name {
+				return true
+			}
+
+			// --- NEW addition ---
+			// If one side is "multiple[*]" and the other side is "multiple[*].something",
+			// treat them as prefix as well:
+			if strings.HasPrefix(bTyped.Name, aTyped.Name+".") ||
+			   strings.HasPrefix(bTyped.Name, aTyped.Name+"[") {
+				return true
+			}
+			if strings.HasPrefix(aTyped.Name, bTyped.Name+".") ||
+			   strings.HasPrefix(aTyped.Name, bTyped.Name+"[") {
 				return true
 			}
 		}
