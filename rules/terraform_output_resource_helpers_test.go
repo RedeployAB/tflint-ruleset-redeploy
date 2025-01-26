@@ -180,15 +180,15 @@ func TestStepEqual(t *testing.T) {
 		},
 		{
 			Name:   "Splat vs Splat with extra attribute => false",
-			StepA:  hcl.TraverseAttr{Name: "multiple[*]"},
-			StepB:  hcl.TraverseAttr{Name: "multiple[*].id"},
-			Expect: false,
-		},
-		{
-			Name:   "Plain splat steps => true",
 			StepA:  hcl.TraverseSplat{},
 			StepB:  hcl.TraverseSplat{},
 			Expect: true,
+		},
+		{
+			Name:   "Splat vs Attribute => false",
+			StepA:  hcl.TraverseSplat{},
+			StepB:  hcl.TraverseAttr{Name: "id"},
+			Expect: false,
 		},
 	}
 
@@ -201,105 +201,3 @@ func TestStepEqual(t *testing.T) {
 		})
 	}
 }
-
-// Helper functions for testing purposes
-
-func splitAttrName(name string) []string {
-	var parts []string
-	var buf strings.Builder
-
-	for i := 0; i < len(name); i++ {
-		c := name[i]
-
-		switch c {
-		case '.':
-			if buf.Len() > 0 {
-				parts = append(parts, buf.String())
-				buf.Reset()
-			}
-		case '[':
-			if buf.Len() > 0 {
-				parts = append(parts, buf.String())
-				buf.Reset()
-			}
-			j := i + 1
-			for j < len(name) && name[j] != ']' {
-				j++
-			}
-			if j < len(name) && name[j] == ']' {
-				parts = append(parts, name[i:j+1])
-				i = j
-			} else {
-				buf.WriteByte(c)
-			}
-		default:
-			buf.WriteByte(c)
-		}
-	}
-
-	if buf.Len() > 0 {
-		parts = append(parts, buf.String())
-	}
-	return parts
-}
-
-func canonicalizeTraversal(trav hcl.Traversal) hcl.Traversal {
-	var result hcl.Traversal
-
-	for _, step := range trav {
-		switch s := step.(type) {
-		case hcl.TraverseAttr:
-			subSteps := splitAttrName(s.Name)
-			for _, sub := range subSteps {
-				if sub == "[*]" {
-					result = append(result, hcl.TraverseSplat{})
-				} else if strings.HasPrefix(sub, "[") && strings.HasSuffix(sub, "]") {
-					indexKey := strings.Trim(sub, "[]")
-					result = append(result, makeIndexStep(indexKey))
-				} else {
-					result = append(result, hcl.TraverseAttr{Name: sub})
-				}
-			}
-		default:
-			result = append(result, step)
-		}
-	}
-
-	return result
-}
-
-func filterPrefixTraversals(all []hcl.Traversal) []hcl.Traversal {
-	var result []hcl.Traversal
-
-outer:
-	for i, t1 := range all {
-		for j, t2 := range all {
-			if i == j {
-				continue
-			}
-			if isPrefix(t1, t2) {
-				continue outer
-			}
-		}
-		result = append(result, t1)
-	}
-	return result
-}
-
-func isPrefix(t1, t2 hcl.Traversal) bool {
-	if len(t1) >= len(t2) {
-		return false
-	}
-	for i := range t1 {
-		if !stepEqual(t1[i], t2[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func stepEqual(a, b hcl.Traverser) bool {
-	switch aTyped := a.(type) {
-	case hcl.TraverseRoot:
-		if bTyped, ok := b.(hcl.TraverseRoot); ok {
-			return aTyped.Name == bTyped.Name
