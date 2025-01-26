@@ -102,20 +102,15 @@ resource "fake_resource" "example" {
 
 	rule := NewTerraformEnforceLocalsForRepeatedValuesRule()
 
+	// Provide a .tflint.hcl file so the rule can read threshold=2 from it
 	runner := helper.TestRunner(t, map[string]string{
+		".tflint.hcl": `
+rule "terraform_enforce_locals_for_repeated_values" {
+  threshold = 2
+}
+`,
 		"main.tf": content,
 	})
-
-	// Set up a config that sets threshold=2
-	runner.Config.Settings = map[string]map[string]interface{}{
-		rule.Name(): {
-			"threshold": 2.0,
-		},
-	}
-
-	if err := rule.Configure(runner.Config); err != nil {
-		t.Fatalf("Unexpected configure error: %s", err)
-	}
 
 	if err := rule.Check(runner); err != nil {
 		t.Fatalf("Unexpected error: %s", err)
