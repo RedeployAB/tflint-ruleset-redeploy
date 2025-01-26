@@ -45,6 +45,7 @@ func main() {
 				rules.NewTerraformVariableArgumentOrderRule(),
 				rules.NewTerraformLocalsMirrorAssignmentRule(),
 				rules.NewTerraformOutputArgumentOrderRule(),
+				rules.NewTerraformOutputFileRule(),
 			},
 		},
 	})
