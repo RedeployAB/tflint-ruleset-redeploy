@@ -100,7 +100,7 @@ func isDataOrResourceRef(trav hcl.Traversal) bool {
 // checkOutputBlock inspects if the "value" attribute references an entire resource/data.
 func (r *TerraformOutputResourceRule) checkOutputBlock(
 	block *hclsyntax.Block,
-	runner tflint.Runner
+	runner tflint.Runner,
 ) error {
 	valAttr, ok := block.Body.Attributes["value"]
 	if !ok {

@@ -140,11 +140,11 @@ output "bad_ephemeral" {
 			Name: "OK - references multiple instances with explicit index",
 			Content: `
 resource "aws_instance" "multiple" {
-  count = 2
+	count = 2
 }
 
 output "indexed_output" {
-  value = aws_instance.multiple[1].id
+	value = aws_instance.multiple[1].id
 }
 `,
 			Issues: helper.Issues{},
@@ -161,11 +161,11 @@ output "indexed_output" {
 			Name: "OK - references multiple instances with splat",
 			Content: `
 resource "aws_instance" "multiple" {
-  count = 2
+	count = 2
 }
 
 output "splat_output" {
-  value = aws_instance.multiple[*].id
+	value = aws_instance.multiple[*].id
 }
 `,
 			Issues: helper.Issues{},
