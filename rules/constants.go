@@ -8,6 +8,9 @@ const (
 	TypeProvider  = "provider"
 	TypeAttr      = "attr"
 	TypeBlock     = "block"
+	TypeVariable  = "variable"
+	TypeLocals    = "locals"
+	TypeOutput    = "output"
 
 	// Meta argument names
 	ArgDependsOn = "depends_on"
@@ -18,4 +21,7 @@ const (
 
 	// For modules
 	TypeModule = "module"
+
+	// Common string constants
+	StringFalse = "false"
 )

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/RedeployAB/tflint-ruleset-redeploy/internal"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
@@ -212,7 +211,7 @@ func (r *TerraformMetaArgumentFormatRule) checkBlock(
 		r.gatherMetaArgEndLines(block)
 
 	// Blank line after top meta-arguments
-	topEndLine := internal.Max(countForEachEndLine, providerEndLine)
+	topEndLine := Max(countForEachEndLine, providerEndLine)
 	if topEndLine >= 0 {
 		if err := r.checkBlankLineAfterTopMetaArgs(lines, topEndLine, endLine, srcRange, runner); err != nil {
 			return err

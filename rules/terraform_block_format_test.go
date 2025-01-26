@@ -183,4 +183,163 @@ func TestTerraformBlockFormat(t *testing.T) {
 			helper.AssertIssues(t, tc.Issues, runner.Issues)
 		})
 	}
+
+	t.Run("variable block tests", func(t *testing.T) {
+		tests := []struct {
+			Name    string
+			Content string
+			Issues  helper.Issues
+		}{
+			{
+				Name: "OK - variable with single validation block",
+				Content: `
+variable "example" {
+	type = string
+
+	validation {
+		// ..
+	}
+}
+`,
+				Issues: helper.Issues{},
+			},
+			{
+				Name: "OK - variable with multiple validation blocks",
+				Content: `
+variable "example" {
+	type = string
+
+	validation {
+		// ..
+	}
+
+	validation {
+		// ..
+	}
+}
+`,
+				Issues: helper.Issues{},
+			},
+			{
+				Name: "NOT OK - variable with validation block no blank line",
+				Content: `
+variable "example" {
+	type = string
+	validation {
+		// ..
+	}
+}
+`,
+				Issues: helper.Issues{
+					{
+						Rule:    NewTerraformBlockFormatRule(),
+						Message: "Expected exactly one blank line before this block",
+						Range: hcl.Range{
+							Filename: "resource.tf",
+							Start:    hcl.Pos{Line: 4, Column: 2},
+							End:      hcl.Pos{Line: 4, Column: 12},
+						},
+					},
+				},
+			},
+			{
+				Name: "NOT OK - variable with multiple validation blocks no blank line",
+				Content: `
+variable "example" {
+	type = string
+
+	validation {
+		// ..
+	}
+	validation {
+		// ..
+	}
+}
+`,
+				Issues: helper.Issues{
+					{
+						Rule:    NewTerraformBlockFormatRule(),
+						Message: "Expected exactly one blank line before this block",
+						Range: hcl.Range{
+							Filename: "resource.tf",
+							Start:    hcl.Pos{Line: 8, Column: 2},
+							End:      hcl.Pos{Line: 8, Column: 12},
+						},
+					},
+				},
+			},
+		}
+
+		for _, tc := range tests {
+			tc := tc // capture range variable
+			t.Run(tc.Name, func(t *testing.T) {
+				runner := helper.TestRunner(t, map[string]string{
+					"resource.tf": tc.Content,
+				})
+				err := rule.Check(runner)
+				if err != nil {
+					t.Fatalf("Unexpected error occurred: %s", err)
+				}
+				helper.AssertIssues(t, tc.Issues, runner.Issues)
+			})
+		}
+	})
+
+	t.Run("output block tests", func(t *testing.T) {
+		tests := []struct {
+			Name    string
+			Content string
+			Issues  helper.Issues
+		}{
+			{
+				Name: "OK - blank line before block",
+				Content: `
+output "example" {
+	value = "something"
+
+	precondition {
+		// ..
+	}
+}
+`,
+				Issues: helper.Issues{},
+			},
+			{
+				Name: "NOT OK - no blank line before block",
+				Content: `
+output "example" {
+	value = "something"
+	precondition {
+		// ..
+	}
+}
+`,
+				Issues: helper.Issues{
+					{
+						Rule:    NewTerraformBlockFormatRule(),
+						Message: "Expected exactly one blank line before this block",
+						Range: hcl.Range{
+							Filename: "resource.tf",
+							Start:    hcl.Pos{Line: 4, Column: 2},
+							End:      hcl.Pos{Line: 4, Column: 14},
+						},
+					},
+				},
+			},
+		}
+
+		for _, tc := range tests {
+			tc := tc // capture range variable
+			t.Run(tc.Name, func(t *testing.T) {
+				runner := helper.TestRunner(t, map[string]string{
+					"resource.tf": tc.Content,
+				})
+				err := rule.Check(runner)
+				if err != nil {
+					t.Fatalf("Unexpected error occurred: %s", err)
+				}
+				helper.AssertIssues(t, tc.Issues, runner.Issues)
+			})
+		}
+	})
 }
