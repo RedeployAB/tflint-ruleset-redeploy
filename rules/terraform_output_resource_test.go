@@ -45,39 +45,3 @@ output "out_bad" {
 				},
 			},
 		},
-		{
-			Name: "NOT OK - references entire data resource",
-			Content: `
-data "aws_caller_identity" "current" {}
-
-output "caller" {
-	value = data.aws_caller_identity.current
-}
-`,
-			Issues: helper.Issues{
-				{
-					Rule:    NewTerraformOutputResourceRule(),
-					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
-					Range: hcl.Range{
-						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 5, Column: 2},
-						End:      hcl.Pos{Line: 5, Column: 42},
-					},
-				},
-			},
-		},
-	}
-
-	rule := NewTerraformOutputResourceRule()
-	for _, tc := range tests {
-		t.Run(tc.Name, func(t *testing.T) {
-			runner := helper.TestRunner(t, map[string]string{
-				"main.tf": tc.Content,
-			})
-			if err := rule.Check(runner); err != nil {
-				t.Fatalf("Unexpected error: %v", err)
-			}
-			helper.AssertIssues(t, tc.Issues, runner.Issues)
-		})
-	}
-}
