@@ -147,6 +147,13 @@ func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Travers
 	case 2:
 		// e.g., resource.resource_name
 		// e.g., data.resource_type.resource_name (although this is uncommon)
+		// But if the attribute includes a dot (e.g. "example.id"),
+		// it actually references a sub-attribute in one parse step, so it's partial.
+		if attr, ok := trav[1].(hcl.TraverseAttr); ok {
+			if strings.Contains(attr.Name, ".") {
+				return false // means it's referencing a sub-attribute -> partial
+			}
+		}
 		return true
 	case 3:
 		// If the first step is var/local/module => not a resource => no issue
@@ -230,19 +237,3 @@ func stepEqual(a, b hcl.Traverser) bool {
 			return true
 		}
 		// If a is TraverseIndex with a string key, and b is TraverseAttr with the same string name,
-		// treat them as the same step. This handles references like aws_instance["example"] vs. .example.
-		if bAttr, ok := b.(hcl.TraverseAttr); ok {
-			if aTyped.Key.Type() == cty.String {
-				if aTyped.Key.AsString() == bAttr.Name {
-					return true
-				}
-			}
-		}
-	case hcl.TraverseSplat:
-		switch b.(type) {
-		case hcl.TraverseIndex, hcl.TraverseSplat:
-			return true
-		}
-	}
-	return false
-}
