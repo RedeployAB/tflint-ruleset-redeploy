@@ -158,3 +158,147 @@ func TestEndsWithAttribute(t *testing.T) {
 		t.Errorf("endsWithAttribute => false, want true for %v", tr2)
 	}
 }
+
+func TestIsFullResourceReference(t *testing.T) {
+	rule := NewTerraformOutputResourceRule()
+
+	cases := []struct {
+		Name      string
+		Traversal hcl.Traversal
+		Expected  bool
+	}{
+		{
+			Name: "Single-step root => false",
+			Traversal: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+			},
+			Expected: false,
+		},
+		{
+			Name: "Two-step => entire resource => true",
+			Traversal: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "example"},
+			},
+			Expected: true,
+		},
+		{
+			Name: "Three-step => partial => false (ends with attr)",
+			Traversal: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "example"},
+				hcl.TraverseAttr{Name: "id"},
+			},
+			Expected: false,
+		},
+		{
+			Name: "Three-step => entire if last is index => true",
+			Traversal: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "example"},
+				hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
+			},
+			Expected: true,
+		},
+		{
+			Name: "Four-step => partial => false if ends with attr",
+			Traversal: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "example"},
+				hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
+				hcl.TraverseAttr{Name: "id"},
+			},
+			Expected: false,
+		},
+		{
+			Name: "Root is var => not resource => false",
+			Traversal: hcl.Traversal{
+				hcl.TraverseRoot{Name: "var"},
+				hcl.TraverseAttr{Name: "whatever"},
+			},
+			Expected: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			got := rule.isFullResourceReference(tc.Traversal)
+			if got != tc.Expected {
+				t.Errorf("isFullResourceReference(%v) => %v, want %v", tc.Traversal, got, tc.Expected)
+			}
+		})
+	}
+}
+
+func TestStepEqual(t *testing.T) {
+	cases := []struct {
+		Name   string
+		StepA  hcl.Traverser
+		StepB  hcl.Traverser
+		Expect bool
+	}{
+		{
+			Name:   "Same root => true",
+			StepA:  hcl.TraverseRoot{Name: "aws_instance"},
+			StepB:  hcl.TraverseRoot{Name: "aws_instance"},
+			Expect: true,
+		},
+		{
+			Name:   "Different root => false",
+			StepA:  hcl.TraverseRoot{Name: "aws_instance"},
+			StepB:  hcl.TraverseRoot{Name: "var"},
+			Expect: false,
+		},
+		{
+			Name:   "Same attr => true",
+			StepA:  hcl.TraverseAttr{Name: "example"},
+			StepB:  hcl.TraverseAttr{Name: "example"},
+			Expect: true,
+		},
+		{
+			Name:   "Attr vs Index => false",
+			StepA:  hcl.TraverseAttr{Name: "foo"},
+			StepB:  hcl.TraverseIndex{Key: cty.StringVal("foo")},
+			Expect: false,
+		},
+		{
+			Name:   "Attr prefix => true if the second starts with the first plus '.'",
+			StepA:  hcl.TraverseAttr{Name: "example"},
+			StepB:  hcl.TraverseAttr{Name: "example.id"},
+			Expect: true,
+		},
+		{
+			Name:   "Attr prefix => true if the second starts with the first plus '['",
+			StepA:  hcl.TraverseAttr{Name: "example"},
+			StepB:  hcl.TraverseAttr{Name: "example[0].id"},
+			Expect: true,
+		},
+		{
+			Name:   "Index => same key => true",
+			StepA:  hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
+			StepB:  hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
+			Expect: true,
+		},
+		{
+			Name:   "Index => different key => false",
+			StepA:  hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
+			StepB:  hcl.TraverseIndex{Key: cty.NumberIntVal(1)},
+			Expect: false,
+		},
+		{
+			Name:   "Splat vs Splat => true",
+			StepA:  hcl.TraverseSplat{},
+			StepB:  hcl.TraverseSplat{},
+			Expect: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			got := stepEqual(tc.StepA, tc.StepB)
+			if got != tc.Expect {
+				t.Errorf("stepEqual(%#v, %#v) => %v, want %v", tc.StepA, tc.StepB, got, tc.Expect)
+			}
+		})
+	}
+}
