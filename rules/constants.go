@@ -10,6 +10,7 @@ const (
 	TypeBlock     = "block"
 	TypeVariable  = "variable"
 	TypeLocals    = "locals"
+	TypeOutput    = "output"
 
 	// Meta argument names
 	ArgDependsOn = "depends_on"
