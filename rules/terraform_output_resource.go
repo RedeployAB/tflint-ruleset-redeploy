@@ -115,32 +115,43 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 // isEntireResourceReference checks if the traversal looks like a bare resource reference
 // E.g. "aws_instance.foo" or "data.aws_instance.foo" with no sub-attributes after the name.
 func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Traversal) bool {
-	// Usually:
-	// resource:  [ TraverseRoot("aws_instance"), TraverseAttr("foo") ]
-	// data:      [ TraverseRoot("data"), TraverseAttr("aws_iam_user"), TraverseAttr("blah") ]
-	// We want to ensure there's *no* extra attribute after the resource name (like .id, .arn, etc.)
+	// We only consider it a “bare” entire resource if:
+	//   1) trav length == 2: e.g. [Root("aws_instance"), Attr("my_example")]
+	//   2) trav length == 3 and trav[0] == "data": e.g. [Root("data"), Attr("aws_iam_user"), Attr("blah")]
+	//   3) No indexing or extra sub-attributes
+	//
+	// If any step is TraverseIndex(...) or if we have more than these minimal steps, it's partial or an attribute => ignore
 
-	if len(trav) < 2 {
+	switch len(trav) {
+	case 2:
+		// e.g. resource.resource_name
+		// Ensure no indexing
+		if hasIndex(trav) {
+			return false
+		}
+		return true
+	case 3:
+		// e.g. data.resource_name.example
+		root, okRoot := trav[0].(hcl.TraverseRoot)
+		if !okRoot || root.Name != "data" {
+			return false
+		}
+		// Ensure no indexing
+		if hasIndex(trav) {
+			return false
+		}
+		return true
+	default:
 		return false
 	}
+}
 
-	// For a normal resource "aws_instance.foo", length == 2
-	// For data "data.aws_iam_user.example", length == 3
-	// We consider the last step in the traversal to see if that’s the final resource name,
-	// with no further .something steps
-
-	// Case 1: normal resource => exactly 2 segments => entire resource
-	if len(trav) == 2 {
-		return true
-	}
-	// Case 2: data resource => e.g. "data", "aws_iam_user", "example" => length == 3 => entire resource
-	if len(trav) == 3 {
-		first, okA := trav[0].(hcl.TraverseRoot)
-		_, okB := trav[1].(hcl.TraverseAttr)
-		if okA && okB && first.Name == "data" {
+// hasIndex returns true if the traversal has any bracket index steps.
+func hasIndex(trav hcl.Traversal) bool {
+	for _, step := range trav {
+		if _, ok := step.(hcl.TraverseIndex); ok {
 			return true
 		}
 	}
-
 	return false
 }
