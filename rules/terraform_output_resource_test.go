@@ -83,6 +83,53 @@ output "some_output" {
 		},
 	}
 
+	// Add a test case for ephemeral resource, ensuring the rule checks it
+	tests = append(tests,
+		struct {
+			Name    string
+			Content string
+			Issues  helper.Issues
+		}{
+			Name: "OK - references ephemeral resource attribute",
+			Content: `
+resource "ephemeral" "test" {}
+
+output "ok_ephemeral" {
+  value = ephemeral.test.id
+}
+`,
+			Issues: helper.Issues{},
+		},
+	)
+
+	tests = append(tests,
+		struct {
+			Name    string
+			Content string
+			Issues  helper.Issues
+		}{
+			Name: "NOT OK - references entire ephemeral resource",
+			Content: `
+resource "ephemeral" "test" {}
+
+output "bad_ephemeral" {
+  value = ephemeral.test
+}
+`,
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Range: hcl.Range{
+						Filename: "main.tf",
+						Start:    hcl.Pos{Line: 5, Column: 3},
+						End:      hcl.Pos{Line: 5, Column: 24},
+					},
+				},
+			},
+		},
+	)
+
 	rule := NewTerraformOutputResourceRule()
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {

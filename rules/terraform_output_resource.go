@@ -79,6 +79,24 @@ func (r *TerraformOutputResourceRule) processBody(body *hclsyntax.Body, runner t
 	return nil
 }
 
+// isDataOrResourceRef returns true if the traversal root is "data" or
+// neither var/local/module nor empty (thus presumably a resource).
+// Also treat "ephemeral" as a resource root (per user request).
+func isDataOrResourceRef(trav hcl.Traversal) bool {
+	if len(trav) == 0 {
+		return false
+	}
+	root, ok := trav[0].(hcl.TraverseRoot)
+	if !ok {
+		return false
+	}
+	switch root.Name {
+	case "var", "local", "module":
+		return false
+	}
+	return true // includes "data", "aws_*", "azurerm_*", "ephemeral", etc.
+}
+
 // checkOutputBlock inspects if the "value" attribute references an entire resource/data.
 func (r *TerraformOutputResourceRule) checkOutputBlock(
 	block *hclsyntax.Block,
@@ -102,6 +120,10 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 
 	// If any of the filtered traversals is a "bare" reference => report
 	for _, trav := range filtered {
+		// Only check if the root is "data" or a resource (including ephemeral).
+		if !isDataOrResourceRef(trav) {
+			continue
+		}
 		if r.isEntireResourceReference(trav) {
 			return runner.EmitIssue(
 				r,
