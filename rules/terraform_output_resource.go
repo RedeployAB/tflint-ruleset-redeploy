@@ -111,7 +111,7 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	}
 	expr := valAttr.Expr
 
-	// We parse the expression and see if it’s a traversal referencing a resource or data.
+	// We parse the expression and see if it's a traversal referencing a resource or data.
 	traversals := expr.Variables()
 	if len(traversals) == 0 {
 		return nil
@@ -145,16 +145,22 @@ func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Travers
 	switch len(trav) {
 	case 2:
 		// e.g., resource.resource_name
-		// If there's no attribute after resource_name (even with index/splat), it's entire resource
+		// e.g., data.resource_type.resource_name
 		return true
 	case 3:
-		// e.g., data.resource_type.resource_name
-		// The first step must be "data"
-		if root, okRoot := trav[0].(hcl.TraverseRoot); !okRoot || root.Name != "data" {
-			return false
+		// If the root is not var/local/module, and the last step is index or splat,
+		// then there's no attribute after that => entire resource reference.
+		if root, ok := trav[0].(hcl.TraverseRoot); ok {
+			switch root.Name {
+			case "var", "local", "module":
+				return false
+			}
 		}
-		// No further attributes, so entire resource
-		return true
+		switch trav[2].(type) {
+		case hcl.TraverseIndex, hcl.TraverseSplat:
+			return true
+		}
+		return false
 	default:
 		// If there's a 4th step (like .id), then it's partial => skip
 		return false
