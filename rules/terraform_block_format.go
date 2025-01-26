@@ -9,7 +9,7 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-// TerraformBlockFormatRule enforces that within certain block types (resource, data, terraform, provider):
+// TerraformBlockFormatRule enforces that within certain block types (resource, data, terraform, provider, variable, output):
 //  1. The first block (if any) appears immediately after the opening brace or
 //     after exactly one blank line if there are attributes above it.
 //  2. Any subsequent blocks in the same block appear after exactly one blank line.
@@ -243,5 +243,10 @@ func (r *TerraformBlockFormatRule) emitIssue(runner tflint.Runner, rng hcl.Range
 
 func isBlockTypeOfInterest(typ string) bool {
 	t := strings.ToLower(typ)
-	return t == TypeResource || t == TypeData || t == TypeTerraform || t == TypeProvider
+	return t == TypeResource ||
+		t == TypeData ||
+		t == TypeTerraform ||
+		t == TypeProvider ||
+		t == TypeVariable ||
+		t == TypeOutput
 }

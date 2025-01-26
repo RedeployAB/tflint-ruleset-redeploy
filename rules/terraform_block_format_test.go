@@ -182,5 +182,89 @@ func TestTerraformBlockFormat(t *testing.T) {
 
 			helper.AssertIssues(t, tc.Issues, runner.Issues)
 		})
-	}
+	})
+
+	t.Run("variable block tests", func(t *testing.T) {
+		tests := []struct {
+			Name    string
+			Content string
+			Issues  helper.Issues
+		}{
+			{
+				Name:    "OK - single variable block as first item, no extra blank line",
+				Content: readFixture(t, "block_fmt_ok_variable_no_blank_line.tf"),
+				Issues:  helper.Issues{},
+			},
+			{
+				Name:    "NOT OK - single variable block with extra blank line after brace",
+				Content: readFixture(t, "block_fmt_not_ok_variable_extra_blank_line.tf"),
+				Issues: helper.Issues{
+					{
+						Rule:    NewTerraformBlockFormatRule(),
+						Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
+						Range: hcl.Range{
+							Filename: "resource.tf",
+							Start:    hcl.Pos{Line: 3, Column: 3},
+							End:      hcl.Pos{Line: 3, Column: 11},
+						},
+					},
+				},
+			},
+		}
+		rule := NewTerraformBlockFormatRule()
+		for _, tc := range tests {
+			t.Run(tc.Name, func(t *testing.T) {
+				runner := helper.TestRunner(t, map[string]string{
+					"resource.tf": tc.Content,
+				})
+				err := rule.Check(runner)
+				if err != nil {
+					t.Fatalf("Unexpected error occurred: %s", err)
+				}
+				helper.AssertIssues(t, tc.Issues, runner.Issues)
+			})
+		}
+	})
+
+	t.Run("output block tests", func(t *testing.T) {
+		tests := []struct {
+			Name    string
+			Content string
+			Issues  helper.Issues
+		}{
+			{
+				Name:    "OK - single output block as first item, no extra blank line",
+				Content: readFixture(t, "block_fmt_ok_output_no_blank_line.tf"),
+				Issues:  helper.Issues{},
+			},
+			{
+				Name:    "NOT OK - single output block with extra blank line after brace",
+				Content: readFixture(t, "block_fmt_not_ok_output_extra_blank_line.tf"),
+				Issues: helper.Issues{
+					{
+						Rule:    NewTerraformBlockFormatRule(),
+						Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
+						Range: hcl.Range{
+							Filename: "resource.tf",
+							Start:    hcl.Pos{Line: 3, Column: 3},
+							End:      hcl.Pos{Line: 3, Column: 9},
+						},
+					},
+				},
+			},
+		}
+		rule := NewTerraformBlockFormatRule()
+		for _, tc := range tests {
+			t.Run(tc.Name, func(t *testing.T) {
+				runner := helper.TestRunner(t, map[string]string{
+					"resource.tf": tc.Content,
+				})
+				err := rule.Check(runner)
+				if err != nil {
+					t.Fatalf("Unexpected error occurred: %s", err)
+				}
+				helper.AssertIssues(t, tc.Issues, runner.Issues)
+			})
+		}
+	})
 }
