@@ -47,6 +47,7 @@ func main() {
 				rules.NewTerraformOutputArgumentOrderRule(),
 				rules.NewTerraformOutputFileRule(),
 				rules.NewTerraformBlockOrderRule(),
+				rules.NewTerraformVariableOrderRule(),
 			},
 		},
 	})
