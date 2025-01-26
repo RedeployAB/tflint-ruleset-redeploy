@@ -17,12 +17,12 @@ func TestTerraformEnforceLocalsForRepeatedValuesRule_DefaultThreshold(t *testing
 			Name: "OK - repeated only 2 times, threshold=3",
 			Content: `
 resource "fake_resource" "example" {
-  name  = "myvalue"
-  other = "something"
+	name  = "myvalue"
+	other = "something"
 }
 
 resource "another_resource" "stuff" {
-  name = "myvalue"
+	name = "myvalue"
 }
 `,
 			Issues: helper.Issues{}, // only repeated 2 times => OK
@@ -31,12 +31,12 @@ resource "another_resource" "stuff" {
 			Name: "NOT OK - repeated 3 times, threshold=3",
 			Content: `
 resource "fake_resource" "example" {
-  name  = "myvalue"
-  other = "myvalue"
+	name  = "myvalue"
+	other = "myvalue"
 }
 
 resource "another_resource" "stuff" {
-  name = "myvalue"
+	name = "myvalue"
 }
 `,
 			Issues: helper.Issues{
@@ -46,7 +46,7 @@ resource "another_resource" "stuff" {
 					Message: `Value "myvalue" repeated 3 times. Consider a local variable.`,
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 3, Column: 10},
+						Start:    hcl.Pos{Line: 3, Column: 2},
 						End:      hcl.Pos{Line: 3, Column: 19},
 					},
 				},
@@ -55,7 +55,7 @@ resource "another_resource" "stuff" {
 					Message: `Value "myvalue" repeated 3 times. Consider a local variable.`,
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 4, Column: 10},
+						Start:    hcl.Pos{Line: 4, Column: 2},
 						End:      hcl.Pos{Line: 4, Column: 19},
 					},
 				},
@@ -64,7 +64,7 @@ resource "another_resource" "stuff" {
 					Message: `Value "myvalue" repeated 3 times. Consider a local variable.`,
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 8, Column: 9},
+						Start:    hcl.Pos{Line: 8, Column: 2},
 						End:      hcl.Pos{Line: 8, Column: 18},
 					},
 				},
@@ -93,8 +93,8 @@ func TestTerraformEnforceLocalsForRepeatedValuesRule_ConfigThreshold(t *testing.
 	// We'll configure threshold=2
 	content := `
 resource "fake_resource" "example" {
-  name  = "repeated"
-  other = "repeated"
+	name  = "repeated"
+	other = "repeated"
 }
 `
 	// That is repeated 2 times
@@ -106,7 +106,8 @@ resource "fake_resource" "example" {
 	runner := helper.TestRunner(t, map[string]string{
 		".tflint.hcl": `
 rule "terraform_enforce_locals_for_repeated_values" {
-  threshold = 2
+	enabled = true
+	threshold = 2
 }
 `,
 		"main.tf": content,

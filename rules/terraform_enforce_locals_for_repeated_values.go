@@ -153,7 +153,7 @@ func (r *TerraformEnforceLocalsForRepeatedValuesRule) collectLiteral(
 	fileBytes []byte,
 	out map[string][]literalOccurrence,
 ) error {
-	switch expr := attr.Expr.(type) {
+	switch attr.Expr.(type) {
 	case *hclsyntax.LiteralValueExpr:
 		// Parse raw text. If it's "true"/"false", skip; else treat as a literal.
 		raw := GetAttributeRawText(attr, fileBytes)
