@@ -141,6 +141,17 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 // e.g., "aws_instance.foo", "aws_instance.foo[0]", "aws_instance.foo[*]",
 // or "data.aws_instance.foo" with no sub-attributes after the name.
 func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Traversal) bool {
+	// If an attribute step ends with "[*]" and there's still another step after it,
+	// that implies something like "aws_instance.multiple[*].id" => partial => skip
+	for i := 0; i < len(trav)-1; i++ {
+		if attr, ok := trav[i].(hcl.TraverseAttr); ok {
+			if strings.HasSuffix(attr.Name, "[*]") {
+				// There's another step after "multiple[*]" => partial reference
+				return false
+			}
+		}
+	}
+
 	switch len(trav) {
 	case 2:
 		// e.g., resource.resource_name
