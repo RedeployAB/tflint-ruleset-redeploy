@@ -6,6 +6,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/terraform-linters/tflint-plugin-sdk/hclext"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
@@ -17,6 +18,11 @@ type TerraformEnforceLocalsForRepeatedValuesRule struct {
 
 	// Threshold for repetition (default: 3)
 	Threshold int
+}
+
+// For runner.DecodeRuleConfig parsing:
+type terraformEnforceLocalsForRepeatedValuesRuleConfig struct {
+	Threshold int `hclext:"threshold,optional"`
 }
 
 func NewTerraformEnforceLocalsForRepeatedValuesRule() *TerraformEnforceLocalsForRepeatedValuesRule {
@@ -42,15 +48,16 @@ func (r *TerraformEnforceLocalsForRepeatedValuesRule) Link() string {
 	return ""
 }
 
-// Configure allows setting a custom threshold via .tflint.hcl
-// e.g., rule "terraform_enforce_locals_for_repeated_values" { threshold = 4 }
-func (r *TerraformEnforceLocalsForRepeatedValuesRule) Configure(config *tflint.Config) error {
-	if settings, ok := config.Settings[r.Name()]; ok {
-		if v, ok := settings["threshold"]; ok {
-			if threshold, ok := v.(float64); ok && threshold > 0 {
-				r.Threshold = int(threshold)
-			}
-		}
+// Use runner.DecodeRuleConfig for configuring threshold in .tflint.hcl
+func (r *TerraformEnforceLocalsForRepeatedValuesRule) Configure(runner tflint.Runner) error {
+	var cfg terraformEnforceLocalsForRepeatedValuesRuleConfig
+	// Attempt to decode user settings from .tflint.hcl
+	if err := runner.DecodeRuleConfig(r.Name(), &cfg); err != nil {
+		return err
+	}
+	// If user-specified threshold is > 0, override default
+	if cfg.Threshold > 0 {
+		r.Threshold = cfg.Threshold
 	}
 	return nil
 }
