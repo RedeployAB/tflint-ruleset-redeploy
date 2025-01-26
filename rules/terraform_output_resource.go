@@ -237,3 +237,19 @@ func stepEqual(a, b hcl.Traverser) bool {
 			return true
 		}
 		// If a is TraverseIndex with a string key, and b is TraverseAttr with the same string name,
+		// treat them as the same step. This handles references like aws_instance["example"] vs. .example.
+		if bAttr, ok := b.(hcl.TraverseAttr); ok {
+			if aTyped.Key.Type() == cty.String {
+				if aTyped.Key.AsString() == bAttr.Name {
+					return true
+				}
+			}
+		}
+	case hcl.TraverseSplat:
+		switch b.(type) {
+		case hcl.TraverseIndex, hcl.TraverseSplat:
+			return true
+		}
+	}
+	return false
+}
