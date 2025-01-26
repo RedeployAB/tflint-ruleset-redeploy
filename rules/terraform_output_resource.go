@@ -96,22 +96,6 @@ func (r *TerraformOutputResourceRule) checkAllOutputBlocks(
 	return nil
 }
 
-// isDataOrResourceRef returns true if the traversal root is "data" or neither var/local/module nor empty (thus presumably a resource).
-func isDataOrResourceRef(trav hcl.Traversal) bool {
-	if len(trav) == 0 {
-		return false
-	}
-	root, ok := trav[0].(hcl.TraverseRoot)
-	if !ok {
-		return false
-	}
-	switch root.Name {
-	case "var", "local", "module":
-		return false
-	}
-	return true // includes "data", "aws_*", "azurerm_*", etc.
-}
-
 // checkOutputBlock inspects if the "value" attribute references an entire resource/data.
 func (r *TerraformOutputResourceRule) checkOutputBlock(
 	block *hclsyntax.Block,
@@ -140,10 +124,10 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	// If any of the filtered traversals is a "bare" reference => report
 	for _, trav := range filtered {
 		// Only check if the root is "data" or a resource
-		if !isDataOrResourceRef(trav) {
+		if !isResourceRootTraversal(trav) {
 			continue
 		}
-		if r.isEntireResourceReference(trav) {
+		if r.isFullResourceReference(trav) {
 			return runner.EmitIssue(
 				r,
 				"Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
@@ -155,29 +139,51 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	return nil
 }
 
-// isEntireResourceReference checks if the traversal looks like a bare resource reference
+// isFullResourceReference checks if the traversal looks like a bare resource reference
 // e.g., "aws_instance.foo", "aws_instance.foo[0]", "aws_instance.foo[*]",
 // or "data.aws_instance.foo" with no sub-attributes after the name.
-func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Traversal) bool {
+func (r *TerraformOutputResourceRule) isFullResourceReference(trav hcl.Traversal) bool {
 	length := len(trav)
 
 	if length < 2 {
 		return false // Not sufficient to be entire resource reference
 	}
 
-	// If the traversal ends with an attribute, it's referencing a sub-attribute => partial
-	if _, ok := trav[length-1].(hcl.TraverseAttr); ok {
+	if endsWithAttribute(trav) {
 		return false
 	}
 
-	// The traversal does not end with an attribute, so potentially entire resource reference
-
 	// Now check if it's a resource or data reference
-	if !isDataOrResourceRef(trav) {
+	if !isResourceRootTraversal(trav) {
 		return false
 	}
 
 	return true
+}
+
+// isResourceRootTraversal returns true if the traversal root is "data" or neither var/local/module nor empty (thus presumably a resource).
+func isResourceRootTraversal(trav hcl.Traversal) bool {
+	if len(trav) == 0 {
+		return false
+	}
+	root, ok := trav[0].(hcl.TraverseRoot)
+	if !ok {
+		return false
+	}
+	switch root.Name {
+	case "var", "local", "module":
+		return false
+	}
+	return true // includes "data", "aws_*", "azurerm_*", etc.
+}
+
+// endsWithAttribute returns true if the final step is a TraverseAttr.
+func endsWithAttribute(trav hcl.Traversal) bool {
+	if len(trav) == 0 {
+		return false
+	}
+	_, ok := trav[len(trav)-1].(hcl.TraverseAttr)
+	return ok
 }
 
 // filterPrefixTraversals removes any traversal that is a strict prefix of another longer traversal.
