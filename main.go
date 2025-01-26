@@ -42,7 +42,6 @@ func main() {
 				rules.NewTerraformOutputSensitiveRule(),
 				rules.NewTerraformVariableEphemeralRule(),
 				rules.NewTerraformOutputEphemeralRule(),
-				rules.NewTerraformRepeatedValuesRule(), // <-- Updated rule here
 				rules.NewTerraformVariableArgumentOrderRule(),
 				rules.NewTerraformLocalsMirrorAssignmentRule(),
 				rules.NewTerraformOutputArgumentOrderRule(),
