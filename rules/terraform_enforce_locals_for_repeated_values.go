@@ -47,8 +47,7 @@ func (r *TerraformEnforceLocalsForRepeatedValuesRule) Link() string {
 	return ""
 }
 
-// Use runner.DecodeRuleConfig for configuring threshold in .tflint.hcl
-func (r *TerraformEnforceLocalsForRepeatedValuesRule) Configure(runner tflint.Runner) error {
+func (r *TerraformEnforceLocalsForRepeatedValuesRule) Check(runner tflint.Runner) error {
 	var cfg terraformEnforceLocalsForRepeatedValuesRuleConfig
 	// Attempt to decode user settings from .tflint.hcl
 	if err := runner.DecodeRuleConfig(r.Name(), &cfg); err != nil {
@@ -58,10 +57,7 @@ func (r *TerraformEnforceLocalsForRepeatedValuesRule) Configure(runner tflint.Ru
 	if cfg.Threshold > 0 {
 		r.Threshold = cfg.Threshold
 	}
-	return nil
-}
 
-func (r *TerraformEnforceLocalsForRepeatedValuesRule) Check(runner tflint.Runner) error {
 	files, err := runner.GetFiles()
 	if err != nil {
 		return err
