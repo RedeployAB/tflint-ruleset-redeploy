@@ -245,7 +245,18 @@ func stepEqual(a, b hcl.Traverser) bool {
 		}
 	case hcl.TraverseAttr:
 		if bTyped, ok := b.(hcl.TraverseAttr); ok {
-			return aTyped.Name == bTyped.Name
+			// If they're exactly the same, return true
+			if aTyped.Name == bTyped.Name {
+				return true
+			}
+			// If b's name starts with aTyped.Name plus "." or "[", treat as prefix-equal
+			if strings.HasPrefix(bTyped.Name, aTyped.Name+".") || strings.HasPrefix(bTyped.Name, aTyped.Name+"[") {
+				return true
+			}
+			// Also check the opposite direction:
+			if strings.HasPrefix(aTyped.Name, bTyped.Name+".") || strings.HasPrefix(aTyped.Name, bTyped.Name+"[") {
+				return true
+			}
 		}
 	case hcl.TraverseIndex:
 		if bTyped, ok := b.(hcl.TraverseIndex); ok {
