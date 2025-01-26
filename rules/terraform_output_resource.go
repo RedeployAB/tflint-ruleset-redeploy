@@ -153,20 +153,27 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 // or "data.aws_instance.foo" with no sub-attributes after the name.
 func (r *TerraformOutputResourceRule) isFullResourceReference(trav hcl.Traversal) bool {
 	length := len(trav)
-
 	if length < 2 {
-		return false // Not sufficient to be entire resource reference
-	}
-
-	if endsWithAttribute(trav) {
 		return false
 	}
-
-	// Now check if it's a resource or data reference
 	if !isResourceRootTraversal(trav) {
 		return false
 	}
 
+	// If we only have two steps (e.g. "aws_instance.example"),
+	// that is the entire resource (no sub-attributes).
+	if length == 2 {
+		return true
+	}
+
+	// If it ends with an attribute, then we assume it's referencing
+	// some sub-attribute (e.g., "aws_instance.example.id") => partial => no error.
+	if endsWithAttribute(trav) {
+		return false
+	}
+
+	// Anything else (e.g. "aws_instance.example[0]" or "aws_instance.example[*]")
+	// is an entire resource reference => return true.
 	return true
 }
 
