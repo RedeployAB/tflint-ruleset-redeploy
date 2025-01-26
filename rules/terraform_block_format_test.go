@@ -191,30 +191,79 @@ func TestTerraformBlockFormat(t *testing.T) {
 			Issues  helper.Issues
 		}{
 			{
-				Name: "OK - single variable block as first item, no extra blank line",
+				Name: "OK - variable with single validation block",
 				Content: `
 variable "example" {
-  type = string
+	type = string
+
+	validation {
+		// ..
+	}
 }
 `,
 				Issues: helper.Issues{},
 			},
 			{
-				Name: "NOT OK - single variable block with extra blank line after brace",
+				Name: "OK - variable with multiple validation blocks",
 				Content: `
 variable "example" {
+	type = string
 
-  type = string
+	validation {
+		// ..
+	}
+
+	validation {
+		// ..
+	}
+}
+`,
+				Issues: helper.Issues{},
+			},
+			{
+				Name: "NOT OK - variable with validation block no blank line",
+				Content: `
+variable "example" {
+	type = string
+	validation {
+		// ..
+	}
 }
 `,
 				Issues: helper.Issues{
 					{
 						Rule:    NewTerraformBlockFormatRule(),
-						Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
+						Message: "Expected exactly one blank line before this block",
 						Range: hcl.Range{
 							Filename: "resource.tf",
-							Start:    hcl.Pos{Line: 2, Column: 1},
-							End:      hcl.Pos{Line: 2, Column: 19},
+							Start:    hcl.Pos{Line: 4, Column: 2},
+							End:      hcl.Pos{Line: 4, Column: 12},
+						},
+					},
+				},
+			},
+			{
+				Name: "NOT OK - variable with multiple validation blocks no blank line",
+				Content: `
+variable "example" {
+	type = string
+
+	validation {
+		// ..
+	}
+	validation {
+		// ..
+	}
+}
+`,
+				Issues: helper.Issues{
+					{
+						Rule:    NewTerraformBlockFormatRule(),
+						Message: "Expected exactly one blank line before this block",
+						Range: hcl.Range{
+							Filename: "resource.tf",
+							Start:    hcl.Pos{Line: 8, Column: 2},
+							End:      hcl.Pos{Line: 8, Column: 12},
 						},
 					},
 				},
@@ -243,30 +292,36 @@ variable "example" {
 			Issues  helper.Issues
 		}{
 			{
-				Name: "OK - single output block as first item, no extra blank line",
+				Name: "OK - blank line before block",
 				Content: `
 output "example" {
-  value = "something"
+	value = "something"
+
+	precondition {
+		// ..
+	}
 }
 `,
 				Issues: helper.Issues{},
 			},
 			{
-				Name: "NOT OK - single output block with extra blank line after brace",
+				Name: "NOT OK - no blank line before block",
 				Content: `
 output "example" {
-
-  value = "something"
+	value = "something"
+	precondition {
+		// ..
+	}
 }
 `,
 				Issues: helper.Issues{
 					{
 						Rule:    NewTerraformBlockFormatRule(),
-						Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
+						Message: "Expected exactly one blank line before this block",
 						Range: hcl.Range{
 							Filename: "resource.tf",
-							Start:    hcl.Pos{Line: 2, Column: 1},
-							End:      hcl.Pos{Line: 2, Column: 17},
+							Start:    hcl.Pos{Line: 4, Column: 2},
+							End:      hcl.Pos{Line: 4, Column: 14},
 						},
 					},
 				},
