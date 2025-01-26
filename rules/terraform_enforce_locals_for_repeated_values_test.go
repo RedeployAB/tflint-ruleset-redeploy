@@ -113,6 +113,15 @@ rule "terraform_enforce_locals_for_repeated_values" {
 		"main.tf": content,
 	})
 
+	// Make sure we actually load the .tflint.hcl
+	if err := runner.LoadConfig(); err != nil {
+		t.Fatalf("Unexpected error loading config: %s", err)
+	}
+	// Let the rule see the loaded config
+	if err := rule.Configure(runner); err != nil {
+		t.Fatalf("Unexpected error configuring rule: %s", err)
+	}
+
 	if err := rule.Check(runner); err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
