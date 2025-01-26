@@ -17,7 +17,7 @@ func TestTerraformOutputOrderRule(t *testing.T) {
 			Name: "OK - single output only",
 			Content: `
 output "foo" {
-  value = "one"
+	value = "one"
 }
 `,
 			Issues: helper.Issues{},
@@ -44,7 +44,7 @@ output "alpha" {}
 					Range: hcl.Range{
 						Filename: "test.tf",
 						Start:    hcl.Pos{Line: 3, Column: 1},
-						End:      hcl.Pos{Line: 3, Column: 16},
+						End:      hcl.Pos{Line: 3, Column: 15},
 					},
 				},
 			},

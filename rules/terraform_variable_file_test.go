@@ -39,7 +39,7 @@ func TestTerraformVariableFileRule(t *testing.T) {
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 1, Column: 1},
-						End:      hcl.Pos{Line: 1, Column: 16},
+						End:      hcl.Pos{Line: 1, Column: 15},
 					},
 				},
 			},
