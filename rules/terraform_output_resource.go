@@ -83,9 +83,7 @@ func (r *TerraformOutputResourceRule) processBody(body *hclsyntax.Body, runner t
 	return nil
 }
 
-// isDataOrResourceRef returns true if the traversal root is "data" or
-// neither var/local/module nor empty (thus presumably a resource).
-// Also treat "ephemeral" as a resource root.
+// isDataOrResourceRef returns true if the traversal root is "data" or neither var/local/module nor empty (thus presumably a resource).
 func isDataOrResourceRef(trav hcl.Traversal) bool {
 	if len(trav) == 0 {
 		return false
@@ -98,7 +96,7 @@ func isDataOrResourceRef(trav hcl.Traversal) bool {
 	case "var", "local", "module":
 		return false
 	}
-	return true // includes "data", "aws_*", "azurerm_*", "ephemeral", etc.
+	return true // includes "data", "aws_*", "azurerm_*", etc.
 }
 
 // checkOutputBlock inspects if the "value" attribute references an entire resource/data.
@@ -123,7 +121,7 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 
 	// If any of the filtered traversals is a "bare" reference => report
 	for _, trav := range filtered {
-		// Only check if the root is "data" or a resource (including ephemeral).
+		// Only check if the root is "data" or a resource
 		if !isDataOrResourceRef(trav) {
 			continue
 		}
@@ -131,7 +129,7 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 			return runner.EmitIssue(
 				r,
 				"Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
-				valAttr.Range(),
+				valAttr.Range,
 			)
 		}
 	}
@@ -146,3 +144,109 @@ func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Travers
 	switch len(trav) {
 	case 2:
 		// e.g., resource.resource_name
+		// But if the attribute includes a dot (e.g. "example.id"),
+		// it actually references a sub-attribute in one parse step, so it's partial.
+		if attr, ok := trav[1].(hcl.TraverseAttr); ok {
+			if strings.Contains(attr.Name, ".") {
+				return false // referencing a sub-attribute
+			}
+		}
+		return true
+	case 3:
+		// If the first step is var/local/module => not a resource => skip
+		if root, ok := trav[0].(hcl.TraverseRoot); ok {
+			switch root.Name {
+			case "var", "local", "module":
+				return false
+			}
+		}
+
+		// If the last step is an attribute, it means we're referencing a sub-attribute (partial).
+		// If it's an index or a splat, it's entire.
+		switch trav[2].(type) {
+		case hcl.TraverseAttr:
+			return false // partial reference
+		default:
+			return true // entire reference
+		}
+
+	default:
+		// If there's a 4th step (like .id), then it's partial => skip
+		return false
+	}
+}
+
+// filterPrefixTraversals removes any traversal that is a strict prefix of another longer traversal.
+func filterPrefixTraversals(all []hcl.Traversal) []hcl.Traversal {
+	var result []hcl.Traversal
+
+outer:
+	for i, t1 := range all {
+		for j, t2 := range all {
+			if i == j {
+				continue
+			}
+			if isPrefix(t1, t2) {
+				// Skip t1 if it's a prefix of t2
+				continue outer
+			}
+		}
+		// If t1 is not a prefix of any longer traversal
+		result = append(result, t1)
+	}
+	return result
+}
+
+// isPrefix returns true if t1 is strictly a prefix (same steps in order) of t2.
+func isPrefix(t1, t2 hcl.Traversal) bool {
+	if len(t1) >= len(t2) {
+		return false
+	}
+	for i := range t1 {
+		if !stepEqual(t1[i], t2[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// stepEqual does a basic comparison of hcl.Traverser steps
+func stepEqual(a, b hcl.Traverser) bool {
+	switch aTyped := a.(type) {
+	case hcl.TraverseRoot:
+		if bTyped, ok := b.(hcl.TraverseRoot); ok {
+			return aTyped.Name == bTyped.Name
+		}
+	case hcl.TraverseAttr:
+		if bTyped, ok := b.(hcl.TraverseAttr); ok {
+			return aTyped.Name == bTyped.Name
+		}
+		// If a is TraverseAttr and b is TraverseIndex with the same string key, treat them as equal
+		if bIndex, ok := b.(hcl.TraverseIndex); ok {
+			if bIndex.Key.Type() == cty.String {
+				if bIndex.Key.AsString() == aTyped.Name {
+					return true
+				}
+			}
+		}
+	case hcl.TraverseIndex:
+		switch b.(type) {
+		case hcl.TraverseIndex, hcl.TraverseSplat:
+			return true
+		}
+		// If a is TraverseIndex with a string key, and b is TraverseAttr with the same string name
+		if bAttr, ok := b.(hcl.TraverseAttr); ok {
+			if aTyped.Key.Type() == cty.String {
+				if aTyped.Key.AsString() == bAttr.Name {
+					return true
+				}
+			}
+		}
+	case hcl.TraverseSplat:
+		switch b.(type) {
+		case hcl.TraverseIndex, hcl.TraverseSplat:
+			return true
+		}
+	}
+	return false
+}
