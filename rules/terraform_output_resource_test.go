@@ -196,7 +196,7 @@ output "bad_index" {
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 7, Column: 3},
-						End:      hcl.Pos{Line: 7, Column: 31},
+						End:      hcl.Pos{Line: 7, Column: 34},
 					},
 				},
 			},
@@ -227,7 +227,7 @@ output "bad_splat" {
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 7, Column: 3},
-						End:      hcl.Pos{Line: 7, Column: 29},
+						End:      hcl.Pos{Line: 7, Column: 32},
 					},
 				},
 			},
