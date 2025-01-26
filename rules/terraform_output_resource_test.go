@@ -130,6 +130,48 @@ output "bad_ephemeral" {
 		},
 	)
 
+	// Add new test case: OK - references multiple instances with explicit index
+	tests = append(tests,
+		struct {
+			Name    string
+			Content string
+			Issues  helper.Issues
+		}{
+			Name: "OK - references multiple instances with explicit index",
+			Content: `
+resource "aws_instance" "multiple" {
+  count = 2
+}
+
+output "indexed_output" {
+  value = aws_instance.multiple[1].id
+}
+`,
+			Issues: helper.Issues{},
+		},
+	)
+
+	// Add new test case: OK - references multiple instances with splat
+	tests = append(tests,
+		struct {
+			Name    string
+			Content string
+			Issues  helper.Issues
+		}{
+			Name: "OK - references multiple instances with splat",
+			Content: `
+resource "aws_instance" "multiple" {
+  count = 2
+}
+
+output "splat_output" {
+  value = aws_instance.multiple[*].id
+}
+`,
+			Issues: helper.Issues{},
+		},
+	)
+
 	rule := NewTerraformOutputResourceRule()
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
