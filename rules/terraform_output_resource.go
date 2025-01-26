@@ -301,7 +301,7 @@ func splitAttrName(name string) []string {
 			if j < len(name) && name[j] == ']' {
 				// j is at the ']'
 				parts = append(parts, name[i:j+1]) // e.g. "[*]" or "[0]"
-				i = j // skip ahead
+				i = j                              // skip ahead
 			} else {
 				// If no closing ']', treat as normal character
 				buf.WriteByte(c)
