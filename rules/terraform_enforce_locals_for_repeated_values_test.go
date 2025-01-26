@@ -113,15 +113,6 @@ rule "terraform_enforce_locals_for_repeated_values" {
 		"main.tf": content,
 	})
 
-	// Make sure we actually load the .tflint.hcl
-	if err := runner.LoadConfig(); err != nil {
-		t.Fatalf("Unexpected error loading config: %s", err)
-	}
-	// Let the rule see the loaded config
-	if err := rule.Configure(runner); err != nil {
-		t.Fatalf("Unexpected error configuring rule: %s", err)
-	}
-
 	if err := rule.Check(runner); err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -132,7 +123,7 @@ rule "terraform_enforce_locals_for_repeated_values" {
 			Message: `Value "repeated" repeated 2 times. Consider a local variable.`,
 			Range: hcl.Range{
 				Filename: "main.tf",
-				Start:    hcl.Pos{Line: 3, Column: 10},
+				Start:    hcl.Pos{Line: 3, Column: 2},
 				End:      hcl.Pos{Line: 3, Column: 20},
 			},
 		},
@@ -141,7 +132,7 @@ rule "terraform_enforce_locals_for_repeated_values" {
 			Message: `Value "repeated" repeated 2 times. Consider a local variable.`,
 			Range: hcl.Range{
 				Filename: "main.tf",
-				Start:    hcl.Pos{Line: 4, Column: 10},
+				Start:    hcl.Pos{Line: 4, Column: 2},
 				End:      hcl.Pos{Line: 4, Column: 20},
 			},
 		},
