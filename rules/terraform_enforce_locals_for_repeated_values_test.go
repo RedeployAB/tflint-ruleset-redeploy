@@ -46,8 +46,8 @@ resource "another_resource" "stuff" {
 					Message: `Value "myvalue" repeated 3 times. Consider a local variable.`,
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 3, Column: 2},
-						End:      hcl.Pos{Line: 3, Column: 19},
+						Start:    hcl.Pos{Line: 3, Column: 9},
+						End:      hcl.Pos{Line: 3, Column: 21},
 					},
 				},
 				{
@@ -55,8 +55,8 @@ resource "another_resource" "stuff" {
 					Message: `Value "myvalue" repeated 3 times. Consider a local variable.`,
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 4, Column: 2},
-						End:      hcl.Pos{Line: 4, Column: 19},
+						Start:    hcl.Pos{Line: 4, Column: 9},
+						End:      hcl.Pos{Line: 4, Column: 21},
 					},
 				},
 				{
@@ -64,8 +64,8 @@ resource "another_resource" "stuff" {
 					Message: `Value "myvalue" repeated 3 times. Consider a local variable.`,
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 8, Column: 2},
-						End:      hcl.Pos{Line: 8, Column: 18},
+						Start:    hcl.Pos{Line: 8, Column: 8},
+						End:      hcl.Pos{Line: 8, Column: 20},
 					},
 				},
 			},
@@ -90,51 +90,120 @@ resource "another_resource" "stuff" {
 }
 
 func TestTerraformEnforceLocalsForRepeatedValuesRule_ConfigThreshold(t *testing.T) {
-	// We'll configure threshold=2
-	content := `
+	// We'll run multiple sub-tests with different thresholds
+
+	t.Run("Repeated 2 times with threshold=2", func(t *testing.T) {
+		content := `
 resource "fake_resource" "example" {
-	name  = "repeated"
-	other = "repeated"
+  name  = "repeated"
+  other = "repeated"
 }
 `
-	// That is repeated 2 times
-	// => we expect issues if threshold=2
+		// That is repeated 2 times
+		// => we expect issues if threshold=2
 
-	rule := NewTerraformEnforceLocalsForRepeatedValuesRule()
+		rule := NewTerraformEnforceLocalsForRepeatedValuesRule()
 
-	// Provide a .tflint.hcl file so the rule can read threshold=2 from it
-	runner := helper.TestRunner(t, map[string]string{
-		".tflint.hcl": `
+		// Provide a .tflint.hcl file so the rule can read threshold=2 from it
+		runner := helper.TestRunner(t, map[string]string{
+			".tflint.hcl": `
 rule "terraform_enforce_locals_for_repeated_values" {
-	enabled = true
-	threshold = 2
+  enabled = true
+  threshold = 2
 }
 `,
-		"main.tf": content,
+			"main.tf": content,
+		})
+
+		if err := rule.Check(runner); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+
+		helper.AssertIssues(t, helper.Issues{
+			{
+				Rule:    rule,
+				Message: `Value "repeated" repeated 2 times. Consider a local variable.`,
+				Range: hcl.Range{
+					Filename: "main.tf",
+					Start:    hcl.Pos{Line: 3, Column: 9},
+					End:      hcl.Pos{Line: 3, Column: 23},
+				},
+			},
+			{
+				Rule:    rule,
+				Message: `Value "repeated" repeated 2 times. Consider a local variable.`,
+				Range: hcl.Range{
+					Filename: "main.tf",
+					Start:    hcl.Pos{Line: 4, Column: 10},
+					End:      hcl.Pos{Line: 4, Column: 24},
+				},
+			},
+		}, runner.Issues)
 	})
 
-	if err := rule.Check(runner); err != nil {
-		t.Fatalf("Unexpected error: %s", err)
-	}
+	t.Run("3 repeats with threshold=4 => no issues", func(t *testing.T) {
+		content := `
+resource "fake_resource" "one" {
+  value = "hello"
+}
 
-	helper.AssertIssues(t, helper.Issues{
-		{
-			Rule:    rule,
-			Message: `Value "repeated" repeated 2 times. Consider a local variable.`,
-			Range: hcl.Range{
-				Filename: "main.tf",
-				Start:    hcl.Pos{Line: 3, Column: 2},
-				End:      hcl.Pos{Line: 3, Column: 20},
+resource "fake_resource" "two" {
+  value = "hello"
+}
+
+resource "fake_resource" "three" {
+  value = "hello"
+}
+`
+		rule := NewTerraformEnforceLocalsForRepeatedValuesRule()
+		runner := helper.TestRunner(t, map[string]string{
+			".tflint.hcl": `
+rule "terraform_enforce_locals_for_repeated_values" {
+  enabled = true
+  threshold = 4
+}
+`,
+			"main.tf": content,
+		})
+
+		if err := rule.Check(runner); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		// We expect zero issues because "hello" repeats only 3 times
+		helper.AssertIssues(t, helper.Issues{}, runner.Issues)
+	})
+
+	t.Run("1 repeat with threshold=1 => single usage is flagged", func(t *testing.T) {
+		content := `
+resource "fake_resource" "example" {
+  name = "solo"
+}
+`
+		rule := NewTerraformEnforceLocalsForRepeatedValuesRule()
+		runner := helper.TestRunner(t, map[string]string{
+			".tflint.hcl": `
+rule "terraform_enforce_locals_for_repeated_values" {
+  enabled = true
+  threshold = 1
+}
+`,
+			"main.tf": content,
+		})
+
+		if err := rule.Check(runner); err != nil {
+			t.Fatalf("Unexpected error: %s", err)
+		}
+		// "solo" is used once, which meets (>=1) => 1 issue
+		helper.AssertIssues(t, helper.Issues{
+			{
+				Rule:    rule,
+				Message: `Value "solo" repeated 1 times. Consider a local variable.`,
+				Range: hcl.Range{
+					Filename: "main.tf",
+					Start:    hcl.Pos{Line: 3, Column: 9},
+					End:      hcl.Pos{Line: 3, Column: 17},
+				},
 			},
-		},
-		{
-			Rule:    rule,
-			Message: `Value "repeated" repeated 2 times. Consider a local variable.`,
-			Range: hcl.Range{
-				Filename: "main.tf",
-				Start:    hcl.Pos{Line: 4, Column: 2},
-				End:      hcl.Pos{Line: 4, Column: 20},
-			},
-		},
-	}, runner.Issues)
+		}, runner.Issues)
+	})
 }
