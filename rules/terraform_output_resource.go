@@ -145,22 +145,18 @@ func (r *TerraformOutputResourceRule) isEntireResourceReference(trav hcl.Travers
 	switch len(trav) {
 	case 2:
 		// e.g., resource.resource_name
-		// e.g., data.resource_type.resource_name
+		// e.g., data.resource_type.resource_name (although this is uncommon)
 		return true
 	case 3:
-		// If the root is not var/local/module, and the last step is index or splat,
-		// then there's no attribute after that => entire resource reference.
+		// If the first step is var/local/module => not a resource => no issue
 		if root, ok := trav[0].(hcl.TraverseRoot); ok {
 			switch root.Name {
 			case "var", "local", "module":
 				return false
 			}
 		}
-		switch trav[2].(type) {
-		case hcl.TraverseIndex, hcl.TraverseSplat:
-			return true
-		}
-		return false
+		// Otherwise, this is a 3-step resource reference with no fourth step => entire
+		return true
 	default:
 		// If there's a 4th step (like .id), then it's partial => skip
 		return false
@@ -220,12 +216,13 @@ func stepEqual(a, b hcl.Traverser) bool {
 			return aTyped.Name == bTyped.Name
 		}
 	case hcl.TraverseIndex:
-		if _, ok := b.(hcl.TraverseIndex); ok {
-			// Confirm they're both index steps
+		switch b.(type) {
+		case hcl.TraverseIndex, hcl.TraverseSplat:
 			return true
 		}
 	case hcl.TraverseSplat:
-		if _, ok := b.(hcl.TraverseSplat); ok {
+		switch b.(type) {
+		case hcl.TraverseIndex, hcl.TraverseSplat:
 			return true
 		}
 	}
