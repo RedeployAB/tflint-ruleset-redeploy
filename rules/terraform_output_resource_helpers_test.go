@@ -130,6 +130,18 @@ func TestCanonicalizeTraversal(t *testing.T) {
 				hcl.TraverseAttr{Name: "id"},
 			},
 		},
+		{
+			name: "Splat only with 'splat'",
+			input: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "name[*]"},
+			},
+			want: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "name"},
+				hcl.TraverseSplat{},
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -270,5 +282,84 @@ func TestStepEqual(t *testing.T) {
 				t.Errorf("stepEqual(%v, %v) = %v; want %v", c.StepA, c.StepB, got, c.Expect)
 			}
 		})
+	}
+}
+
+func TestIsFullResourceReference(t *testing.T) {
+	rule := NewTerraformOutputResourceRule()
+
+	cases := []struct {
+		Name     string
+		Trav     hcl.Traversal
+		Expected bool
+	}{
+		{
+			Name: "Single step (aws_instance) => false (incomplete)",
+			Trav: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+			},
+			Expected: false,
+		},
+		{
+			Name: "aws_instance.example => entire resource",
+			Trav: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "example"},
+			},
+			Expected: true,
+		},
+		{
+			Name: "aws_instance.example.id => partial attribute",
+			Trav: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "example"},
+				hcl.TraverseAttr{Name: "id"},
+			},
+			Expected: false,
+		},
+		{
+			Name: "aws_instance.example[0] => entire resource (indexed)",
+			Trav: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "example"},
+				hcl.TraverseIndex{Key: cty.NumberIntVal(0)},
+			},
+			Expected: true,
+		},
+		{
+			Name: "aws_instance.example[*] => entire resource (splat)",
+			Trav: hcl.Traversal{
+				hcl.TraverseRoot{Name: "aws_instance"},
+				hcl.TraverseAttr{Name: "example"},
+				hcl.TraverseSplat{},
+			},
+			Expected: true,
+		},
+		{
+			Name: "data.aws_caller_identity.current => entire data resource",
+			Trav: hcl.Traversal{
+				hcl.TraverseRoot{Name: "data"},
+				hcl.TraverseAttr{Name: "aws_caller_identity"},
+				hcl.TraverseAttr{Name: "current"},
+			},
+			Expected: true,
+		},
+		{
+			Name: "data.aws_caller_identity.current.account_id => partial attribute",
+			Trav: hcl.Traversal{
+				hcl.TraverseRoot{Name: "data"},
+				hcl.TraverseAttr{Name: "aws_caller_identity"},
+				hcl.TraverseAttr{Name: "current"},
+				hcl.TraverseAttr{Name: "account_id"},
+			},
+			Expected: false,
+		},
+	}
+
+	for _, c := range cases {
+		got := rule.isFullResourceReference(c.Trav)
+		if got != c.Expected {
+			t.Errorf("%s: isFullResourceReference(%v) => %v; want %v", c.Name, c.Trav, got, c.Expected)
+		}
 	}
 }

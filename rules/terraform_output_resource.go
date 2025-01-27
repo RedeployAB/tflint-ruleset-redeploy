@@ -98,18 +98,78 @@ func (r *TerraformOutputResourceRule) checkAllOutputBlocks(
 
 // gatherTraversals canonicalizes and filters out prefix traversals
 func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hcl.Traversal {
-	original := expr.Variables()
-	if len(original) == 0 {
+	var collected []hcl.Traversal
+
+	var walk func(hcl.Expression)
+	walk = func(e hcl.Expression) {
+		switch typed := e.(type) {
+		case *hclsyntax.ScopeTraversalExpr:
+			// direct reference, e.g. "aws_instance.example.id"
+			collected = append(collected, typed.Traversal)
+
+		case *hclsyntax.SplatExpr:
+			// e.g. "aws_instance.multiple[*].id"
+			// 'Each' is the base expression, 'Item' is the remainder
+			walk(typed.Each)
+			if typed.Item != nil {
+				walk(typed.Item)
+			} else {
+				// If 'Item' is nil, it means we have something like
+				// "aws_instance.splat[*]" with no further attributes.
+				// We must record a final "TraverseSplat" so that
+				// the rule sees it as a whole-resource reference.
+				if base, ok := typed.Each.(*hclsyntax.ScopeTraversalExpr); ok {
+					trav := append([]hcl.Traverser{}, base.Traversal...) // copy base
+					trav = append(trav, hcl.TraverseSplat{})
+					collected = append(collected, trav)
+				}
+			}
+
+		case *hclsyntax.ConditionalExpr:
+			// e.g. "condition ? trueVal : falseVal"
+			walk(typed.Condition)
+			walk(typed.TrueResult)
+			walk(typed.FalseResult)
+
+		case *hclsyntax.BinaryOpExpr:
+			// e.g. "lhs == rhs"
+			walk(typed.LHS)
+			walk(typed.RHS)
+
+		case *hclsyntax.UnaryOpExpr:
+			// e.g. "-value"
+			walk(typed.Val)
+
+		case *hclsyntax.TemplateExpr:
+			// e.g. "some string ${expression}"
+			for _, part := range typed.Parts {
+				walk(part)
+			}
+
+		case *hclsyntax.TupleConsExpr:
+			// e.g. "[ expr1, expr2, ... ]"
+			for _, elem := range typed.Exprs {
+				walk(elem)
+			}
+
+		case *hclsyntax.ObjectConsExpr:
+			// e.g. "{ key = expr }"
+			for _, item := range typed.Items {
+				walk(item.KeyExpr)
+				walk(item.ValueExpr)
+			}
+		}
+	}
+	walk(expr)
+
+	if len(collected) == 0 {
 		return nil
 	}
 
 	var canonical []hcl.Traversal
-	for _, trav := range original {
+	for _, trav := range collected {
 		canonical = append(canonical, canonicalizeTraversal(trav))
 	}
-
-	// To avoid catching partial references, we'll skip any traversal
-	// that is a prefix of a longer one.
 	return filterPrefixTraversals(canonical)
 }
 
@@ -255,30 +315,16 @@ func stepEqual(a, b hcl.Traverser) bool {
 				return true
 			}
 
-			// Already existing prefix checks
-			if strings.HasPrefix(bTyped.Name, aTyped.Name+".") ||
-			   strings.HasPrefix(bTyped.Name, aTyped.Name+"[") {
-				return true
-			}
-			if strings.HasPrefix(aTyped.Name, bTyped.Name+".") ||
-			   strings.HasPrefix(aTyped.Name, bTyped.Name+"[") {
-				return true
-			}
-
 			// If one side is "multiple" and the other is "multiple[*]", treat them as prefix
 			if aTyped.Name+"[*]" == bTyped.Name || bTyped.Name+"[*]" == aTyped.Name {
 				return true
 			}
 
-			// --- NEW addition ---
-			// If one side is "multiple[*]" and the other side is "multiple[*].something",
-			// treat them as prefix as well:
-			if strings.HasPrefix(bTyped.Name, aTyped.Name+".") ||
-			   strings.HasPrefix(bTyped.Name, aTyped.Name+"[") {
+			// Handle "example" and "example.id" prefix
+			if strings.HasPrefix(bTyped.Name, aTyped.Name+".") {
 				return true
 			}
-			if strings.HasPrefix(aTyped.Name, bTyped.Name+".") ||
-			   strings.HasPrefix(aTyped.Name, bTyped.Name+"[") {
+			if strings.HasPrefix(aTyped.Name, bTyped.Name+".") {
 				return true
 			}
 		}
