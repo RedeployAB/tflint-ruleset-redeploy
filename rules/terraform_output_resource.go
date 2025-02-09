@@ -115,12 +115,13 @@ func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hc
 				// Append an explicit splat operator.
 				trav = append(trav, hcl.TraverseSplat{})
 				if typed.Item != nil {
+					var itemExpr hcl.Expression = typed.Item
 					// If Item is a ScopeTraversalExpr, append its traversal steps.
-					if itemScope, ok := typed.Item.(*hclsyntax.ScopeTraversalExpr); ok {
+					if itemScope, ok := itemExpr.(*hclsyntax.ScopeTraversalExpr); ok {
 						trav = append(trav, itemScope.Traversal...)
 					} else {
 						// Otherwise, try gathering traversals from Item and merge the first result.
-						sub := r.gatherTraversals(typed.Item)
+						sub := r.gatherTraversals(itemExpr)
 						if len(sub) > 0 {
 							for _, t := range sub[0] {
 								trav = append(trav, t)
