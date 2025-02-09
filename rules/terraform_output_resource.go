@@ -105,7 +105,7 @@ func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hc
 	// getTrav extracts a traversal from an expression.
 	getTrav := func(e hcl.Expression) hcl.Traversal {
 		if st, ok := e.(*hclsyntax.ScopeTraversalExpr); ok {
-			return st.Traversal
+			return canonicalizeTraversal(st.Traversal)
 		}
 		if rt, ok := e.(*hclsyntax.RelativeTraversalExpr); ok {
 			var base hcl.Traversal
