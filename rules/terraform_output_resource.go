@@ -109,32 +109,21 @@ func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hc
 
 		case *hclsyntax.SplatExpr:
 			// e.g. "aws_instance.multiple[*].id"
-			// If the base expression is a ScopeTraversalExpr, we can combine its traversal with the splat operator and any trailing item.
-			if base, ok := typed.Each.(*hclsyntax.ScopeTraversalExpr); ok {
-				trav := append([]hcl.Traverser{}, base.Traversal...)
-				// Append an explicit splat operator.
-				trav = append(trav, hcl.TraverseSplat{})
-				if typed.Item != nil {
-					var itemExpr hcl.Expression = typed.Item
-					// If Item is a ScopeTraversalExpr, append its traversal steps.
-					if itemScope, ok := itemExpr.(*hclsyntax.ScopeTraversalExpr); ok {
-						trav = append(trav, itemScope.Traversal...)
-					} else {
-						// Otherwise, try gathering traversals from Item and merge the first result.
-						sub := r.gatherTraversals(itemExpr)
-						if len(sub) > 0 {
-							for _, t := range sub[0] {
-								trav = append(trav, t)
-							}
+			// Instead of a type assertion on typed.Each, gather traversals from it.
+			eachTravs := r.gatherTraversals(typed.Each)
+			if len(eachTravs) > 0 {
+				for _, trav := range eachTravs {
+					newTrav := append([]hcl.Traverser{}, trav...)
+					// Append an explicit splat operator.
+					newTrav = append(newTrav, hcl.TraverseSplat{})
+					if typed.Item != nil {
+						itemTravs := r.gatherTraversals(typed.Item)
+						if len(itemTravs) > 0 {
+							// Append the traversal steps from the first result.
+							newTrav = append(newTrav, itemTravs[0]...)
 						}
 					}
-				}
-				collected = append(collected, trav)
-			} else {
-				// Fallback if the Each part is not a ScopeTraversalExpr.
-				walk(typed.Each)
-				if typed.Item != nil {
-					walk(typed.Item)
+					collected = append(collected, newTrav)
 				}
 			}
 
