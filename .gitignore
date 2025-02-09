@@ -4,3 +4,5 @@ tflint-ruleset-redeploy.exe
 .aider*
 .env
 super-linter*
+
+dist/
