@@ -13,20 +13,27 @@ It is currently a work in progress, rules will be added as they are developed.
 
 ## Installation
 
-> [!NOTE] In order to install the plugin you must be authenticated with GitHub.
-> This is because the plugin is not publicly available.
-
 You can install the plugin with `tflint --init`. Declare a config in
 `.tflint.hcl` as follows:
 
 ```hcl
 plugin "redeploy" {
   enabled = true
-
   version = "0.1.0"
   source  = "github.com/terraform-linters/tflint-ruleset-redeploy"
+
+  signing_key = <<-KEY
+  -----BEGIN PUBLIC KEY-----
+  MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEiGFP1JrZTfxZUEGX02dlpNeszF/c
+  VEq//nbSPf1EQ+WNWQjPtcY+kaMfiJKLLenh82CaWiKaddr6WPHoGrqYyA==
+  -----END PUBLIC KEY-----
+  KEY
 }
 ```
+
+> Note: You will need to authenticate with GitHub to download the plugin. You
+> can do this by setting the `GITHUB_TOKEN` environment variable to a GitHub
+> personal access token with the `read:packages` scope.
 
 ## Rules
 

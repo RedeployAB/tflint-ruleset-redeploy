@@ -63,13 +63,13 @@ checksum:
     - glob: ./dist/raw/*
 signs:
   - cmd: cosign
-    signature: '${artifact}.keyless.sig'
-    certificate: '${artifact}.pem'
+    stdin: "{{ .Env.COSIGN_PASSWORD }}"
+    signature: '${artifact}.sig'
     output: true
     artifacts: checksum
     args:
       - sign-blob
-      - '--output-certificate=${certificate}'
+      - '--key=env://COSIGN_PRIVATE_KEY'
       - '--output-signature=${signature}'
       - '${artifact}'
       - --yes
