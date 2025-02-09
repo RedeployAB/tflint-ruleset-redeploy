@@ -2,7 +2,8 @@
 
 ## What does this rule do?
 
-This rule validates the order in which meta-arguments appear within resource and module blocks.
+This rule validates the order in which meta-arguments appear within resource and
+module blocks.
 
 For **resource** blocks, the expected order is:
 
@@ -20,15 +21,20 @@ If meta-arguments appear out of this order, the rule emits an error.
 
 ## Why is this important?
 
-A consistent ordering of meta-arguments makes your Terraform code easier to read and maintain. It ensures that configurations are predictable and that meta-arguments are consistently positioned, which aids in understanding the behavior and dependencies of resources and modules.
+A consistent ordering of meta-arguments makes your Terraform code easier to read
+and maintain. It ensures that configurations are predictable and that
+meta-arguments are consistently positioned, which aids in understanding the
+behavior and dependencies of resources and modules.
 
 ## How to fix issues
 
-Reorder the meta-arguments in your resource or module block to follow the expected sequence.
+Reorder the meta-arguments in your resource or module block to follow the
+expected sequence.
 
 **For resource blocks:**
 
 **Incorrect:**
+
 ```hcl
 resource "aws_instance" "example" {
   depends_on    = [aws_vpc.example]
@@ -39,6 +45,7 @@ resource "aws_instance" "example" {
 ```
 
 **Correct:**
+
 ```hcl
 resource "aws_instance" "example" {
   count = var.instance_count
@@ -53,6 +60,7 @@ resource "aws_instance" "example" {
 **For module blocks:**
 
 **Incorrect:**
+
 ```hcl
 module "example" {
   source     = "./module"
@@ -62,6 +70,7 @@ module "example" {
 ```
 
 **Correct:**
+
 ```hcl
 module "example" {
   source = "./module"

@@ -2,11 +2,15 @@
 
 ## What does this rule do?
 
-This rule checks that the name given to a resource does not redundantly include its resource type. For example, in a resource of type `aws_instance`, the name should not also include the word “instance.”
+This rule checks that the name given to a resource does not redundantly include
+its resource type. For example, in a resource of type `aws_instance`, the name
+should not also include the word “instance.”
 
 ## Why is this important?
 
-Avoiding redundant naming keeps resource identifiers concise and clear. It reduces visual clutter and helps prevent confusion when managing or searching for resources.
+Avoiding redundant naming keeps resource identifiers concise and clear. It
+reduces visual clutter and helps prevent confusion when managing or searching
+for resources.
 
 ## How to fix issues
 
