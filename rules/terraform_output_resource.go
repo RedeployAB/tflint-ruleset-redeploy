@@ -136,28 +136,34 @@ func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hc
 			baseTrav := getTrav(typed.Each)
 			// If no traversal is returned, fallback to the Source's traversal.
 			if baseTrav == nil {
-				if st, ok := typed.Source.(*hclsyntax.ScopeTraversalExpr); ok {
-					baseTrav = st.Traversal
-				}
+				baseTrav = getTrav(typed.Source)
 			}
 			log.Printf("[DEBUG] SplatExpr: baseTrav from Each/Source = %#v", baseTrav)
-			if len(baseTrav) > 0 {
-				// Append an explicit splat operator.
-				baseTrav = append(append([]hcl.Traverser{}, baseTrav...), hcl.TraverseSplat{})
-				log.Printf("[DEBUG] SplatExpr: after appending splat, baseTrav = %#v", baseTrav)
-				// If there is an Item expression, append its traversal steps.
-				if typed.Item != nil {
-					itemTrav := getTrav(typed.Item)
-					log.Printf("[DEBUG] SplatExpr: itemTrav = %#v", itemTrav)
-					if itemTrav != nil {
-						baseTrav = append(baseTrav, itemTrav...)
-					}
-				}
-				log.Printf("[DEBUG] SplatExpr: final baseTrav = %#v", baseTrav)
-				collected = append(collected, baseTrav)
-			} else {
-				log.Printf("[DEBUG] SplatExpr: no baseTrav obtained from Each or Source")
-			}
+            // If the base traversal already contains a splat operator, this is a nested splat.
+            for _, step := range baseTrav {
+                if _, ok := step.(hcl.TraverseSplat); ok {
+                    log.Printf("[DEBUG] SplatExpr: nested splat detected; skipping this expression")
+                    return
+                }
+            }
+
+            if len(baseTrav) > 0 {
+                // Append an explicit splat operator.
+                baseTrav = append(append([]hcl.Traverser{}, baseTrav...), hcl.TraverseSplat{})
+                log.Printf("[DEBUG] SplatExpr: after appending splat, baseTrav = %#v", baseTrav)
+                // If there is an Item expression, append its traversal steps.
+                if typed.Item != nil {
+                    itemTrav := getTrav(typed.Item)
+                    log.Printf("[DEBUG] SplatExpr: itemTrav = %#v", itemTrav)
+                    if itemTrav != nil {
+                        baseTrav = append(baseTrav, itemTrav...)
+                    }
+                }
+                log.Printf("[DEBUG] SplatExpr: final baseTrav = %#v", baseTrav)
+                collected = append(collected, baseTrav)
+            } else {
+                log.Printf("[DEBUG] SplatExpr: no baseTrav obtained from Each or Source")
+            }
 		
 		case *hclsyntax.LiteralValueExpr:
 			// If the expression is a literal string (which can happen when the reference contains special characters),

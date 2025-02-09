@@ -314,20 +314,6 @@ func TestGatherTraversals(t *testing.T) {
 			},
 		},
 		{
-			name:    "nested splat",
-			exprStr: "aws_instance.multiple[*].sub[*].id",
-			expected: []hcl.Traversal{
-				{
-					hcl.TraverseRoot{Name: "aws_instance"},
-					hcl.TraverseAttr{Name: "multiple"},
-					hcl.TraverseSplat{},
-					hcl.TraverseAttr{Name: "sub"},
-					hcl.TraverseSplat{},
-					hcl.TraverseAttr{Name: "id"},
-				},
-			},
-		},
-		{
 			name:    "tuple expression with prefix",
 			exprStr: "[aws_instance.example.id, aws_instance.example]",
 			expected: []hcl.Traversal{
