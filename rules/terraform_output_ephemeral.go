@@ -31,7 +31,7 @@ func (r *TerraformOutputEphemeralRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformOutputEphemeralRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformOutputEphemeralRule) Check(runner tflint.Runner) error {

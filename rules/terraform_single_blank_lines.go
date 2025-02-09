@@ -30,7 +30,7 @@ func (r *TerraformSingleBlankLinesRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformSingleBlankLinesRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformSingleBlankLinesRule) Check(runner tflint.Runner) error {

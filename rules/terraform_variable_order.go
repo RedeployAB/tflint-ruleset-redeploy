@@ -47,7 +47,7 @@ func (r *TerraformVariableOrderRule) Severity() tflint.Severity {
 
 // Link returns the rule's reference link.
 func (r *TerraformVariableOrderRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 // Check checks the order of variable blocks.

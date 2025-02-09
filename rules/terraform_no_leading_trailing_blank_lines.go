@@ -29,7 +29,7 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformNoLeadingTrailingBlankLinesRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformNoLeadingTrailingBlankLinesRule) Check(runner tflint.Runner) error {

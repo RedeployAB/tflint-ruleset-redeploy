@@ -38,7 +38,7 @@ func (r *TerraformOutputResourceRule) Severity() tflint.Severity {
 
 // Link returns the rule's reference link.
 func (r *TerraformOutputResourceRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 // Check checks for outputs that reference entire resources.

@@ -32,7 +32,7 @@ func (r *TerraformOutputArgumentOrderRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformOutputArgumentOrderRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformOutputArgumentOrderRule) Check(runner tflint.Runner) error {

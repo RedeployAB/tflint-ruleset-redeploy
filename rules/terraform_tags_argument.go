@@ -76,7 +76,7 @@ func (r *TerraformTagsArgumentRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformTagsArgumentRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformTagsArgumentRule) Check(runner tflint.Runner) error {

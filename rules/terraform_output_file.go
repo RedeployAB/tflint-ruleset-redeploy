@@ -39,7 +39,7 @@ func (r *TerraformOutputFileRule) Severity() tflint.Severity {
 
 // Link returns the rule's reference link.
 func (r *TerraformOutputFileRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 var validOutputsPattern = regexp.MustCompile(`^outputs(\.[^.]+)?\.tf$`)

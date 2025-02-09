@@ -36,7 +36,7 @@ func (r *TerraformResourceArgumentOrderRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformResourceArgumentOrderRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformResourceArgumentOrderRule) Check(runner tflint.Runner) error {

@@ -30,7 +30,7 @@ func (r *TerraformModuleDependsOnRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformModuleDependsOnRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformModuleDependsOnRule) Check(runner tflint.Runner) error {

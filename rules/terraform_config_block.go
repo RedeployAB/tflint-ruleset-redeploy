@@ -32,7 +32,7 @@ func (r *TerraformConfigBlockFileRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformConfigBlockFileRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformConfigBlockFileRule) Check(runner tflint.Runner) error {
