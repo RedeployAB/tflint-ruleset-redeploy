@@ -2,7 +2,8 @@
 
 This plugin enforce the Redeploy style guide for Terraform modules.
 
-All rules are enabled by default. For a detailed description of each rule, see the documentation below.
+All rules are enabled by default. For a detailed description of each rule, see
+the documentation below.
 
 | Rule                                                                                      | Description                                                                                                                  | Severity | Enabled |
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------- | ------- |
