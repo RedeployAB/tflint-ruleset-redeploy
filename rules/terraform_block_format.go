@@ -73,7 +73,7 @@ func (r *TerraformBlockFormatRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformBlockFormatRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformBlockFormatRule) Check(runner tflint.Runner) error {

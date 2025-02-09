@@ -38,7 +38,7 @@ func (r *TerraformBlockOrderRule) Severity() tflint.Severity {
 
 // Link returns the rule's reference link.
 func (r *TerraformBlockOrderRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 // Check checks the order of top-level blocks.
