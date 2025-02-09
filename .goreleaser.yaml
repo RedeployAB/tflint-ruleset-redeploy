@@ -61,6 +61,18 @@ checksum:
   name_template: 'checksums.txt'
   extra_files:
     - glob: ./dist/raw/*
+signs:
+  - cmd: cosign
+    stdin: "{{ .Env.COSIGN_PASSWORD }}"
+    signature: '${artifact}.sig'
+    output: true
+    artifacts: checksum
+    args:
+      - sign-blob
+      - '--key=env://COSIGN_PRIVATE_KEY'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+      - --yes
 release:
   github:
     owner: RedeployAB

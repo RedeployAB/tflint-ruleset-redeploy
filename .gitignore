@@ -6,3 +6,5 @@ tflint-ruleset-redeploy.exe
 super-linter*
 
 dist/
+*.key
+*.pub
