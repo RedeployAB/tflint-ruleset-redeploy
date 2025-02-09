@@ -96,130 +96,119 @@ func (r *TerraformOutputResourceRule) checkAllOutputBlocks(
 	return nil
 }
 
-// gatherTraversals canonicalizes and filters out prefix traversals
-func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hcl.Traversal {
-	var collected []hcl.Traversal
-
-	// getTrav extracts a traversal from an expression.
-	getTrav := func(e hcl.Expression) hcl.Traversal {
-		if st, ok := e.(*hclsyntax.ScopeTraversalExpr); ok {
-			return canonicalizeTraversal(st.Traversal)
-		}
-		if rt, ok := e.(*hclsyntax.RelativeTraversalExpr); ok {
-			var base hcl.Traversal
-			if src, ok := rt.Source.(*hclsyntax.ScopeTraversalExpr); ok {
-				base = append([]hcl.Traverser{}, src.Traversal...)
-			}
-			base = append(base, rt.Traversal...)
-			return base
-		}
-		travs := r.gatherTraversals(e)
-		if len(travs) > 0 {
-			return travs[0]
-		}
-		return nil
+// getTrav extracts a traversal from an expression.
+func (r *TerraformOutputResourceRule) getTrav(e hcl.Expression) hcl.Traversal {
+	if st, ok := e.(*hclsyntax.ScopeTraversalExpr); ok {
+		return canonicalizeTraversal(st.Traversal)
 	}
+	if rt, ok := e.(*hclsyntax.RelativeTraversalExpr); ok {
+		var base hcl.Traversal
+		if src, ok := rt.Source.(*hclsyntax.ScopeTraversalExpr); ok {
+			base = append([]hcl.Traverser{}, src.Traversal...)
+		}
+		base = append(base, rt.Traversal...)
+		return base
+	}
+	travs := r.gatherTraversals(e)
+	if len(travs) > 0 {
+		return travs[0]
+	}
+	return nil
+}
 
-	var walk func(hcl.Expression)
-	walk = func(e hcl.Expression) {
-		switch typed := e.(type) {
-		case *hclsyntax.ScopeTraversalExpr:
-			// direct reference, e.g. "aws_instance.example.id"
-			collected = append(collected, typed.Traversal)
+// walkExpression recursively walks the expression and appends found traversals into collected.
+func (r *TerraformOutputResourceRule) walkExpression(e hcl.Expression, collected *[]hcl.Traversal) {
+	switch typed := e.(type) {
+	case *hclsyntax.ScopeTraversalExpr:
+		*collected = append(*collected, typed.Traversal)
 
-		case *hclsyntax.SplatExpr:
-			// e.g. "aws_instance.multiple[*].id"
-			// Try to extract the base traversal from the Each part.
-			baseTrav := getTrav(typed.Each)
-			// If no traversal is returned, fallback to the Source's traversal.
-			if baseTrav == nil {
-				baseTrav = getTrav(typed.Source)
+	case *hclsyntax.SplatExpr:
+		// Try to extract the base traversal from the Each part; if nil, use Source.
+		baseTrav := r.getTrav(typed.Each)
+		if baseTrav == nil {
+			baseTrav = r.getTrav(typed.Source)
+		}
+		// If a splat already exists in the base, skip (nested splat).
+		for _, step := range baseTrav {
+			if _, ok := step.(hcl.TraverseSplat); ok {
+				return
 			}
-			// If the base traversal already contains a splat operator, this is a nested splat.
-			for _, step := range baseTrav {
-				if _, ok := step.(hcl.TraverseSplat); ok {
+		}
+		if len(baseTrav) > 0 {
+			// Append an explicit splat operator.
+			baseTrav = append(append([]hcl.Traverser{}, baseTrav...), hcl.TraverseSplat{})
+			// If there is an Item expression, append its traversal steps.
+			if typed.Item != nil {
+				itemTrav := r.getTrav(typed.Item)
+				if itemTrav != nil {
+					baseTrav = append(baseTrav, itemTrav...)
+				}
+			}
+			*collected = append(*collected, baseTrav)
+		}
+
+	case *hclsyntax.LiteralValueExpr:
+		// If the expression is a literal string, re-parse its value as an expression.
+		if typed.Val.Type() == cty.String {
+			s := typed.Val.AsString()
+			expr2, diags := hclsyntax.ParseExpression([]byte(s), "", hcl.InitialPos)
+			if !diags.HasErrors() {
+				r.walkExpression(expr2, collected)
+			}
+		}
+
+	case *hclsyntax.ConditionalExpr:
+		r.walkExpression(typed.Condition, collected)
+		r.walkExpression(typed.TrueResult, collected)
+		r.walkExpression(typed.FalseResult, collected)
+
+	case *hclsyntax.BinaryOpExpr:
+		r.walkExpression(typed.LHS, collected)
+		r.walkExpression(typed.RHS, collected)
+
+	case *hclsyntax.UnaryOpExpr:
+		r.walkExpression(typed.Val, collected)
+
+	case *hclsyntax.TemplateExpr:
+		// If there is exactly one part and that part is a literal string,
+		// then re-parse that literal as an expression.
+		if len(typed.Parts) == 1 {
+			if lit, ok := typed.Parts[0].(*hclsyntax.LiteralValueExpr); ok && lit.Val.Type() == cty.String {
+				expr2, diags := hclsyntax.ParseExpression([]byte(lit.Val.AsString()), "dummy.tf", hcl.InitialPos)
+				if !diags.HasErrors() {
+					r.walkExpression(expr2, collected)
 					return
 				}
 			}
+		}
+		// Otherwise, process each part.
+		for _, part := range typed.Parts {
+			r.walkExpression(part, collected)
+		}
 
-			if len(baseTrav) > 0 {
-				// Append an explicit splat operator.
-				baseTrav = append(append([]hcl.Traverser{}, baseTrav...), hcl.TraverseSplat{})
-				// If there is an Item expression, append its traversal steps.
-				if typed.Item != nil {
-					itemTrav := getTrav(typed.Item)
-					if itemTrav != nil {
-						baseTrav = append(baseTrav, itemTrav...)
-					}
-				}
-				collected = append(collected, baseTrav)
-			} else {
-			}
+	case *hclsyntax.TupleConsExpr:
+		for _, elem := range typed.Exprs {
+			r.walkExpression(elem, collected)
+		}
 
-		case *hclsyntax.LiteralValueExpr:
-			// If the expression is a literal string (which can happen when the reference contains special characters),
-			// re-parse its string value as an expression so we can extract a traversal.
-			if typed.Val.Type() == cty.String {
-				s := typed.Val.AsString()
-				expr2, diags := hclsyntax.ParseExpression([]byte(s), "", hcl.InitialPos)
-				if !diags.HasErrors() {
-					walk(expr2)
-				}
-			}
+	case *hclsyntax.ObjectConsExpr:
+		for _, item := range typed.Items {
+			r.walkExpression(item.KeyExpr, collected)
+			r.walkExpression(item.ValueExpr, collected)
+		}
 
-		case *hclsyntax.ConditionalExpr:
-			// e.g. "condition ? trueVal : falseVal"
-			walk(typed.Condition)
-			walk(typed.TrueResult)
-			walk(typed.FalseResult)
-
-		case *hclsyntax.BinaryOpExpr:
-			// e.g. "lhs == rhs"
-			walk(typed.LHS)
-			walk(typed.RHS)
-
-		case *hclsyntax.UnaryOpExpr:
-			// e.g. "-value"
-			walk(typed.Val)
-
-		case *hclsyntax.TemplateExpr:
-			// If there is exactly one part and that part is a literal string,
-			// then re-parse that literal as an expression.
-			if len(typed.Parts) == 1 {
-				if lit, ok := typed.Parts[0].(*hclsyntax.LiteralValueExpr); ok && lit.Val.Type() == cty.String {
-					expr2, diags := hclsyntax.ParseExpression([]byte(lit.Val.AsString()), "dummy.tf", hcl.InitialPos)
-					if !diags.HasErrors() {
-						walk(expr2)
-						return
-					}
-				}
-			}
-			// Otherwise, fall back to processing each part.
-			for _, part := range typed.Parts {
-				walk(part)
-			}
-
-		case *hclsyntax.TupleConsExpr:
-			// e.g. "[ expr1, expr2, ... ]"
-			for _, elem := range typed.Exprs {
-				walk(elem)
-			}
-
-		case *hclsyntax.ObjectConsExpr:
-			// e.g. "{ key = expr }"
-			for _, item := range typed.Items {
-				walk(item.KeyExpr)
-				walk(item.ValueExpr)
-			}
-		default:
-			// Fallback: if e implements a Traversal() method, use it.
-			if t, ok := e.(interface{ Traversal() hcl.Traversal }); ok {
-				collected = append(collected, t.Traversal())
-			}
+	default:
+		// Fallback: if e implements a Traversal() method, use it.
+		if t, ok := e.(interface{ Traversal() hcl.Traversal }); ok {
+			*collected = append(*collected, t.Traversal())
 		}
 	}
-	walk(expr)
+}
 
+// gatherTraversals canonicalizes and filters out prefix traversals
+func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hcl.Traversal {
+	var collected []hcl.Traversal
+	r.walkExpression(expr, &collected)
 	if len(collected) == 0 {
 		return nil
 	}
