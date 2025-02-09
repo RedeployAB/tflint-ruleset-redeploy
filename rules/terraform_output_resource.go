@@ -354,14 +354,13 @@ func canonicalizeTraversal(trav hcl.Traversal) hcl.Traversal {
 			// subSteps might be ["multiple", "[*]", "id"]
 			// We convert each piece into the right kind of traverser
 			for _, sub := range subSteps {
-				if sub == "[*]" {
+				switch {
+				case sub == "[*]":
 					result = append(result, hcl.TraverseSplat{})
-				} else if strings.HasPrefix(sub, "[") && strings.HasSuffix(sub, "]") {
-					// e.g., "[0]" => TraverseIndex with key=0
+				case strings.HasPrefix(sub, "[") && strings.HasSuffix(sub, "]"):
 					indexKey := strings.Trim(sub, "[]")
 					result = append(result, makeIndexStep(indexKey))
-				} else {
-					// Plain attribute
+				default:
 					result = append(result, hcl.TraverseAttr{Name: sub})
 				}
 			}
