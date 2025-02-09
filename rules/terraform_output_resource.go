@@ -135,27 +135,27 @@ func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hc
 			if baseTrav == nil {
 				baseTrav = getTrav(typed.Source)
 			}
-            // If the base traversal already contains a splat operator, this is a nested splat.
-            for _, step := range baseTrav {
-                if _, ok := step.(hcl.TraverseSplat); ok {
-                    return
-                }
-            }
+			// If the base traversal already contains a splat operator, this is a nested splat.
+			for _, step := range baseTrav {
+				if _, ok := step.(hcl.TraverseSplat); ok {
+					return
+				}
+			}
 
-            if len(baseTrav) > 0 {
-                // Append an explicit splat operator.
-                baseTrav = append(append([]hcl.Traverser{}, baseTrav...), hcl.TraverseSplat{})
-                // If there is an Item expression, append its traversal steps.
-                if typed.Item != nil {
-                    itemTrav := getTrav(typed.Item)
-                    if itemTrav != nil {
-                        baseTrav = append(baseTrav, itemTrav...)
-                    }
-                }
-                collected = append(collected, baseTrav)
-            } else {
-            }
-		
+			if len(baseTrav) > 0 {
+				// Append an explicit splat operator.
+				baseTrav = append(append([]hcl.Traverser{}, baseTrav...), hcl.TraverseSplat{})
+				// If there is an Item expression, append its traversal steps.
+				if typed.Item != nil {
+					itemTrav := getTrav(typed.Item)
+					if itemTrav != nil {
+						baseTrav = append(baseTrav, itemTrav...)
+					}
+				}
+				collected = append(collected, baseTrav)
+			} else {
+			}
+
 		case *hclsyntax.LiteralValueExpr:
 			// If the expression is a literal string (which can happen when the reference contains special characters),
 			// re-parse its string value as an expression so we can extract a traversal.
