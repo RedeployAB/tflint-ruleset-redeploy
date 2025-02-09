@@ -1,6 +1,6 @@
 # Rules
 
-Redeploy's Terraform rules enforce the Redeploy style guide for Terraform modules by implementing recommendations and best practices from the [Terraform documentation](https://www.terraform.io/language). This ruleset provides a comprehensive set of rules to ensure a consistent code style and usage across your projects.
+This plugin enforce the Redeploy style guide for Terraform modules.
 
 All rules are enabled by default. For a detailed description of each rule, see the documentation below.
 
