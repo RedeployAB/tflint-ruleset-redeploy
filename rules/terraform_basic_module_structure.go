@@ -28,7 +28,7 @@ func (r *TerraformBasicModuleStructureRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformBasicModuleStructureRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformBasicModuleStructureRule) Check(runner tflint.Runner) error {

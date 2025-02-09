@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
@@ -17,10 +19,14 @@ func GetAttributeRawText(attr *hclsyntax.Attribute, fileBytes []byte) string {
 	return string(fileBytes[rng.Start.Byte:rng.End.Byte])
 }
 
-// Max returns the maximum of two integers
 func Max(a, b int) int {
 	if a > b {
 		return a
 	}
 	return b
+}
+
+// GetRuleDocLink returns the URL to the documentation of a rule based on its name.
+func GetRuleDocLink(ruleName string) string {
+	return fmt.Sprintf("https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/%s.md", ruleName)
 }

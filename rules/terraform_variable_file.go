@@ -39,7 +39,7 @@ func (r *TerraformVariableFileRule) Severity() tflint.Severity {
 
 // Link returns the rule's reference link.
 func (r *TerraformVariableFileRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 var validVariablePattern = regexp.MustCompile(`^variables(\.[^.]+)?\.tf$`)

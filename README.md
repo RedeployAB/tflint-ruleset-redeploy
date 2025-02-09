@@ -31,8 +31,10 @@ plugin "redeploy" {
 
 ## Rules
 
-This section will be added soon. Until then, refer to [`main.go`](main.go) to
-see a list of rules that are currently implemented.
+This plugin implements a comprehensive set of Terraform rules to enforce
+consistent style and best practices across your Terraform code. For a complete
+list of implemented rules with descriptions and severity levels, see the
+[Rules Documentation](docs/rules/README.md).
 
 ## Building the plugin
 
@@ -52,8 +54,10 @@ You can run the built plugin like the following:
 
 ```shell
 $ cat << EOS > .tflint.hcl
-plugin "template" {
+plugin "redeploy" {
   enabled = true
+  version = "0.1.0"
+  source  = "github.com/terraform-linters/tflint-ruleset-redeploy"
 }
 EOS
 $ tflint

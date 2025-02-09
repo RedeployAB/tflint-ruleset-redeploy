@@ -32,7 +32,7 @@ func (r *TerraformFilenameConventionRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformFilenameConventionRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformFilenameConventionRule) Check(runner tflint.Runner) error {

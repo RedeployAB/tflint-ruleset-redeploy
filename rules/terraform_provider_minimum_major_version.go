@@ -38,7 +38,7 @@ func (r *TerraformProviderMinimumMajorVersionRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformProviderMinimumMajorVersionRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformProviderMinimumMajorVersionRule) Check(runner tflint.Runner) error {

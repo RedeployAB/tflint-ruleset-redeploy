@@ -33,7 +33,7 @@ func (r *TerraformProviderSourceOrderRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformProviderSourceOrderRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformProviderSourceOrderRule) Check(runner tflint.Runner) error {

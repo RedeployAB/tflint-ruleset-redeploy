@@ -35,7 +35,7 @@ func (r *TerraformLocalsFileRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformLocalsFileRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 var validLocalsPattern = regexp.MustCompile(`^locals(\.[^.]+)?\.tf$`)

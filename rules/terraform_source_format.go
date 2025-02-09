@@ -31,7 +31,7 @@ func (r *TerraformSourceFormatRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformSourceFormatRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformSourceFormatRule) Check(runner tflint.Runner) error {

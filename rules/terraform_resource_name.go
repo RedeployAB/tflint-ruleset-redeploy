@@ -29,7 +29,7 @@ func (r *TerraformResourceNameRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformResourceNameRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformResourceNameRule) Check(runner tflint.Runner) error {

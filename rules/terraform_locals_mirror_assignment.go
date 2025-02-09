@@ -33,7 +33,7 @@ func (r *TerraformLocalsMirrorAssignmentRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformLocalsMirrorAssignmentRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformLocalsMirrorAssignmentRule) Check(runner tflint.Runner) error {

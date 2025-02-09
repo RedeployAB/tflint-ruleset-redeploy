@@ -36,7 +36,7 @@ func (r *TerraformOutputOrderRule) Severity() tflint.Severity {
 
 // Link returns the rule's reference link
 func (r *TerraformOutputOrderRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 // Check checks that output blocks are ordered alphabetically by name

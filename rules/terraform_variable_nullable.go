@@ -30,7 +30,7 @@ func (r *TerraformVariableNullableRule) Severity() tflint.Severity {
 }
 
 func (r *TerraformVariableNullableRule) Link() string {
-	return ""
+	return GetRuleDocLink(r.Name())
 }
 
 func (r *TerraformVariableNullableRule) Check(runner tflint.Runner) error {
