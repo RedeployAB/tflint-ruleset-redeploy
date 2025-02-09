@@ -1,7 +1,8 @@
 # Redeploy TFLint Ruleset
 
-This repository contains a custom ruleset for TFLint used for enforcing the
-Redeploy Terraform [style guide](https://redeploy.atlassian.net/wiki/spaces/ALZ/pages/508002343/Style+guide).
+This repository contains a custom ruleset for TFLint implementing the Redeploy
+Terraform
+[style guide](https://redeploy.atlassian.net/wiki/spaces/ALZ/pages/508002343/Style+guide).
 
 It is currently a work in progress, rules will be added as they are developed.
 
@@ -12,10 +13,8 @@ It is currently a work in progress, rules will be added as they are developed.
 
 ## Installation
 
-> [!IMPORTANT]
-> This repository does not contain release binaries yet, so this
-> installation will not work. See the "Building the plugin" section to get this
-> ruleset working.
+> [!NOTE] In order to install the plugin you must be authenticated with GitHub.
+> This is because the plugin is not publicly available.
 
 You can install the plugin with `tflint --init`. Declare a config in
 `.tflint.hcl` as follows:
@@ -31,10 +30,8 @@ plugin "redeploy" {
 
 ## Rules
 
-This plugin implements a comprehensive set of Terraform rules to enforce
-consistent style and best practices across your Terraform code. For a complete
-list of implemented rules with descriptions and severity levels, see the
-[Rules Documentation](docs/rules/README.md).
+For a complete list of implemented rules with descriptions and severity levels,
+see the [rule documentation](docs/rules/README.md).
 
 ## Building the plugin
 
