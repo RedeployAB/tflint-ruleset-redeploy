@@ -15,7 +15,7 @@ underscores). If a filename does not match this pattern, an error is issued.
 
 A consistent naming convention helps keep your Terraform project organized,
 makes it easier to identify file purposes at a glance, and reduces the chance
-for errors due to unexpected file names.
+for errors due to unexpected filenames.
 
 ## How to fix issues
 

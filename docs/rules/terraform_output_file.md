@@ -3,7 +3,7 @@
 ## What does this rule do?
 
 This rule ensures that output blocks are only defined in files that follow the
-proper naming convention. Valid file names for outputs are:
+proper naming convention. Valid filenames for outputs are:
 
 - `outputs.tf`
 - `outputs.<area>.tf` (for example, `outputs.prod.tf`)
