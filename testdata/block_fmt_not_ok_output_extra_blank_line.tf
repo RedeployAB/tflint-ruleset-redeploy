@@ -1,4 +1,0 @@
-output "example" {
-
-  value = "something"
-}

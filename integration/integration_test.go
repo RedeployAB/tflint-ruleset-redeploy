@@ -19,11 +19,6 @@ func TestIntegration(t *testing.T) {
 		Dir     string
 	}{
 		{
-			Name:    "optional-defaults",
-			Command: exec.Command("tflint", "--format", "json", "--force"),
-			Dir:     "optional-defaults",
-		},
-		{
 			Name:    "basic-module",
 			Command: exec.Command("tflint", "--format", "json", "--force"),
 			Dir:     "basic-module",

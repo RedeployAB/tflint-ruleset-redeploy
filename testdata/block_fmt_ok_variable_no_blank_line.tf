@@ -1,3 +1,0 @@
-variable "example" {
-  type = string
-}

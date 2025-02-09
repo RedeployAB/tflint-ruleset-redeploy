@@ -45,6 +45,12 @@ func main() {
 				rules.NewTerraformVariableArgumentOrderRule(),
 				rules.NewTerraformLocalsMirrorAssignmentRule(),
 				rules.NewTerraformOutputArgumentOrderRule(),
+				rules.NewTerraformOutputFileRule(),
+				rules.NewTerraformBlockOrderRule(),
+				rules.NewTerraformVariableOrderRule(),
+				rules.NewTerraformOutputOrderRule(),
+				rules.NewTerraformVariableFileRule(),
+				rules.NewTerraformOutputResourceRule(),
 			},
 		},
 	})
