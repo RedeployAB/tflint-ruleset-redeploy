@@ -2,12 +2,21 @@ package rules
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
+
+// variableBlock represents a variable block with its ordering metadata.
+type variableBlock struct {
+	Name       string
+	HasDefault bool
+	Range      hcl.Range
+	Start      int
+}
 
 // TerraformVariableOrderRule checks that variables are ordered as:
 // 1) Required variables (no default) in alphabetical order
@@ -67,12 +76,7 @@ func (r *TerraformVariableOrderRule) Check(runner tflint.Runner) error {
 
 func (r *TerraformVariableOrderRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
 	// Collect all variable blocks in lexical order
-	var varBlocks []struct {
-		Name       string
-		HasDefault bool
-		Range      hcl.Range
-		Start      int
-	}
+	var varBlocks []variableBlock
 
 	for _, blk := range body.Blocks {
 		if strings.EqualFold(blk.Type, TypeVariable) && len(blk.Labels) > 0 {
@@ -81,12 +85,7 @@ func (r *TerraformVariableOrderRule) processBody(body *hclsyntax.Body, runner tf
 			// Check whether "default" attribute is present
 			_, hasDefault := blk.Body.Attributes["default"]
 
-			varBlocks = append(varBlocks, struct {
-				Name       string
-				HasDefault bool
-				Range      hcl.Range
-				Start      int
-			}{
+			varBlocks = append(varBlocks, variableBlock{
 				Name:       vName,
 				HasDefault: hasDefault,
 				Range:      blk.DefRange(),
@@ -104,45 +103,39 @@ func (r *TerraformVariableOrderRule) processBody(body *hclsyntax.Body, runner tf
 		return nil
 	}
 
-	// Variables are already in top-down parse order,
-	// but let's ensure we rely on the actual file position:
-	for i := 0; i < len(varBlocks)-1; i++ {
-		for j := i + 1; j < len(varBlocks); j++ {
-			if varBlocks[j].Start < varBlocks[i].Start {
-				varBlocks[i], varBlocks[j] = varBlocks[j], varBlocks[i]
-			}
-		}
+	// Sort varBlocks by their starting position
+	sort.Slice(varBlocks, func(i, j int) bool {
+		return varBlocks[i].Start < varBlocks[j].Start
+	})
+
+	if err := r.checkVarBlockOrder(varBlocks, runner); err != nil {
+		return err
 	}
 
+	return nil
+}
+
+func (r *TerraformVariableOrderRule) checkVarBlockOrder(varBlocks []variableBlock, runner tflint.Runner) error {
 	lastRequiredName := ""
 	lastOptionalName := ""
 	seenOptional := false
 
 	for _, vb := range varBlocks {
 		if !vb.HasDefault {
-			// Required var
-			if seenOptional {
-				// Found a required var after optional => out of order
-				return r.emitIssue(runner, vb.Range, vb.Name)
-			}
-			// Check alphabetical among required
-			if lastRequiredName != "" && vb.Name < lastRequiredName {
+			// Required variable: if we've already seen an optional variable or out-of-order name, emit an issue.
+			if seenOptional || (lastRequiredName != "" && vb.Name < lastRequiredName) {
 				return r.emitIssue(runner, vb.Range, vb.Name)
 			}
 			lastRequiredName = vb.Name
 		} else {
-			// Optional var
-			if !seenOptional {
-				seenOptional = true
-			}
-			// Check alphabetical among optional
+			// Optional variable: check alphabetical order.
 			if lastOptionalName != "" && vb.Name < lastOptionalName {
 				return r.emitIssue(runner, vb.Range, vb.Name)
 			}
 			lastOptionalName = vb.Name
+			seenOptional = true
 		}
 	}
-
 	return nil
 }
 
