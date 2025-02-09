@@ -13,7 +13,7 @@ endif
 install: build
 ifeq ($(OS),Windows_NT)
 	mkdir -p $(USERPROFILE)/.tflint.d/plugins
-	move tflint-ruleset-redeploy.exe $(USERPROFILE)/.tflint.d/plugins
+	mv tflint-ruleset-redeploy.exe $(USERPROFILE)/.tflint.d/plugins
 else
 	mkdir -p ~/.tflint.d/plugins
 	mv ./tflint-ruleset-redeploy ~/.tflint.d/plugins
