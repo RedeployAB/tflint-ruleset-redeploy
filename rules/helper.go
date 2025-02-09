@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
@@ -27,5 +28,5 @@ func Max(a, b int) int {
 
 // GetRuleDocLink returns the URL to the documentation of a rule based on its name.
 func GetRuleDocLink(ruleName string) string {
-	return fmt.Sprintf("https://github.com/terraform-linters/tflint-ruleset-redeploy/blob/main/docs/rules/%s.md", ruleName)
+	return fmt.Sprintf("https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/%s.md", ruleName)
 }
