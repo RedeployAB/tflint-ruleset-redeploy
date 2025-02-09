@@ -4,7 +4,7 @@
 
 This rule enforces proper formatting within module blocks—specifically for the
 `source` (and optionally `version`) attributes. It ensures that there is proper
-spacing (no unexpected blank lines) after these attributes before the block
+spacing (no unexpected empty lines) after these attributes before the block
 ends.
 
 ## Why is this important?
@@ -14,6 +14,6 @@ prevents misinterpretation of version constraints and supports a uniform style.
 
 ## How to fix issues
 
-Adjust your module block so that there are no unexpected blank lines after the
+Adjust your module block so that there are no unexpected empty lines after the
 `source` or `version` lines. Ensure the attributes and any subsequent properties
 are properly spaced.

@@ -6,11 +6,11 @@ This rule enforces consistent spacing between items (attributes and nested
 blocks) within a Terraform block. Specifically, it checks that:
 
 - If a block contains no attributes, its first nested block appears immediately
-  after the opening brace (with no blank lines).
+  after the opening brace (with no empty lines).
 - If a block has attributes, the first nested block must be preceded by exactly
-  one blank line.
+  one empty line.
 - Any subsequent nested blocks in the same block are also preceded by exactly
-  one blank line.
+  one empty line.
 
 If the spacing does not conform to these rules, an error is emitted.
 
@@ -24,7 +24,7 @@ structure is clear to anyone reviewing the code.
 
 When an issue is reported:
 
-- **No attributes present:** Remove any blank lines before the first nested
+- **No attributes present:** Remove any empty lines before the first nested
   block.
 
   ```hcl
@@ -35,7 +35,7 @@ When an issue is reported:
   }
   ```
 
-- **Attributes present:** Ensure there is exactly one blank line before the
+- **Attributes present:** Ensure there is exactly one empty line before the
   first nested block.
 
   ```hcl
@@ -49,7 +49,7 @@ When an issue is reported:
   }
   ```
 
-- **Multiple nested blocks:** Ensure there is exactly one blank line separating
+- **Multiple nested blocks:** Ensure there is exactly one empty line separating
   each nested block.
 
   ```hcl

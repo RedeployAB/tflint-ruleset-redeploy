@@ -7,7 +7,7 @@ resource blocks. It enforces that:
 
 - The `tags` attribute appears after all other non-meta arguments.
 - If attributes like `depends_on` or `lifecycle` follow, there must be exactly
-  one blank line separating `tags` from those attributes.
+  one empty line separating `tags` from those attributes.
 
 ## Why is this important?
 
@@ -18,5 +18,5 @@ definitions are clearly separated from other configurations.
 ## How to fix issues
 
 Reorder your resource block so that the `tags` attribute is positioned after all
-regular arguments and, if necessary, insert exactly one blank line between
+regular arguments and, if necessary, insert exactly one empty line between
 `tags` and subsequent `depends_on` or `lifecycle` attributes.
