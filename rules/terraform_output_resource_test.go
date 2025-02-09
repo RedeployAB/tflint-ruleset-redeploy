@@ -1,8 +1,8 @@
 package rules
 
 import (
-	"testing"
 	"reflect"
+	"testing"
 
 	hcl "github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
