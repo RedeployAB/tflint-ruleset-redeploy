@@ -13,8 +13,11 @@ permissions: {}
 
 jobs:
   test:
-    name: Linux
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     permissions:
       contents: read
     steps:
