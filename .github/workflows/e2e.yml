@@ -13,7 +13,7 @@ permissions: {}
 
 jobs:
   e2e:
-    name: ${{ matrix.os }} E2E
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
