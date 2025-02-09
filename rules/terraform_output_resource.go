@@ -109,19 +109,31 @@ func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hc
 
 		case *hclsyntax.SplatExpr:
 			// e.g. "aws_instance.multiple[*].id"
-			// 'Each' is the base expression, 'Item' is the remainder
-			walk(typed.Each)
-			if typed.Item != nil {
-				walk(typed.Item)
+			// If the base expression is a ScopeTraversalExpr, we can combine its traversal with the splat operator and any trailing item.
+			if base, ok := typed.Each.(*hclsyntax.ScopeTraversalExpr); ok {
+				trav := append([]hcl.Traverser{}, base.Traversal...)
+				// Append an explicit splat operator.
+				trav = append(trav, hcl.TraverseSplat{})
+				if typed.Item != nil {
+					// If Item is a ScopeTraversalExpr, append its traversal steps.
+					if itemScope, ok := typed.Item.(*hclsyntax.ScopeTraversalExpr); ok {
+						trav = append(trav, itemScope.Traversal...)
+					} else {
+						// Otherwise, try gathering traversals from Item and merge the first result.
+						sub := r.gatherTraversals(typed.Item)
+						if len(sub) > 0 {
+							for _, t := range sub[0] {
+								trav = append(trav, t)
+							}
+						}
+					}
+				}
+				collected = append(collected, trav)
 			} else {
-				// If 'Item' is nil, it means we have something like
-				// "aws_instance.splat[*]" with no further attributes.
-				// We must record a final "TraverseSplat" so that
-				// the rule sees it as a whole-resource reference.
-				if base, ok := typed.Each.(*hclsyntax.ScopeTraversalExpr); ok {
-					trav := append([]hcl.Traverser{}, base.Traversal...) // copy base
-					trav = append(trav, hcl.TraverseSplat{})
-					collected = append(collected, trav)
+				// Fallback if the Each part is not a ScopeTraversalExpr.
+				walk(typed.Each)
+				if typed.Item != nil {
+					walk(typed.Item)
 				}
 			}
 
@@ -345,6 +357,8 @@ func canonicalizeTraversal(trav hcl.Traversal) hcl.Traversal {
 
 	for _, step := range trav {
 		switch s := step.(type) {
+		case hcl.TraverseRoot:
+			result = append(result, hcl.TraverseRoot{Name: s.Name})
 		case hcl.TraverseAttr:
 			// If s.Name includes brackets or dots, split it
 			subSteps := splitAttrName(s.Name)
@@ -362,9 +376,11 @@ func canonicalizeTraversal(trav hcl.Traversal) hcl.Traversal {
 					result = append(result, hcl.TraverseAttr{Name: sub})
 				}
 			}
-
+		case hcl.TraverseIndex:
+			result = append(result, hcl.TraverseIndex{Key: s.Key})
+		case hcl.TraverseSplat:
+			result = append(result, hcl.TraverseSplat{})
 		default:
-			// Keep TraverseRoot, TraverseIndex, TraverseSplat as-is
 			result = append(result, step)
 		}
 	}
