@@ -21,7 +21,7 @@ builds:
 archives:
   - id: zip
     name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
-    formats: [ 'zip' ]
+    format: zip
     files:
       - none*
 changelog:
