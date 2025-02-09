@@ -145,11 +145,11 @@ output "splat_output" {
 			Name: "NOT OK - references entire resource with index",
 			Content: `
 resource "aws_instance" "indexed" {
-  count = 2
+	count = 2
 }
 
 output "bad_index" {
-  value = aws_instance.indexed[0]
+	value = aws_instance.indexed[0]
 }
 `,
 			Issues: helper.Issues{
@@ -158,8 +158,8 @@ output "bad_index" {
 					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 7, Column: 3},
-						End:      hcl.Pos{Line: 7, Column: 34},
+						Start:    hcl.Pos{Line: 7, Column: 2},
+						End:      hcl.Pos{Line: 7, Column: 33},
 					},
 				},
 			},
@@ -168,11 +168,11 @@ output "bad_index" {
 			Name: "NOT OK - references entire resource with splat",
 			Content: `
 resource "aws_instance" "splat" {
-  count = 2
+	count = 2
 }
 
 output "bad_splat" {
-  value = aws_instance.splat[*]
+	value = aws_instance.splat[*]
 }
 `,
 			Issues: helper.Issues{
@@ -181,8 +181,8 @@ output "bad_splat" {
 					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
-						Start:    hcl.Pos{Line: 7, Column: 3},
-						End:      hcl.Pos{Line: 7, Column: 32},
+						Start:    hcl.Pos{Line: 7, Column: 2},
+						End:      hcl.Pos{Line: 7, Column: 31},
 					},
 				},
 			},
