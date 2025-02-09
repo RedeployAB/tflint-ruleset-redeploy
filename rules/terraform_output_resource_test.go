@@ -3,7 +3,9 @@ package rules
 import (
 	"testing"
 
-	hcl "github.com/hashicorp/hcl/v2"
+	"hcl \"github.com/hashicorp/hcl/v2\""
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"reflect"
 	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
@@ -244,6 +246,109 @@ output "bad_splat" {
 				t.Fatalf("Unexpected error: %v", err)
 			}
 			helper.AssertIssues(t, tc.Issues, runner.Issues)
+		})
+	}
+}
+
+func TestGatherTraversals(t *testing.T) {
+	rule := NewTerraformOutputResourceRule()
+	cases := []struct {
+		name     string
+		exprStr  string
+		expected []hcl.Traversal
+	}{
+		{
+			name:    "simple attribute access",
+			exprStr: "aws_instance.example.id",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
+					hcl.TraverseAttr{Name: "id"},
+				},
+			},
+		},
+		{
+			name:    "resource reference without attribute",
+			exprStr: "aws_instance.example",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
+				},
+			},
+		},
+		{
+			name:    "splat with attribute",
+			exprStr: "aws_instance.multiple[*].id",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "multiple"},
+					hcl.TraverseSplat{},
+					hcl.TraverseAttr{Name: "id"},
+				},
+			},
+		},
+		{
+			name:    "splat without item",
+			exprStr: "aws_instance.splat[*]",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "splat"},
+					hcl.TraverseSplat{},
+				},
+			},
+		},
+		{
+			name:    "conditional expression with prefix",
+			exprStr: "true ? aws_instance.example.id : aws_instance.example",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
+					hcl.TraverseAttr{Name: "id"},
+				},
+			},
+		},
+		{
+			name:    "nested splat",
+			exprStr: "aws_instance.multiple[*].sub[*].id",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "multiple"},
+					hcl.TraverseSplat{},
+					hcl.TraverseAttr{Name: "sub"},
+					hcl.TraverseSplat{},
+					hcl.TraverseAttr{Name: "id"},
+				},
+			},
+		},
+		{
+			name:    "tuple expression with prefix",
+			exprStr: "[aws_instance.example.id, aws_instance.example]",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
+					hcl.TraverseAttr{Name: "id"},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			expr, diags := hclsyntax.ParseExpression([]byte(tc.exprStr), "test.hcl", hcl.InitialPos)
+			if diags.HasErrors() {
+				t.Fatalf("Failed to parse expression %q: %s", tc.exprStr, diags.Error())
+			}
+			got := rule.gatherTraversals(expr)
+			if !reflect.DeepEqual(got, tc.expected) {
+				t.Errorf("For expression %q, expected traversals:\n%#v\ngot:\n%#v", tc.exprStr, tc.expected, got)
+			}
 		})
 	}
 }
