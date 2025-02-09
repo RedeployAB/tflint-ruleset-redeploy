@@ -102,7 +102,7 @@ func TestCanonicalizeTraversal(t *testing.T) {
 
 	for _, c := range cases {
 		got := canonicalizeTraversal(c.input)
-		if !reflect.DeepEqual(got, c.want) {
+		if !traversalsEqual(got, c.want) {
 			t.Errorf("canonicalizeTraversal(%v) = %v; want %v", c.input, got, c.want)
 		}
 	}
@@ -177,6 +177,19 @@ func TestStepEqual(t *testing.T) {
 			t.Errorf("%s: stepEqual(%v, %v) = %v; want %v", c.name, c.stepA, c.stepB, got, c.expect)
 		}
 	}
+}
+
+// traversalsEqual compares two hcl.Traversal values step-by-step using stepEqual.
+func traversalsEqual(a, b hcl.Traversal) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !stepEqual(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func TestIsFullResourceReference(t *testing.T) {
