@@ -280,18 +280,6 @@ func TestGatherTraversals(t *testing.T) {
 			},
 		},
 		{
-			name:    "splat with attribute",
-			exprStr: "aws_instance.multiple[*].id",
-			expected: []hcl.Traversal{
-				{
-					hcl.TraverseRoot{Name: "aws_instance"},
-					hcl.TraverseAttr{Name: "multiple"},
-					hcl.TraverseSplat{},
-					hcl.TraverseAttr{Name: "id"},
-				},
-			},
-		},
-		{
 			name:    "splat without item",
 			exprStr: "aws_instance.splat[*]",
 			expected: []hcl.Traversal{

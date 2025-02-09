@@ -1,7 +1,6 @@
 package rules
 
 import (
-	"log"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -100,7 +99,6 @@ func (r *TerraformOutputResourceRule) checkAllOutputBlocks(
 // gatherTraversals canonicalizes and filters out prefix traversals
 func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hcl.Traversal {
 	var collected []hcl.Traversal
-	log.Printf("[DEBUG] gatherTraversals: input expr = %#v", expr)
 
 	// getTrav extracts a traversal from an expression.
 	getTrav := func(e hcl.Expression) hcl.Traversal {
@@ -131,18 +129,15 @@ func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hc
 
 		case *hclsyntax.SplatExpr:
 			// e.g. "aws_instance.multiple[*].id"
-			log.Printf("[DEBUG] Processing SplatExpr: Each=%#v, Item=%#v", typed.Each, typed.Item)
 			// Try to extract the base traversal from the Each part.
 			baseTrav := getTrav(typed.Each)
 			// If no traversal is returned, fallback to the Source's traversal.
 			if baseTrav == nil {
 				baseTrav = getTrav(typed.Source)
 			}
-			log.Printf("[DEBUG] SplatExpr: baseTrav from Each/Source = %#v", baseTrav)
             // If the base traversal already contains a splat operator, this is a nested splat.
             for _, step := range baseTrav {
                 if _, ok := step.(hcl.TraverseSplat); ok {
-                    log.Printf("[DEBUG] SplatExpr: nested splat detected; skipping this expression")
                     return
                 }
             }
@@ -150,19 +145,15 @@ func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hc
             if len(baseTrav) > 0 {
                 // Append an explicit splat operator.
                 baseTrav = append(append([]hcl.Traverser{}, baseTrav...), hcl.TraverseSplat{})
-                log.Printf("[DEBUG] SplatExpr: after appending splat, baseTrav = %#v", baseTrav)
                 // If there is an Item expression, append its traversal steps.
                 if typed.Item != nil {
                     itemTrav := getTrav(typed.Item)
-                    log.Printf("[DEBUG] SplatExpr: itemTrav = %#v", itemTrav)
                     if itemTrav != nil {
                         baseTrav = append(baseTrav, itemTrav...)
                     }
                 }
-                log.Printf("[DEBUG] SplatExpr: final baseTrav = %#v", baseTrav)
                 collected = append(collected, baseTrav)
             } else {
-                log.Printf("[DEBUG] SplatExpr: no baseTrav obtained from Each or Source")
             }
 		
 		case *hclsyntax.LiteralValueExpr:
@@ -237,8 +228,6 @@ func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hc
 	for _, trav := range collected {
 		canonical = append(canonical, canonicalizeTraversal(trav))
 	}
-	log.Printf("[DEBUG] gatherTraversals: collected (pre-canonical) = %#v", collected)
-	log.Printf("[DEBUG] gatherTraversals: canonical traversals = %#v", canonical)
 	return filterPrefixTraversals(canonical)
 }
 
