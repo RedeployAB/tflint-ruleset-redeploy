@@ -1,32 +1,21 @@
-# terraform_comment_syntax
+# terraform_basic_module_structure
 
-Disallow `//` comments in favor of `#`.
+## What does this rule do?
 
-## Example
+This rule checks that a Terraform module contains the following required files:
 
-```hcl
-# Good
-// Bad
-```
+- **main.tf**
+- **variables.tf**
+- **locals.tf**
+- **outputs.tf**
+- **terraform.tf**
 
-```
-$ tflint
-1 issue(s) found:
+If any of these files is missing, the rule emits a warning.
 
-Warning: Single line comments should begin with # (terraform_comment_syntax)
+## Why is this important?
 
-  on main.tf line 2:
-   2: // Bad
+Ensuring that these files exist provides a minimal structure for a Terraform module. (Note that this rule does not enforce additional files like `README.md`, tests, or documentation within variables/outputs—it only checks for the presence of the five required files.)
 
-Reference: https://github.com/terraform-linters/tflint-ruleset-terraform/blob/v0.1.0/docs/rules/terraform_comment_syntax.md
-```
+## How to fix issues
 
-## Why
-
-The Terraform language supports two different syntaxes for single-line comments: `#` and `//`. However, `#` is the default comment style and should be used in most cases.
-
-* [Configuration Syntax: Comments](https://developer.hashicorp.com/terraform/language/syntax/configuration#comments)
-
-## How To Fix
-
-Replace the leading double-slash (`//`) in your comment with the number sign (`#`).
+If an issue is reported for a missing file, add that file to your module. For example, if the issue reports “Missing required file: `locals.tf`”, create a `locals.tf` file in your module root.
