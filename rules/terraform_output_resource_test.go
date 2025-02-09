@@ -3,9 +3,10 @@ package rules
 import (
 	"testing"
 
-	"hcl \"github.com/hashicorp/hcl/v2\""
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"reflect"
+
+	hcl "github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
