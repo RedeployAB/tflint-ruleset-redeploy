@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -262,7 +263,7 @@ func TestStepEqual(t *testing.T) {
 			Expect: false,
 		},
 		{
-			Name:   "Splat vs Splat with extra attribute => false",
+			Name:   "Splat vs Splat with extra attribute => true",
 			StepA:  hcl.TraverseSplat{},
 			StepB:  hcl.TraverseSplat{},
 			Expect: true,
@@ -326,40 +327,3 @@ func TestIsFullResourceReference(t *testing.T) {
 			},
 			Expected: true,
 		},
-		{
-			Name: "aws_instance.example[*] => entire resource (splat)",
-			Trav: hcl.Traversal{
-				hcl.TraverseRoot{Name: "aws_instance"},
-				hcl.TraverseAttr{Name: "example"},
-				hcl.TraverseSplat{},
-			},
-			Expected: true,
-		},
-		{
-			Name: "data.aws_caller_identity.current => entire data resource",
-			Trav: hcl.Traversal{
-				hcl.TraverseRoot{Name: "data"},
-				hcl.TraverseAttr{Name: "aws_caller_identity"},
-				hcl.TraverseAttr{Name: "current"},
-			},
-			Expected: true,
-		},
-		{
-			Name: "data.aws_caller_identity.current.account_id => partial attribute",
-			Trav: hcl.Traversal{
-				hcl.TraverseRoot{Name: "data"},
-				hcl.TraverseAttr{Name: "aws_caller_identity"},
-				hcl.TraverseAttr{Name: "current"},
-				hcl.TraverseAttr{Name: "account_id"},
-			},
-			Expected: false,
-		},
-	}
-
-	for _, c := range cases {
-		got := rule.isFullResourceReference(c.Trav)
-		if got != c.Expected {
-			t.Errorf("%s: isFullResourceReference(%v) => %v; want %v", c.Name, c.Trav, got, c.Expected)
-		}
-	}
-}

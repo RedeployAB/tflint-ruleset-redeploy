@@ -2,7 +2,6 @@ package rules
 
 import (
 	"testing"
-
 	"reflect"
 
 	hcl "github.com/hashicorp/hcl/v2"
@@ -84,15 +83,7 @@ output "some_output" {
 `,
 			Issues: helper.Issues{},
 		},
-	}
-
-	// Add a test case for ephemeral resource, ensuring the rule checks it
-	tests = append(tests,
-		struct {
-			Name    string
-			Content string
-			Issues  helper.Issues
-		}{
+		{
 			Name: "OK - references ephemeral resource attribute",
 			Content: `
 resource "ephemeral" "test" {}
@@ -103,14 +94,7 @@ output "ok_ephemeral" {
 `,
 			Issues: helper.Issues{},
 		},
-	)
-
-	tests = append(tests,
-		struct {
-			Name    string
-			Content string
-			Issues  helper.Issues
-		}{
+		{
 			Name: "NOT OK - references entire ephemeral resource",
 			Content: `
 resource "ephemeral" "test" {}
@@ -131,15 +115,7 @@ output "bad_ephemeral" {
 				},
 			},
 		},
-	)
-
-	// Add new test case: OK - references multiple instances with explicit index
-	tests = append(tests,
-		struct {
-			Name    string
-			Content string
-			Issues  helper.Issues
-		}{
+		{
 			Name: "OK - references multiple instances with explicit index",
 			Content: `
 resource "aws_instance" "multiple" {
@@ -152,15 +128,7 @@ output "indexed_output" {
 `,
 			Issues: helper.Issues{},
 		},
-	)
-
-	// Add new test case: OK - references multiple instances with splat
-	tests = append(tests,
-		struct {
-			Name    string
-			Content string
-			Issues  helper.Issues
-		}{
+		{
 			Name: "OK - references multiple instances with splat",
 			Content: `
 resource "aws_instance" "multiple" {
@@ -173,15 +141,7 @@ output "splat_output" {
 `,
 			Issues: helper.Issues{},
 		},
-	)
-
-	// NOT OK - entire resource with explicit zero index
-	tests = append(tests,
-		struct {
-			Name    string
-			Content string
-			Issues  helper.Issues
-		}{
+		{
 			Name: "NOT OK - references entire resource with index",
 			Content: `
 resource "aws_instance" "indexed" {
@@ -204,15 +164,7 @@ output "bad_index" {
 				},
 			},
 		},
-	)
-
-	// NOT OK - entire resource set with splat
-	tests = append(tests,
-		struct {
-			Name    string
-			Content string
-			Issues  helper.Issues
-		}{
+		{
 			Name: "NOT OK - references entire resource with splat",
 			Content: `
 resource "aws_instance" "splat" {
@@ -235,7 +187,7 @@ output "bad_splat" {
 				},
 			},
 		},
-	)
+	}
 
 	rule := NewTerraformOutputResourceRule()
 	for _, tc := range tests {
@@ -304,6 +256,17 @@ func TestGatherTraversals(t *testing.T) {
 		{
 			name:    "tuple expression with prefix",
 			exprStr: "[aws_instance.example.id, aws_instance.example]",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
+					hcl.TraverseAttr{Name: "id"},
+				},
+			},
+		},
+		{
+			name:    "object expression with mixed references",
+			exprStr: `{"a": aws_instance.example, "b": aws_instance.example.id}`,
 			expected: []hcl.Traversal{
 				{
 					hcl.TraverseRoot{Name: "aws_instance"},
