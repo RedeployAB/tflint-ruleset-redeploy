@@ -66,6 +66,7 @@ signs:
     args: [
       "--armor",
       "--detach-sign",
+      "--no-tty",
       "--output", "${artifact}.sig",
       "${artifact}"
     ]
