@@ -63,10 +63,11 @@ checksum:
     - glob: ./dist/raw/*
 signs:
   - artifacts: checksum
+    cmd: gpg2
     args: [
-      "--armor",
+      "--batch",
+      "-u", "{{ .Env.GPG_FINGERPRINT }}",
       "--detach-sign",
-      "--no-tty",
       "--output", "${artifact}.sig",
       "${artifact}"
     ]
