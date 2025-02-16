@@ -1,7 +1,7 @@
-  
+
 resource "azurerm_resource_group" "example" {
 
-  tags     = var.tags
+  tags = var.tags
 
   location = var.location
   name     = var.resource_group_name
