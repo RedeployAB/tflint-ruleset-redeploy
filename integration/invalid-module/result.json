@@ -1,0 +1,80 @@
+{
+  "errors": [],
+  "issues": [
+    {
+      "rule": "terraform_no_leading_trailing_blank_lines",
+      "message": "File contains leading or trailing blank lines",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 1,
+          "column": 1
+        },
+        "end": {
+          "line": 1,
+          "column": 1
+        }
+      }
+    },
+    {
+      "rule": "terraform_resource_argument_order",
+      "message": "Resource block arguments are not in the correct order",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 5,
+          "column": 3
+        },
+        "end": {
+          "line": 7,
+          "column": 33
+        }
+      }
+    },
+    {
+      "rule": "terraform_module_depends_on",
+      "message": "`depends_on` should not be used in module blocks",
+      "range": {
+        "filename": "main.tf",
+        "start": {
+          "line": 11,
+          "column": 3
+        },
+        "end": {
+          "line": 13,
+          "column": 34
+        }
+      }
+    },
+    {
+      "rule": "terraform_variable_argument_order",
+      "message": "Variable attributes are not in the correct order",
+      "range": {
+        "filename": "variables.tf",
+        "start": {
+          "line": 2,
+          "column": 3
+        },
+        "end": {
+          "line": 3,
+          "column": 37
+        }
+      }
+    },
+    {
+      "rule": "terraform_single_blank_lines",
+      "message": "Multiple consecutive blank lines detected",
+      "range": {
+        "filename": "locals.tf",
+        "start": {
+          "line": 3,
+          "column": 1
+        },
+        "end": {
+          "line": 4,
+          "column": 1
+        }
+      }
+    }
+  ]
+}
