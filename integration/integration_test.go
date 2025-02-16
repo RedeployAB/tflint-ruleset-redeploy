@@ -23,6 +23,16 @@ func TestIntegration(t *testing.T) {
 			Command: exec.Command("tflint", "--format", "json", "--force"),
 			Dir:     "basic-module",
 		},
+		{
+			Name:    "valid-module",
+			Command: exec.Command("tflint", "--format", "json", "--force"),
+			Dir:     "valid-module",
+		},
+		{
+			Name:    "invalid-module",
+			Command: exec.Command("tflint", "--format", "json", "--force"),
+			Dir:     "invalid-module",
+		},
 	}
 
 	dir, err := os.Getwd()

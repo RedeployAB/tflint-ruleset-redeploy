@@ -1,0 +1,131 @@
+{
+    "issues": [
+        {
+            "rule": {
+                "name": "terraform_no_leading_trailing_blank_lines",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_no_leading_trailing_blank_lines.md"
+            },
+            "message": "No blank line allowed immediately after '{'",
+            "range": {
+                "filename": "main.tf",
+                "start": { "line": 3, "column": 1 },
+                "end": { "line": 3, "column": 1 }
+            },
+            "callers": []
+        },
+        {
+            "rule": {
+                "name": "terraform_tags_argument",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_tags_argument.md"
+            },
+            "message": "Argument 'location' must not come after 'tags'",
+            "range": {
+                "filename": "main.tf",
+                "start": { "line": 6, "column": 3 },
+                "end": { "line": 6, "column": 26 }
+            },
+            "callers": []
+        },
+        {
+            "rule": {
+                "name": "terraform_source_format",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_source_format.md"
+            },
+            "message": "Expected a blank line after 'source'",
+            "range": {
+                "filename": "main.tf",
+                "start": { "line": 13, "column": 1 },
+                "end": { "line": 13, "column": 1 }
+            },
+            "callers": []
+        },
+        {
+            "rule": {
+                "name": "terraform_meta_argument_format",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_meta_argument_format.md"
+            },
+            "message": "Expected a blank line before meta-argument 'depends_on'",
+            "range": {
+                "filename": "main.tf",
+                "start": { "line": 13, "column": 1 },
+                "end": { "line": 13, "column": 1 }
+            },
+            "callers": []
+        },
+        {
+            "rule": {
+                "name": "terraform_module_depends_on",
+                "severity": "warning",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_module_depends_on.md"
+            },
+            "message": "'depends_on' should not be used for modules",
+            "range": {
+                "filename": "main.tf",
+                "start": { "line": 13, "column": 3 },
+                "end": { "line": 13, "column": 48 }
+            },
+            "callers": []
+        },
+        {
+            "rule": {
+                "name": "terraform_basic_module_structure",
+                "severity": "warning",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_basic_module_structure.md"
+            },
+            "message": "Missing required file: terraform.tf",
+            "range": {
+                "filename": "terraform.tf",
+                "start": { "line": 0, "column": 0 },
+                "end": { "line": 0, "column": 0 }
+            },
+            "callers": []
+        },
+        {
+            "rule": {
+                "name": "terraform_variable_argument_order",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_variable_argument_order.md"
+            },
+            "message": "Out-of-order argument 'description'. Expected sequence: description, type, default, ephemeral, sensitive, nullable, validation",
+            "range": {
+                "filename": "variables.tf",
+                "start": { "line": 3, "column": 3 },
+                "end": { "line": 3, "column": 38 }
+            },
+            "callers": []
+        },
+        {
+            "rule": {
+                "name": "terraform_variable_order",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_variable_order.md"
+            },
+            "message": "Out-of-order variable \"location\". Required variables must come first in alphabetical order, followed by optional variables in alphabetical order.",
+            "range": {
+                "filename": "variables.tf",
+                "start": { "line": 6, "column": 1 },
+                "end": { "line": 6, "column": 20 }
+            },
+            "callers": []
+        },
+        {
+            "rule": {
+                "name": "terraform_variable_argument_order",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_variable_argument_order.md"
+            },
+            "message": "Out-of-order argument 'description'. Expected sequence: description, type, default, ephemeral, sensitive, nullable, validation",
+            "range": {
+                "filename": "variables.tf",
+                "start": { "line": 8, "column": 3 },
+                "end": { "line": 8, "column": 36 }
+            },
+            "callers": []
+        }
+    ],
+    "errors": []
+}
