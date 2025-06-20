@@ -188,12 +188,13 @@ func (r *TerraformTagsArgumentRule) checkItemsAfterTags(
 ) error {
 	// Step 1: ensure no normal attribute or block after tags, except depends_on or lifecycle
 	for i := tagsIndex + 1; i < len(items); i++ {
-		if items[i].Type == typeAttr {
+		switch items[i].Type {
+		case typeAttr:
 			if items[i].Name != "depends_on" {
 				return r.emitIssue(runner, items[i].Range,
 					fmt.Sprintf("Argument '%s' must not come after 'tags'", items[i].Name))
 			}
-		} else if items[i].Type == typeBlock {
+		case typeBlock:
 			if items[i].Name != "lifecycle" {
 				return r.emitIssue(runner, items[i].Range,
 					fmt.Sprintf("Block '%s' must not come after 'tags'", items[i].Name))
