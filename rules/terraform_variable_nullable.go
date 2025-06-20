@@ -81,12 +81,14 @@ func (r *TerraformVariableNullableRule) checkBoolDefaultNotNull(
 	runner tflint.Runner,
 ) error {
 	if typeVal != nil && defaultVal != nil {
-		isBool, err := isTypeBool(typeVal, runner)
+		// Use the new expression utility for type checking
+		typeName, isType, err := EvaluateTypeExpr(typeVal.Expr)
 		if err != nil {
 			return err
 		}
-		if isBool {
-			isDefaultNull, err := isAttrNull(defaultVal)
+		if isType && typeName == TypeBool {
+			// Use the new expression utility for null checking
+			isDefaultNull, err := IsNullLiteral(defaultVal.Expr)
 			if err != nil {
 				return err
 			}
@@ -106,7 +108,8 @@ func (r *TerraformVariableNullableRule) checkNullDefaultAndNullableNotDeclared(
 	defaultVal, nullableVal *hclsyntax.Attribute,
 	runner tflint.Runner,
 ) error {
-	isDefaultNull, err := isAttrNull(defaultVal)
+	// Use the new expression utility for null checking
+	isDefaultNull, err := IsNullLiteral(defaultVal.Expr)
 	if err != nil {
 		return err
 	}
@@ -124,11 +127,12 @@ func (r *TerraformVariableNullableRule) checkNullableFalseIfDeclared(
 	nullableVal *hclsyntax.Attribute,
 	runner tflint.Runner,
 ) error {
-	isNullableTrue, err := isAttrTrue(nullableVal, runner)
+	// Use the new expression utility for boolean evaluation
+	value, isLiteral, err := EvaluateBoolLiteral(nullableVal.Expr)
 	if err != nil {
 		return err
 	}
-	if isNullableTrue {
+	if isLiteral && value {
 		return runner.EmitIssue(
 			r,
 			"nullable should not be set to true (the default is already true)",
@@ -180,41 +184,6 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	return nil
 }
 
-// We'll do proper HCL expression evaluation.
-func isTypeBool(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
-	// Type expressions like "bool" are not evaluated as strings, they are identifiers
-	// We need to check the expression type directly
-	if _, ok := attr.Expr.(*hclsyntax.LiteralValueExpr); ok {
-		// If it's a literal value, check if it's the string "bool"
-		var val string
-		if err := runner.EvaluateExpr(attr.Expr, &val, nil); err == nil {
-			return strings.ToLower(strings.TrimSpace(val)) == "bool", nil
-		}
-	} else if scopeExpr, ok := attr.Expr.(*hclsyntax.ScopeTraversalExpr); ok {
-		// For type expressions like `bool`, check the traversal
-		if len(scopeExpr.Traversal) == 1 {
-			if root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot); ok {
-				return strings.ToLower(root.Name) == "bool", nil
-			}
-		}
-	}
-	return false, nil
-}
-
-func isAttrNull(attr *hclsyntax.Attribute) (bool, error) {
-	// Check if the expression is a literal null
-	if expr, ok := attr.Expr.(*hclsyntax.LiteralValueExpr); ok {
-		// The Val field is a cty.Value - check if it's null
-		return expr.Val.IsNull(), nil
-	}
-	return false, nil
-}
-
-func isAttrTrue(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
-	value, ok := evaluateBooleanAttribute(runner, attr.Expr)
-	if !ok {
-		// For non-boolean expressions, return false
-		return false, nil
-	}
-	return value, nil
-}
+// We'll do simple textual checks by slicing the file bytes from the attribute's expression Range.
+// Note: The old string-based helper functions (isTypeBool, isAttrNull, isAttrTrue)
+// have been replaced with the new expression utilities for more robust evaluation.

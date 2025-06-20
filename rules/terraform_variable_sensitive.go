@@ -98,15 +98,14 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 		return nil // No "sensitive" => fine
 	}
 
-	// Evaluate the sensitive attribute value using the helper function
-	value, ok := evaluateBooleanAttribute(runner, sensitiveAttr.Expr)
-	if !ok {
-		// Handle non-boolean expressions gracefully
-		return nil
+	// Use the new expression utility for boolean evaluation
+	value, isLiteral, err := EvaluateBoolLiteral(sensitiveAttr.Expr)
+	if err != nil {
+		return err
 	}
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
-	if !value {
+	if isLiteral && !value {
 		return runner.EmitIssue(
 			r,
 			"sensitive should not be set to false (omit instead)",

@@ -93,14 +93,13 @@ func (r *TerraformOutputEphemeralRule) checkOutputBlock(
 		return nil // ephemeral not defined => no problem
 	}
 
-	// Evaluate the ephemeral attribute value using the helper function
-	value, ok := evaluateBooleanAttribute(runner, ephemeralAttr.Expr)
-	if !ok {
-		// Handle non-boolean expressions gracefully
-		return nil
+	// Use the new expression utility for boolean evaluation
+	value, isLiteral, err := EvaluateBoolLiteral(ephemeralAttr.Expr)
+	if err != nil {
+		return err
 	}
 
-	if !value {
+	if isLiteral && !value {
 		return runner.EmitIssue(
 			r,
 			"ephemeral should not be set to false (omit instead)",
