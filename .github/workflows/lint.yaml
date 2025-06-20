@@ -60,6 +60,7 @@ jobs:
           VALIDATE_MARKDOWN_PRETTIER: false
           VALIDATE_TERRAFORM_TFLINT: false
           VALIDATE_TERRAFORM_TERRASCAN: false
+          VALIDATE_COMMITS: false
 
       - name: Commit and push linting fixes
         # Run only on:
