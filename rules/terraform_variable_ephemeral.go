@@ -94,20 +94,13 @@ func (r *TerraformVariableEphemeralRule) checkVariableBlock(
 		return nil // No "ephemeral" => fine
 	}
 
-	// Slice the raw text for "ephemeral"
-	files, err := runner.GetFiles()
+	// Use the new expression utility for boolean evaluation
+	value, isLiteral, err := EvaluateBoolLiteral(ephemeralAttr.Expr)
 	if err != nil {
 		return err
 	}
-	fileBytes := files[block.DefRange().Filename].Bytes
 
-	src, err := parseAttributeText(ephemeralAttr, fileBytes, true)
-	if err != nil {
-		return nil // parseAttributeText should not return error when skipOnError is true
-	}
-
-	// If we see 'false', that's invalid => prefer omitting "ephemeral"
-	if src == StringFalse {
+	if isLiteral && !value {
 		return runner.EmitIssue(
 			r,
 			"ephemeral should not be set to false (omit instead)",
