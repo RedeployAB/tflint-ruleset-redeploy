@@ -20,19 +20,8 @@ func readFixture(t *testing.T, filename string) string {
 	return string(content)
 }
 
-func TestGetAttributeRawText(t *testing.T) {
-	// We'll inline a small .tf snippet, parse it, and then verify
-	// that GetAttributeRawText() retrieves each attribute's raw text correctly.
-	source := `
-variable "test" {
-	description = "Just a test"
-	type        = bool
-	default     = null
-	sensitive   = false
-}
-`
-
-	// Use the TFLint helper's TestRunner to parse this snippet as "test.tf"
+// Helper function to parse test source and extract variable block
+func parseTestVariable(t *testing.T, source string) (*hclsyntax.Block, []byte) {
 	runner := helper.TestRunner(t, map[string]string{
 		"test.tf": source,
 	})
@@ -47,7 +36,6 @@ variable "test" {
 		t.Fatal("Failed to retrieve file contents for test.tf")
 	}
 
-	// Parse the file as HCL syntax
 	syntaxFile, diags := hclsyntax.ParseConfig(f.Bytes, "test.tf", hcl.InitialPos)
 	if diags.HasErrors() {
 		t.Fatalf("Parse error: %v", diags)
@@ -58,62 +46,61 @@ variable "test" {
 		t.Fatal("Parsed file body is not an *hclsyntax.Body")
 	}
 
-	// Expect exactly one block: variable "test"
 	if len(body.Blocks) != 1 {
 		t.Fatalf("Expected 1 block, got %d", len(body.Blocks))
 	}
 
-	variableBlock := body.Blocks[0]
+	return body.Blocks[0], f.Bytes
+}
 
-	// Fetch each attribute from the variable block
-	descriptionAttr := variableBlock.Body.Attributes["description"]
-	typeAttr := variableBlock.Body.Attributes["type"]
-	defaultAttr := variableBlock.Body.Attributes["default"]
-	sensitiveAttr := variableBlock.Body.Attributes["sensitive"]
+func TestGetAttributeRawText(t *testing.T) {
+	source := `
+variable "test" {
+	description = "Just a test"
+	type        = bool
+	default     = null
+	sensitive   = false
+}
+`
 
-	// Check each attribute's raw text
-	descText, err := GetAttributeRawText(descriptionAttr, f.Bytes)
-	if err != nil {
-		t.Errorf("Unexpected error from GetAttributeRawText for description: %v", err)
-	}
-	if descText != `"Just a test"` {
-		t.Errorf("Expected description = \"Just a test\", got %q", descText)
-	}
+	variableBlock, fileBytes := parseTestVariable(t, source)
 
-	typeText, err := GetAttributeRawText(typeAttr, f.Bytes)
-	if err != nil {
-		t.Errorf("Unexpected error from GetAttributeRawText for type: %v", err)
-	}
-	if typeText != "bool" {
-		t.Errorf("Expected type = bool, got %q", typeText)
-	}
-
-	defaultText, err := GetAttributeRawText(defaultAttr, f.Bytes)
-	if err != nil {
-		t.Errorf("Unexpected error from GetAttributeRawText for default: %v", err)
-	}
-	if defaultText != "null" {
-		t.Errorf("Expected default = null, got %q", defaultText)
+	// Table-driven tests for attributes
+	tests := []struct {
+		name     string
+		attrName string
+		expected string
+	}{
+		{"description", "description", `"Just a test"`},
+		{"type", "type", "bool"},
+		{"default", "default", "null"},
+		{"sensitive", "sensitive", "false"},
 	}
 
-	sensitiveText, err := GetAttributeRawText(sensitiveAttr, f.Bytes)
-	if err != nil {
-		t.Errorf("Unexpected error from GetAttributeRawText for sensitive: %v", err)
-	}
-	if sensitiveText != "false" {
-		t.Errorf("Expected sensitive = false, got %q", sensitiveText)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			attr := variableBlock.Body.Attributes[tc.attrName]
+			text, err := GetAttributeRawText(attr, fileBytes)
+			if err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if text != tc.expected {
+				t.Errorf("Expected %s = %s, got %q", tc.attrName, tc.expected, text)
+			}
+		})
 	}
 
 	// Test error conditions
 	t.Run("nil attribute", func(t *testing.T) {
-		_, err := GetAttributeRawText(nil, f.Bytes)
+		_, err := GetAttributeRawText(nil, fileBytes)
 		if err == nil {
 			t.Error("Expected error for nil attribute, got none")
 		}
 	})
 
 	t.Run("nil fileBytes", func(t *testing.T) {
-		_, err := GetAttributeRawText(descriptionAttr, nil)
+		attr := variableBlock.Body.Attributes["description"]
+		_, err := GetAttributeRawText(attr, nil)
 		if err == nil {
 			t.Error("Expected error for nil fileBytes, got none")
 		}
