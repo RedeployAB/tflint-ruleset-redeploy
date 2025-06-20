@@ -180,72 +180,41 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	return nil
 }
 
-// We'll do proper HCL expression evaluation with fallback to text parsing for edge cases.
+// We'll do proper HCL expression evaluation.
 func isTypeBool(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
-	// First try HCL evaluation for string type
-	var typeStr string
-	if err := runner.EvaluateExpr(attr.Expr, &typeStr, nil); err == nil {
-		return strings.ToLower(strings.TrimSpace(typeStr)) == "bool", nil
+	// Type expressions like "bool" are not evaluated as strings, they are identifiers
+	// We need to check the expression type directly
+	if _, ok := attr.Expr.(*hclsyntax.LiteralValueExpr); ok {
+		// If it's a literal value, check if it's the string "bool"
+		var val string
+		if err := runner.EvaluateExpr(attr.Expr, &val, nil); err == nil {
+			return strings.ToLower(strings.TrimSpace(val)) == "bool", nil
+		}
+	} else if scopeExpr, ok := attr.Expr.(*hclsyntax.ScopeTraversalExpr); ok {
+		// For type expressions like `bool`, check the traversal
+		if len(scopeExpr.Traversal) == 1 {
+			if root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot); ok {
+				return strings.ToLower(root.Name) == "bool", nil
+			}
+		}
 	}
-	
-	// Fallback to text-based parsing for literal values
-	files, err := runner.GetFiles()
-	if err != nil {
-		return false, err
-	}
-	fileBytes := files[attr.Range().Filename].Bytes
-	
-	rng := attr.Expr.Range()
-	if rng.End.Byte > len(fileBytes) || rng.Start.Byte >= rng.End.Byte {
-		return false, nil
-	}
-	src := string(fileBytes[rng.Start.Byte:rng.End.Byte])
-	src = strings.ToLower(strings.TrimSpace(src))
-	return src == "bool", nil
+	return false, nil
 }
 
 func isAttrNull(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
-	// First try HCL evaluation
-	var value interface{}
-	if err := runner.EvaluateExpr(attr.Expr, &value, nil); err == nil {
-		return value == nil, nil
+	// Check if the expression is a literal null
+	if expr, ok := attr.Expr.(*hclsyntax.LiteralValueExpr); ok {
+		// The Val field is a cty.Value - check if it's null
+		return expr.Val.IsNull(), nil
 	}
-	
-	// Fallback to text-based parsing for literal null
-	files, err := runner.GetFiles()
-	if err != nil {
-		return false, err
-	}
-	fileBytes := files[attr.Range().Filename].Bytes
-	
-	rng := attr.Expr.Range()
-	if rng.End.Byte > len(fileBytes) || rng.Start.Byte >= rng.End.Byte {
-		return false, nil
-	}
-	src := string(fileBytes[rng.Start.Byte:rng.End.Byte])
-	src = strings.ToLower(strings.TrimSpace(src))
-	return src == "null", nil
+	return false, nil
 }
 
 func isAttrTrue(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
-	// First try HCL evaluation
 	var value bool
-	if err := runner.EvaluateExpr(attr.Expr, &value, nil); err == nil {
-		return value, nil
-	}
-	
-	// Fallback to text-based parsing for literal boolean
-	files, err := runner.GetFiles()
-	if err != nil {
-		return false, err
-	}
-	fileBytes := files[attr.Range().Filename].Bytes
-	
-	rng := attr.Expr.Range()
-	if rng.End.Byte > len(fileBytes) || rng.Start.Byte >= rng.End.Byte {
+	if err := runner.EvaluateExpr(attr.Expr, &value, nil); err != nil {
+		// For non-boolean expressions, return false
 		return false, nil
 	}
-	src := string(fileBytes[rng.Start.Byte:rng.End.Byte])
-	src = strings.ToLower(strings.TrimSpace(src))
-	return src == "true", nil
+	return value, nil
 }

@@ -84,7 +84,7 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 	block *hclsyntax.Block,
 	runner tflint.Runner,
 ) error {
-	// We'll gather the "sensitive" attribute text
+	// We'll gather the "sensitive" attribute
 	var sensitiveAttr *hclsyntax.Attribute
 
 	for _, attr := range block.Body.Attributes {
@@ -98,36 +98,15 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 		return nil // No "sensitive" => fine
 	}
 
-	// First try HCL evaluation
+	// Evaluate the sensitive attribute value
 	var value bool
-	if err := runner.EvaluateExpr(sensitiveAttr.Expr, &value, nil); err == nil {
-		// If we see 'false', that's invalid => prefer omitting "sensitive"
-		if !value {
-			return runner.EmitIssue(
-				r,
-				"sensitive should not be set to false (omit instead)",
-				sensitiveAttr.Range(),
-			)
-		}
+	if err := runner.EvaluateExpr(sensitiveAttr.Expr, &value, nil); err != nil {
+		// Handle non-boolean expressions gracefully
 		return nil
 	}
-
-	// Fallback to text-based parsing for literal boolean
-	files, err := runner.GetFiles()
-	if err != nil {
-		return err
-	}
-	fileBytes := files[block.DefRange().Filename].Bytes
-
-	rng := sensitiveAttr.Expr.Range()
-	if rng.End.Byte > len(fileBytes) || rng.Start.Byte >= rng.End.Byte {
-		return nil
-	}
-	src := string(fileBytes[rng.Start.Byte:rng.End.Byte])
-	src = strings.ToLower(strings.TrimSpace(src))
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
-	if src == StringFalse {
+	if !value {
 		return runner.EmitIssue(
 			r,
 			"sensitive should not be set to false (omit instead)",
