@@ -22,6 +22,10 @@ const (
 	// For modules
 	TypeModule = "module"
 
+	// Reference types
+	TypeVar   = "var"
+	TypeLocal = "local"
+
 	// Common string constants
 	StringFalse = "false"
 )
