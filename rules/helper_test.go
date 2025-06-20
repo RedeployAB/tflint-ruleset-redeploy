@@ -125,3 +125,84 @@ func TestMax(t *testing.T) {
 		}
 	}
 }
+
+func TestParseAttributeText(t *testing.T) {
+	source := `
+variable "test" {
+	description = "  Just a Test  "
+	type        = bool
+	default     = null
+	sensitive   = false
+}
+`
+
+	variableBlock, fileBytes := parseTestVariable(t, source)
+
+	tests := []struct {
+		name        string
+		attrName    string
+		skipOnError bool
+		expected    string
+		expectError bool
+	}{
+		{"description with spaces and case", "description", true, `"  just a test  "`, false},
+		{"type", "type", true, "bool", false},
+		{"default", "default", true, "null", false},
+		{"sensitive", "sensitive", true, "false", false},
+		{"description no skip", "description", false, `"  just a test  "`, false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			attr := variableBlock.Body.Attributes[tc.attrName]
+			text, err := parseAttributeText(attr, fileBytes, tc.skipOnError)
+
+			if tc.expectError && err == nil {
+				t.Error("Expected error but got none")
+			}
+			if !tc.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if text != tc.expected {
+				t.Errorf("Expected %q, got %q", tc.expected, text)
+			}
+		})
+	}
+
+	// Test error conditions
+	t.Run("nil attribute with skipOnError true", func(t *testing.T) {
+		text, err := parseAttributeText(nil, fileBytes, true)
+		if err != nil {
+			t.Error("Expected no error when skipOnError is true, got:", err)
+		}
+		if text != "" {
+			t.Errorf("Expected empty string, got %q", text)
+		}
+	})
+
+	t.Run("nil attribute with skipOnError false", func(t *testing.T) {
+		_, err := parseAttributeText(nil, fileBytes, false)
+		if err == nil {
+			t.Error("Expected error when skipOnError is false")
+		}
+	})
+
+	t.Run("nil fileBytes with skipOnError true", func(t *testing.T) {
+		attr := variableBlock.Body.Attributes["description"]
+		text, err := parseAttributeText(attr, nil, true)
+		if err != nil {
+			t.Error("Expected no error when skipOnError is true, got:", err)
+		}
+		if text != "" {
+			t.Errorf("Expected empty string, got %q", text)
+		}
+	})
+
+	t.Run("nil fileBytes with skipOnError false", func(t *testing.T) {
+		attr := variableBlock.Body.Attributes["description"]
+		_, err := parseAttributeText(attr, nil, false)
+		if err == nil {
+			t.Error("Expected error when skipOnError is false")
+		}
+	})
+}
