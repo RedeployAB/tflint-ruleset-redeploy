@@ -84,7 +84,7 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 	block *hclsyntax.Block,
 	runner tflint.Runner,
 ) error {
-	// We'll gather the "sensitive" attribute text
+	// We'll gather the "sensitive" attribute
 	var sensitiveAttr *hclsyntax.Attribute
 
 	for _, attr := range block.Body.Attributes {
