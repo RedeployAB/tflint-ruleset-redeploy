@@ -88,7 +88,7 @@ Before marking any task as complete, ensure:
 2. ✅ `golangci-lint run` passes with no errors
 3. ✅ `make test` passes all unit tests
 4. ✅ `make e2e` passes all integration tests (this command automatically
-   builds and installs the plugin)
+    builds and installs the plugin)
 5. ✅ Documentation is updated if adding/modifying rules
 6. ✅ Commit messages follow Conventional Commits format
 
