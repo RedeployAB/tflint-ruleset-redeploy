@@ -101,12 +101,10 @@ func (r *TerraformVariableEphemeralRule) checkVariableBlock(
 	}
 	fileBytes := files[block.DefRange().Filename].Bytes
 
-	src, err := GetAttributeRawText(ephemeralAttr, fileBytes)
+	src, err := parseAttributeText(ephemeralAttr, fileBytes, true)
 	if err != nil {
-		// If we can't parse the attribute text, skip this check
-		return nil
+		return nil // parseAttributeText should not return error when skipOnError is true
 	}
-	src = strings.ToLower(strings.TrimSpace(src))
 
 	// If we see 'false', that's invalid => prefer omitting "ephemeral"
 	if src == StringFalse {

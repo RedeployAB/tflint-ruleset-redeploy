@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
@@ -32,6 +33,21 @@ func GetAttributeRawText(attr *hclsyntax.Attribute, fileBytes []byte) (string, e
 	}
 
 	return string(fileBytes[rng.Start.Byte:rng.End.Byte]), nil
+}
+
+// parseAttributeText is a helper that calls GetAttributeRawText and handles errors.
+// If skipOnError is true, it returns an empty string and nil error when GetAttributeRawText fails.
+// If skipOnError is false, it propagates the error from GetAttributeRawText.
+// When successful, it returns the text trimmed and converted to lowercase.
+func parseAttributeText(attr *hclsyntax.Attribute, fileBytes []byte, skipOnError bool) (string, error) {
+	src, err := GetAttributeRawText(attr, fileBytes)
+	if err != nil {
+		if skipOnError {
+			return "", nil
+		}
+		return "", err
+	}
+	return strings.ToLower(strings.TrimSpace(src)), nil
 }
 
 func Max(a, b int) int {

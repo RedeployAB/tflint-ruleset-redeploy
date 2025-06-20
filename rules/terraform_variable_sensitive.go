@@ -105,12 +105,10 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 	}
 	fileBytes := files[block.DefRange().Filename].Bytes
 
-	src, err := GetAttributeRawText(sensitiveAttr, fileBytes)
+	src, err := parseAttributeText(sensitiveAttr, fileBytes, true)
 	if err != nil {
-		// If we can't parse the attribute text, skip this check
-		return nil
+		return nil // parseAttributeText should not return error when skipOnError is true
 	}
-	src = strings.ToLower(strings.TrimSpace(src))
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
 	if src == StringFalse {
