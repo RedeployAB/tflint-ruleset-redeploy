@@ -106,16 +106,16 @@ func (r *TerraformLocalsMirrorAssignmentRule) checkLocals(
 			// Each attribute in this block is a local variable
 			for attrName, attr := range block.Body.Attributes {
 				// Check if this local is assigned *directly* from var.<something>
-				scopeExpr, ok := attr.Expr.(*hclsyntax.ScopeTraversalExpr)
-				if ok && len(scopeExpr.Traversal) == 2 {
-					if root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot); ok && root.Name == "var" {
-						if second, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr); ok {
+				if scopeExpr, ok := attr.Expr.(*hclsyntax.ScopeTraversalExpr); ok {
+					if len(scopeExpr.Traversal) >= 2 {
+						if root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot); ok && root.Name == TypeVar {
+							varName := scopeExpr.Traversal[1].(hcl.TraverseAttr).Name
 							// Emit an issue for any direct assignment local_name = var.<something>
 							if err := runner.EmitIssue(
 								r,
 								fmt.Sprintf(
 									"Local '%s' is assigned directly from variable '%s'. This should not be a simple mirror assignment.",
-									attrName, second.Name,
+									attrName, varName,
 								),
 								attr.Range(),
 							); err != nil {
