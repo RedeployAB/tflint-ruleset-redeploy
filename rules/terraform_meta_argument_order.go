@@ -135,12 +135,13 @@ func (r *TerraformArgumentOrderRule) collectMetaArgumentsInLexOrder(block *hclsy
 	var metaArgs []string
 	for _, i := range items {
 		// only record recognized meta arguments
-		if i.Type == TypeAttr {
+		switch i.Type {
+		case TypeAttr:
 			switch i.Name {
 			case ArgCount, ArgForEach, ArgProvider, ArgDependsOn:
 				metaArgs = append(metaArgs, i.Name)
 			}
-		} else if i.Type == TypeBlock {
+		case TypeBlock:
 			// for blocks, only "lifecycle" is a meta-argument
 			if i.Name == ArgLifecycle {
 				metaArgs = append(metaArgs, i.Name)
