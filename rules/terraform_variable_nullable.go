@@ -82,12 +82,14 @@ func (r *TerraformVariableNullableRule) checkBoolDefaultNotNull(
 	runner tflint.Runner,
 ) error {
 	if typeVal != nil && defaultVal != nil {
-		isBool, err := isTypeBool(typeVal, fileBytes)
+		// Use the new expression utility for type checking
+		typeName, isType, err := EvaluateTypeExpr(typeVal.Expr)
 		if err != nil {
 			return err
 		}
-		if isBool {
-			isDefaultNull, err := isAttrNull(defaultVal, fileBytes)
+		if isType && typeName == "bool" {
+			// Use the new expression utility for null checking
+			isDefaultNull, err := IsNullLiteral(defaultVal.Expr)
 			if err != nil {
 				return err
 			}
@@ -108,7 +110,8 @@ func (r *TerraformVariableNullableRule) checkNullDefaultAndNullableNotDeclared(
 	fileBytes []byte,
 	runner tflint.Runner,
 ) error {
-	isDefaultNull, err := isAttrNull(defaultVal, fileBytes)
+	// Use the new expression utility for null checking
+	isDefaultNull, err := IsNullLiteral(defaultVal.Expr)
 	if err != nil {
 		return err
 	}
@@ -127,11 +130,12 @@ func (r *TerraformVariableNullableRule) checkNullableFalseIfDeclared(
 	fileBytes []byte,
 	runner tflint.Runner,
 ) error {
-	isNullableTrue, err := isAttrTrue(nullableVal, fileBytes)
+	// Use the new expression utility for boolean evaluation
+	value, isLiteral, err := EvaluateBoolLiteral(nullableVal.Expr)
 	if err != nil {
 		return err
 	}
-	if isNullableTrue {
+	if isLiteral && value {
 		return runner.EmitIssue(
 			r,
 			"nullable should not be set to true (the default is already true)",
@@ -191,20 +195,5 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 }
 
 // We'll do simple textual checks by slicing the file bytes from the attribute’s expression Range.
-func isTypeBool(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
-	src = strings.ToLower(strings.TrimSpace(src))
-	return (src == "bool"), nil
-}
-
-func isAttrNull(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
-	src = strings.ToLower(strings.TrimSpace(src))
-	return (src == "null"), nil
-}
-
-func isAttrTrue(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
-	src = strings.ToLower(strings.TrimSpace(src))
-	return (src == "true"), nil
-}
+// Note: The old string-based helper functions (isTypeBool, isAttrNull, isAttrTrue) 
+// have been replaced with the new expression utilities for more robust evaluation.
