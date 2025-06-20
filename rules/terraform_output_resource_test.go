@@ -186,6 +186,57 @@ output "bad_splat" {
 				},
 			},
 		},
+		{
+			Name: "OK - references resource attribute with splat inside function",
+			Content: `
+resource "azurerm_consumption_budget_subscription" "this" {
+	count = 1
+	amount = 100
+}
+
+output "budget_amount" {
+	description = "The budget amount that was set. If a budget tag was set, this will be the value of the tag."
+	value       = one(azurerm_consumption_budget_subscription.this[*].amount)
+}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "NOT OK - references entire resource with splat inside function",
+			Content: `
+resource "aws_instance" "example" {
+	count = 2
+}
+
+output "bad_with_function" {
+	value = length(aws_instance.example[*])
+}
+`,
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Range: hcl.Range{
+						Filename: "main.tf",
+						Start:    hcl.Pos{Line: 7, Column: 2},
+						End:      hcl.Pos{Line: 7, Column: 41},
+					},
+				},
+			},
+		},
+		{
+			Name: "OK - references resource attribute in nested function",
+			Content: `
+resource "aws_instance" "example" {
+	count = 2
+}
+
+output "nested_function" {
+	value = join(",", compact(aws_instance.example[*].id))
+}
+`,
+			Issues: helper.Issues{},
+		},
 	}
 
 	rule := NewTerraformOutputResourceRule()
@@ -270,6 +321,41 @@ func TestGatherTraversals(t *testing.T) {
 				{
 					hcl.TraverseRoot{Name: "aws_instance"},
 					hcl.TraverseAttr{Name: "example"},
+					hcl.TraverseAttr{Name: "id"},
+				},
+			},
+		},
+		{
+			name:    "splat with attribute inside function",
+			exprStr: "one(azurerm_consumption_budget_subscription.this[*].amount)",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "azurerm_consumption_budget_subscription"},
+					hcl.TraverseAttr{Name: "this"},
+					hcl.TraverseSplat{},
+					hcl.TraverseAttr{Name: "amount"},
+				},
+			},
+		},
+		{
+			name:    "splat without attribute inside function",
+			exprStr: "length(aws_instance.example[*])",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
+					hcl.TraverseSplat{},
+				},
+			},
+		},
+		{
+			name:    "nested functions with splat",
+			exprStr: "join(\",\", compact(aws_instance.example[*].id))",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
+					hcl.TraverseSplat{},
 					hcl.TraverseAttr{Name: "id"},
 				},
 			},

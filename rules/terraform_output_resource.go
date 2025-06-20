@@ -129,8 +129,21 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 
 // gatherTraversals extracts and normalizes traversals from an expression
 func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hcl.Traversal {
-	// For splat expressions, we need special handling
+	// For splat expressions or function calls containing splats, we need special handling
 	if _, ok := expr.(*hclsyntax.SplatExpr); ok {
+		var collected []hcl.Traversal
+		r.walkExpression(expr, &collected)
+
+		var canonical []hcl.Traversal
+		for _, trav := range collected {
+			canonical = append(canonical, canonicalizeTraversal(trav))
+		}
+		return filterPrefixTraversals(canonical)
+	}
+
+	// For function calls, we need to walk the arguments manually
+	// since Variables() might not capture splat expressions correctly
+	if _, ok := expr.(*hclsyntax.FunctionCallExpr); ok {
 		var collected []hcl.Traversal
 		r.walkExpression(expr, &collected)
 
@@ -221,6 +234,12 @@ func (r *TerraformOutputResourceRule) walkExpression(e hcl.Expression, collected
 
 	case *hclsyntax.UnaryOpExpr:
 		r.walkExpression(typed.Val, collected)
+
+	case *hclsyntax.FunctionCallExpr:
+		// Walk all arguments of the function
+		for _, arg := range typed.Args {
+			r.walkExpression(arg, collected)
+		}
 
 	default:
 		// Try to get variables from the expression
