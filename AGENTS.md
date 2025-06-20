@@ -61,7 +61,9 @@ make test
 
 ### End-to-End Tests
 
-Run end-to-end tests:
+The end-to-end tests require the plugin to be installed. The `e2e` Makefile
+target runs `make install` automatically, so running `make e2e` will build and
+install the plugin before executing the tests.
 
 ```bash
 make e2e
@@ -85,7 +87,8 @@ Before marking any task as complete, ensure:
 1. ✅ All code changes follow Go best practices
 2. ✅ `golangci-lint run` passes with no errors
 3. ✅ `make test` passes all unit tests
-4. ✅ `make e2e` passes all integration tests (if changes affect rule behavior)
+4. ✅ `make e2e` passes all integration tests (this command automatically
+    builds and installs the plugin)
 5. ✅ Documentation is updated if adding/modifying rules
 6. ✅ Commit messages follow Conventional Commits format
 
@@ -112,7 +115,7 @@ make install
 # Run unit tests
 make test
 
-# Run integration tests
+# Run integration tests (plugin will be built and installed automatically)
 make e2e
 
 # Run linter

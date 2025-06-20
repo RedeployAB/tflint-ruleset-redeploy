@@ -19,7 +19,7 @@ else
 	mv ./tflint-ruleset-redeploy ~/.tflint.d/plugins
 endif
 
-e2e:
+e2e: install
 	cd integration && go test -v && cd ../
 
-.PHONY: test build install
+.PHONY: test build install e2e
