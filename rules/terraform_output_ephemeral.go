@@ -93,9 +93,9 @@ func (r *TerraformOutputEphemeralRule) checkOutputBlock(
 		return nil // ephemeral not defined => no problem
 	}
 
-	// Evaluate the ephemeral attribute value
-	var value bool
-	if err := runner.EvaluateExpr(ephemeralAttr.Expr, &value, nil); err != nil {
+	// Evaluate the ephemeral attribute value using the helper function
+	value, ok := evaluateBooleanAttribute(runner, ephemeralAttr.Expr)
+	if !ok {
 		// Handle non-boolean expressions gracefully
 		return nil
 	}

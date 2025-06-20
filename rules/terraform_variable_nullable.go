@@ -211,8 +211,8 @@ func isAttrNull(attr *hclsyntax.Attribute) (bool, error) {
 }
 
 func isAttrTrue(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
-	var value bool
-	if err := runner.EvaluateExpr(attr.Expr, &value, nil); err != nil {
+	value, ok := evaluateBooleanAttribute(runner, attr.Expr)
+	if !ok {
 		// For non-boolean expressions, return false
 		return false, nil
 	}

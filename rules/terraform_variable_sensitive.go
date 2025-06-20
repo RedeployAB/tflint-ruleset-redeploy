@@ -98,9 +98,9 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 		return nil // No "sensitive" => fine
 	}
 
-	// Evaluate the sensitive attribute value
-	var value bool
-	if err := runner.EvaluateExpr(sensitiveAttr.Expr, &value, nil); err != nil {
+	// Evaluate the sensitive attribute value using the helper function
+	value, ok := evaluateBooleanAttribute(runner, sensitiveAttr.Expr)
+	if !ok {
 		// Handle non-boolean expressions gracefully
 		return nil
 	}
