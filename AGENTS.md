@@ -9,9 +9,9 @@ requirements, and installation details, see the [README](README.md).
 This is a Go project implementing a custom TFLint ruleset for the Redeploy
 Terraform style guide. Ensure you have the following prerequisites:
 
-- Go v1.23+
+- Go v1.24+
 - TFLint v0.42+
-- golangci-lint installed
+- golangci-lint v2.1.5+
 
 ## Building the Project
 
@@ -53,7 +53,7 @@ unit and integration tests:
 
 ### Unit Tests
 
-Run unit tests (excludes integration tests):
+Run unit tests:
 
 ```bash
 make test
@@ -61,7 +61,7 @@ make test
 
 ### End-to-End Tests
 
-Run integration/end-to-end tests:
+Run end-to-end tests:
 
 ```bash
 make e2e
