@@ -91,7 +91,7 @@ func (r *TerraformProviderSourceOrderRule) checkRequiredProvidersBlock(
 	// We want to ensure `source` appears before `version`.
 	for name, attr := range block.Body.Attributes {
 		// attr.Expr should be an object, so parse it as an HCL syntax object
-		// or skip if it’s not an object expression.
+		// or skip if it's not an object expression.
 		if obj, ok := attr.Expr.(*hclsyntax.ObjectConsExpr); ok {
 			if err := r.checkProviderObject(obj, name, runner); err != nil {
 				return err

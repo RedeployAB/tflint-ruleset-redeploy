@@ -72,25 +72,52 @@ variable "test" {
 	sensitiveAttr := variableBlock.Body.Attributes["sensitive"]
 
 	// Check each attribute's raw text
-	descText := GetAttributeRawText(descriptionAttr, f.Bytes)
+	descText, err := GetAttributeRawText(descriptionAttr, f.Bytes)
+	if err != nil {
+		t.Errorf("Unexpected error from GetAttributeRawText for description: %v", err)
+	}
 	if descText != `"Just a test"` {
 		t.Errorf("Expected description = \"Just a test\", got %q", descText)
 	}
 
-	typeText := GetAttributeRawText(typeAttr, f.Bytes)
+	typeText, err := GetAttributeRawText(typeAttr, f.Bytes)
+	if err != nil {
+		t.Errorf("Unexpected error from GetAttributeRawText for type: %v", err)
+	}
 	if typeText != "bool" {
 		t.Errorf("Expected type = bool, got %q", typeText)
 	}
 
-	defaultText := GetAttributeRawText(defaultAttr, f.Bytes)
+	defaultText, err := GetAttributeRawText(defaultAttr, f.Bytes)
+	if err != nil {
+		t.Errorf("Unexpected error from GetAttributeRawText for default: %v", err)
+	}
 	if defaultText != "null" {
 		t.Errorf("Expected default = null, got %q", defaultText)
 	}
 
-	sensitiveText := GetAttributeRawText(sensitiveAttr, f.Bytes)
+	sensitiveText, err := GetAttributeRawText(sensitiveAttr, f.Bytes)
+	if err != nil {
+		t.Errorf("Unexpected error from GetAttributeRawText for sensitive: %v", err)
+	}
 	if sensitiveText != "false" {
 		t.Errorf("Expected sensitive = false, got %q", sensitiveText)
 	}
+
+	// Test error conditions
+	t.Run("nil attribute", func(t *testing.T) {
+		_, err := GetAttributeRawText(nil, f.Bytes)
+		if err == nil {
+			t.Error("Expected error for nil attribute, got none")
+		}
+	})
+
+	t.Run("nil fileBytes", func(t *testing.T) {
+		_, err := GetAttributeRawText(descriptionAttr, nil)
+		if err == nil {
+			t.Error("Expected error for nil fileBytes, got none")
+		}
+	})
 }
 
 func TestMax(t *testing.T) {

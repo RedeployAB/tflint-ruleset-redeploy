@@ -81,6 +81,7 @@ func (r *TerraformOutputEphemeralRule) checkOutputBlock(
 	block *hclsyntax.Block,
 	runner tflint.Runner,
 ) error {
+	// We'll gather the "ephemeral" attribute text
 	var ephemeralAttr *hclsyntax.Attribute
 
 	for _, attr := range block.Body.Attributes {
@@ -89,19 +90,26 @@ func (r *TerraformOutputEphemeralRule) checkOutputBlock(
 			break
 		}
 	}
+
 	if ephemeralAttr == nil {
-		return nil // ephemeral not defined => no problem
+		return nil // No "ephemeral" => fine
 	}
 
+	// Slice the raw text for "ephemeral"
 	files, err := runner.GetFiles()
 	if err != nil {
 		return err
 	}
 	fileBytes := files[block.DefRange().Filename].Bytes
 
-	src := GetAttributeRawText(ephemeralAttr, fileBytes)
+	src, err := GetAttributeRawText(ephemeralAttr, fileBytes)
+	if err != nil {
+		// If we can't parse the attribute text, skip this check
+		return nil
+	}
 	src = strings.ToLower(strings.TrimSpace(src))
 
+	// If we see 'false', that's invalid => prefer omitting "ephemeral"
 	if src == StringFalse {
 		return runner.EmitIssue(
 			r,

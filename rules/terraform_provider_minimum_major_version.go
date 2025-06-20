@@ -109,7 +109,12 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 	var versionRange hcl.Range
 
 	for _, kv := range obj.Items {
-		if strings.TrimSpace(hcl.ExprAsKeyword(kv.KeyExpr)) != argVersion {
+		keyName := strings.TrimSpace(hcl.ExprAsKeyword(kv.KeyExpr))
+		if keyName == "" {
+			// Skip if key extraction fails
+			continue
+		}
+		if keyName != argVersion {
 			continue
 		}
 

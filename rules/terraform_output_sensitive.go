@@ -84,7 +84,9 @@ func (r *TerraformOutputSensitiveRule) checkOutputBlock(
 	block *hclsyntax.Block,
 	runner tflint.Runner,
 ) error {
+	// We'll gather the "sensitive" attribute text
 	var sensitiveAttr *hclsyntax.Attribute
+
 	for _, attr := range block.Body.Attributes {
 		if strings.EqualFold(attr.Name, "sensitive") {
 			sensitiveAttr = attr
@@ -96,13 +98,18 @@ func (r *TerraformOutputSensitiveRule) checkOutputBlock(
 		return nil // No "sensitive" => fine
 	}
 
+	// Slice the raw text for "sensitive"
 	files, err := runner.GetFiles()
 	if err != nil {
 		return err
 	}
 	fileBytes := files[block.DefRange().Filename].Bytes
 
-	src := GetAttributeRawText(sensitiveAttr, fileBytes)
+	src, err := GetAttributeRawText(sensitiveAttr, fileBytes)
+	if err != nil {
+		// If we can't parse the attribute text, skip this check
+		return nil
+	}
 	src = strings.ToLower(strings.TrimSpace(src))
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
@@ -113,5 +120,6 @@ func (r *TerraformOutputSensitiveRule) checkOutputBlock(
 			sensitiveAttr.Range(),
 		)
 	}
+
 	return nil
 }

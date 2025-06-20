@@ -190,21 +190,30 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	return nil
 }
 
-// We'll do simple textual checks by slicing the file bytes from the attribute’s expression Range.
+// We'll do simple textual checks by slicing the file bytes from the attribute's expression Range.
 func isTypeBool(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
+	src, err := GetAttributeRawText(attr, fileBytes)
+	if err != nil {
+		return false, err
+	}
 	src = strings.ToLower(strings.TrimSpace(src))
 	return (src == "bool"), nil
 }
 
 func isAttrNull(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
+	src, err := GetAttributeRawText(attr, fileBytes)
+	if err != nil {
+		return false, err
+	}
 	src = strings.ToLower(strings.TrimSpace(src))
 	return (src == "null"), nil
 }
 
 func isAttrTrue(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
+	src, err := GetAttributeRawText(attr, fileBytes)
+	if err != nil {
+		return false, err
+	}
 	src = strings.ToLower(strings.TrimSpace(src))
 	return (src == "true"), nil
 }
