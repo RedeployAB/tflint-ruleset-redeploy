@@ -2,7 +2,7 @@
 
 Welcome to the tflint-ruleset-redeploy repository. This guide summarizes best
 practices for agents working on this codebase. For repository structure,
-requirements, and installation details, see the [README](README.md).
+requirements, and installation details, see the [README.md](README.md).
 
 ## Development Setup
 
@@ -34,7 +34,7 @@ Use the
 for all commit messages. The repository uses commitlint to enforce this.
 Examples:
 
-```
+```text
 feat: add terraform_resource_name rule
 fix: correct validation logic for output arguments
 docs: update rule documentation for terraform_locals_file
@@ -95,7 +95,7 @@ When adding or modifying TFLint rules:
 
 1. Rule implementations go in the `rules/` directory
 2. Each rule should have a corresponding test file (e.g.,
-   `terraform_rule_name.go` and `terraform_rule_name_test.go`)
+  `terraform_rule_name.go` and `terraform_rule_name_test.go`)
 3. Test data files go in `rules/testdata/`
 4. Update the rule documentation in `docs/rules/` when adding new rules
 5. Follow the existing patterns for rule implementation and testing
