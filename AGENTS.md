@@ -1,10 +1,13 @@
 # Repository Agent Guide
 
-Welcome to the tflint-ruleset-redeploy repository. This guide summarizes best practices for agents working on this codebase. For repository structure, requirements, and installation details, see the [README](README.md).
+Welcome to the tflint-ruleset-redeploy repository. This guide summarizes best
+practices for agents working on this codebase. For repository structure,
+requirements, and installation details, see the [README](README.md).
 
 ## Development Setup
 
-This is a Go project implementing a custom TFLint ruleset for the Redeploy Terraform style guide. Ensure you have the following prerequisites:
+This is a Go project implementing a custom TFLint ruleset for the Redeploy
+Terraform style guide. Ensure you have the following prerequisites:
 
 - Go v1.23+
 - TFLint v0.42+
@@ -26,7 +29,10 @@ make install
 
 ## Commit Messages
 
-Use the [Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/) for all commit messages. The repository uses commitlint to enforce this. Examples:
+Use the
+[Conventional Commits specification](https://www.conventionalcommits.org/en/v1.0.0/)
+for all commit messages. The repository uses commitlint to enforce this.
+Examples:
 
 ```
 feat: add terraform_resource_name rule
@@ -42,7 +48,8 @@ Use the same Conventional Commits format for PR titles.
 
 ## Testing
 
-**Always run tests before finishing any changes.** The project has comprehensive unit and integration tests:
+**Always run tests before finishing any changes.** The project has comprehensive
+unit and integration tests:
 
 ### Unit Tests
 
@@ -68,7 +75,8 @@ make e2e
 golangci-lint run
 ```
 
-The project has a `.golangci.yaml` configuration file that defines the linting rules. Ensure your code passes all linting checks.
+The project has a `.golangci.yaml` configuration file that defines the linting
+rules. Ensure your code passes all linting checks.
 
 ## Pre-commit Checklist
 
@@ -86,7 +94,8 @@ Before marking any task as complete, ensure:
 When adding or modifying TFLint rules:
 
 1. Rule implementations go in the `rules/` directory
-2. Each rule should have a corresponding test file (e.g., `terraform_rule_name.go` and `terraform_rule_name_test.go`)
+2. Each rule should have a corresponding test file (e.g.,
+   `terraform_rule_name.go` and `terraform_rule_name_test.go`)
 3. Test data files go in `rules/testdata/`
 4. Update the rule documentation in `docs/rules/` when adding new rules
 5. Follow the existing patterns for rule implementation and testing
