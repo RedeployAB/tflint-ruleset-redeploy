@@ -9,7 +9,7 @@ It is currently a work in progress, rules will be added as they are developed.
 ## Requirements
 
 - TFLint v0.42+
-- Go v1.23
+- Go v1.24
 
 ## Installation
 
