@@ -52,13 +52,11 @@ func (r *TerraformOutputResourceRule) Check(runner tflint.Runner) error {
 		if hclFile == nil || hclFile.Bytes == nil {
 			continue
 		}
-		// Use hclsyntax.ParseConfig instead of hcl.ParseConfig
 		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
 		if diags.HasErrors() {
 			continue
 		}
 
-		// Cast syntaxFile.Body to *hclsyntax.Body
 		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
 			blocks := r.collectOutputBlocks(body)
 			if err := r.checkAllOutputBlocks(blocks, runner); err != nil {
@@ -105,17 +103,15 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	if !ok {
 		return nil
 	}
-	expr := valAttr.Expr
 
-	// Use new helper
-	traversals := r.gatherTraversals(expr)
+	// Gather traversals from the expression
+	traversals := r.gatherTraversals(valAttr.Expr)
 	if len(traversals) == 0 {
 		return nil
 	}
 
-	// If any of the traversals is a "bare" resource reference => report
+	// Check if any traversal is a bare resource reference
 	for _, trav := range traversals {
-		// Only check if the root is "data" or a resource
 		if !isResourceRootTraversal(trav) {
 			continue
 		}
@@ -131,243 +127,161 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	return nil
 }
 
-// gatherTraversals canonicalizes and filters out prefix traversals
+// gatherTraversals extracts and normalizes traversals from an expression
 func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hcl.Traversal {
-	var collected []hcl.Traversal
-	r.walkExpression(expr, &collected)
-	if len(collected) == 0 {
-		return nil
+	// For splat expressions, we need special handling
+	if _, ok := expr.(*hclsyntax.SplatExpr); ok {
+		var collected []hcl.Traversal
+		r.walkExpression(expr, &collected)
+
+		var canonical []hcl.Traversal
+		for _, trav := range collected {
+			canonical = append(canonical, canonicalizeTraversal(trav))
+		}
+		return filterPrefixTraversals(canonical)
 	}
 
+	// For other expressions, try HCL's built-in variable extraction first
+	vars := expr.Variables()
+	if len(vars) > 0 {
+		// Check if we need to canonicalize any of the traversals
+		needsCanonical := false
+		for _, trav := range vars {
+			for _, step := range trav {
+				if attr, ok := step.(hcl.TraverseAttr); ok {
+					if strings.Contains(attr.Name, "[") || strings.Contains(attr.Name, ".") {
+						needsCanonical = true
+						break
+					}
+				}
+			}
+			if needsCanonical {
+				break
+			}
+		}
+
+		// If no canonicalization needed, use the vars directly
+		if !needsCanonical {
+			return filterPrefixTraversals(vars)
+		}
+
+		// Canonicalize if needed
+		var canonical []hcl.Traversal
+		for _, trav := range vars {
+			canonical = append(canonical, canonicalizeTraversal(trav))
+		}
+		return filterPrefixTraversals(canonical)
+	}
+
+	// Fall back to manual walking for complex cases
+	var collected []hcl.Traversal
+	r.walkExpression(expr, &collected)
+
+	// Canonicalize traversals to handle complex attribute names
 	var canonical []hcl.Traversal
 	for _, trav := range collected {
 		canonical = append(canonical, canonicalizeTraversal(trav))
 	}
+
 	return filterPrefixTraversals(canonical)
 }
 
-// walkExpression recursively walks the expression and appends found traversals into collected.
+// walkExpression recursively walks the expression to collect traversals
 func (r *TerraformOutputResourceRule) walkExpression(e hcl.Expression, collected *[]hcl.Traversal) {
 	switch typed := e.(type) {
 	case *hclsyntax.ScopeTraversalExpr:
 		*collected = append(*collected, typed.Traversal)
 
 	case *hclsyntax.SplatExpr:
-		r.handleSplatExpr(typed, collected)
-
-	case *hclsyntax.LiteralValueExpr:
-		r.handleLiteralValueExpr(typed, collected)
+		r.walkSplatExpr(typed, collected)
 
 	case *hclsyntax.ConditionalExpr:
-		r.handleConditionalExpr(typed, collected)
-
-	case *hclsyntax.BinaryOpExpr:
-		r.handleBinaryOpExpr(typed, collected)
-
-	case *hclsyntax.UnaryOpExpr:
-		r.handleUnaryOpExpr(typed, collected)
+		r.walkExpression(typed.Condition, collected)
+		r.walkExpression(typed.TrueResult, collected)
+		r.walkExpression(typed.FalseResult, collected)
 
 	case *hclsyntax.TemplateExpr:
-		if !r.handleTemplateExpr(typed, collected) {
-			for _, part := range typed.Parts {
-				r.walkExpression(part, collected)
-			}
+		for _, part := range typed.Parts {
+			r.walkExpression(part, collected)
 		}
 
 	case *hclsyntax.TupleConsExpr:
-		r.handleTupleConsExpr(typed, collected)
+		for _, elem := range typed.Exprs {
+			r.walkExpression(elem, collected)
+		}
 
 	case *hclsyntax.ObjectConsExpr:
-		r.handleObjectConsExpr(typed, collected)
+		for _, item := range typed.Items {
+			r.walkExpression(item.ValueExpr, collected)
+		}
+
+	case *hclsyntax.BinaryOpExpr:
+		r.walkExpression(typed.LHS, collected)
+		r.walkExpression(typed.RHS, collected)
+
+	case *hclsyntax.UnaryOpExpr:
+		r.walkExpression(typed.Val, collected)
 
 	default:
-		if t, ok := e.(interface{ Traversal() hcl.Traversal }); ok {
-			*collected = append(*collected, t.Traversal())
-		}
+		// Try to get variables from the expression
+		vars := e.Variables()
+		*collected = append(*collected, vars...)
 	}
 }
 
-// getTrav extracts a traversal from an expression.
-func (r *TerraformOutputResourceRule) getTrav(e hcl.Expression) hcl.Traversal {
-	if st, ok := e.(*hclsyntax.ScopeTraversalExpr); ok {
-		return canonicalizeTraversal(st.Traversal)
-	}
-	if rt, ok := e.(*hclsyntax.RelativeTraversalExpr); ok {
-		var base hcl.Traversal
-		if src, ok := rt.Source.(*hclsyntax.ScopeTraversalExpr); ok {
-			base = append([]hcl.Traverser{}, src.Traversal...)
-		}
-		base = append(base, rt.Traversal...)
-		return base
-	}
-	travs := r.gatherTraversals(e)
-	if len(travs) > 0 {
-		return travs[0]
-	}
-	return nil
-}
+// walkSplatExpr handles splat expressions specially
+func (r *TerraformOutputResourceRule) walkSplatExpr(e *hclsyntax.SplatExpr, collected *[]hcl.Traversal) {
+	// Get the base traversal from the source
+	sourceVars := e.Source.Variables()
 
-func (r *TerraformOutputResourceRule) handleSplatExpr(e *hclsyntax.SplatExpr, collected *[]hcl.Traversal) {
-	baseTrav := r.getTrav(e.Each)
-	if baseTrav == nil {
-		baseTrav = r.getTrav(e.Source)
-	}
-	for _, step := range baseTrav {
-		if _, ok := step.(hcl.TraverseSplat); ok {
-			return
-		}
-	}
-	if len(baseTrav) > 0 {
-		baseTrav = append(append([]hcl.Traverser{}, baseTrav...), hcl.TraverseSplat{})
-		if e.Item != nil {
-			itemTrav := r.getTrav(e.Item)
-			if itemTrav != nil {
-				baseTrav = append(baseTrav, itemTrav...)
+	// Check if there's an Each expression (e.g., the .id in resource[*].id)
+	var eachSteps []hcl.Traverser
+	if e.Each != nil {
+		// Try to extract traversal steps from the Each expression
+		if scopeTrav, ok := e.Each.(*hclsyntax.ScopeTraversalExpr); ok {
+			// Skip the first step if it's a root (usually it's a relative traversal)
+			for i, step := range scopeTrav.Traversal {
+				if i == 0 {
+					if _, isRoot := step.(hcl.TraverseRoot); isRoot {
+						continue
+					}
+				}
+				eachSteps = append(eachSteps, step)
 			}
-		}
-		*collected = append(*collected, baseTrav)
-	}
-}
-
-func (r *TerraformOutputResourceRule) handleLiteralValueExpr(e *hclsyntax.LiteralValueExpr, collected *[]hcl.Traversal) {
-	if e.Val.Type() == cty.String {
-		s := e.Val.AsString()
-		expr2, diags := hclsyntax.ParseExpression([]byte(s), "", hcl.InitialPos)
-		if !diags.HasErrors() {
-			r.walkExpression(expr2, collected)
+		} else if relTrav, ok := e.Each.(*hclsyntax.RelativeTraversalExpr); ok {
+			eachSteps = relTrav.Traversal
 		}
 	}
-}
 
-func (r *TerraformOutputResourceRule) handleConditionalExpr(e *hclsyntax.ConditionalExpr, collected *[]hcl.Traversal) {
-	r.walkExpression(e.Condition, collected)
-	r.walkExpression(e.TrueResult, collected)
-	r.walkExpression(e.FalseResult, collected)
-}
-
-func (r *TerraformOutputResourceRule) handleBinaryOpExpr(e *hclsyntax.BinaryOpExpr, collected *[]hcl.Traversal) {
-	r.walkExpression(e.LHS, collected)
-	r.walkExpression(e.RHS, collected)
-}
-
-func (r *TerraformOutputResourceRule) handleUnaryOpExpr(e *hclsyntax.UnaryOpExpr, collected *[]hcl.Traversal) {
-	r.walkExpression(e.Val, collected)
-}
-
-// handleTemplateExpr returns true if it successfully handled the template expression.
-func (r *TerraformOutputResourceRule) handleTemplateExpr(e *hclsyntax.TemplateExpr, collected *[]hcl.Traversal) bool {
-	if len(e.Parts) == 1 {
-		if lit, ok := e.Parts[0].(*hclsyntax.LiteralValueExpr); ok && lit.Val.Type() == cty.String {
-			expr2, diags := hclsyntax.ParseExpression([]byte(lit.Val.AsString()), "dummy.tf", hcl.InitialPos)
-			if !diags.HasErrors() {
-				r.walkExpression(expr2, collected)
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (r *TerraformOutputResourceRule) handleTupleConsExpr(e *hclsyntax.TupleConsExpr, collected *[]hcl.Traversal) {
-	for _, elem := range e.Exprs {
-		r.walkExpression(elem, collected)
+	for _, trav := range sourceVars {
+		// Build the complete traversal: source + splat + each
+		fullTrav := make(hcl.Traversal, 0, len(trav)+1+len(eachSteps))
+		fullTrav = append(fullTrav, trav...)
+		fullTrav = append(fullTrav, hcl.TraverseSplat{})
+		fullTrav = append(fullTrav, eachSteps...)
+		*collected = append(*collected, fullTrav)
 	}
 }
 
-func (r *TerraformOutputResourceRule) handleObjectConsExpr(e *hclsyntax.ObjectConsExpr, collected *[]hcl.Traversal) {
-	for _, item := range e.Items {
-		r.walkExpression(item.KeyExpr, collected)
-		r.walkExpression(item.ValueExpr, collected)
-	}
-}
-
-// isFullResourceReference checks if the traversal looks like a bare resource reference
-// e.g., "aws_instance.foo", "aws_instance.foo[0]", "aws_instance.foo[*]",
-// or "data.aws_instance.foo" with no sub-attributes after the name.
-func (r *TerraformOutputResourceRule) isFullResourceReference(trav hcl.Traversal) bool {
-	length := len(trav)
-	if length < 2 {
-		return false
-	}
-	if !isResourceRootTraversal(trav) {
-		return false
-	}
-
-	// Special handling: if the root is "data", then a 3-step reference (data + 2 attributes) is "entire data resource".
-	// e.g. data.aws_caller_identity.current => length=3 => entire
-	if trav[0].(hcl.TraverseRoot).Name == "data" && length == 3 {
-		return true
-	}
-
-	// If we only have two steps (e.g., "aws_instance.example"),
-	// that is the entire resource (no sub-attributes).
-	if length == 2 {
-		return true
-	}
-
-	// If it ends with an attribute, then we assume it's referencing
-	// some sub-attribute => partial => no error.
-	if endsWithAttribute(trav) {
-		return false
-	}
-
-	// Otherwise (e.g., "aws_instance.example[0]", "aws_instance.example[*]", etc.), it's entire.
-	return true
-}
-
-// isResourceRootTraversal returns true if the traversal root is "data" or neither var/local/module nor empty (thus presumably a resource).
-func isResourceRootTraversal(trav hcl.Traversal) bool {
-	if len(trav) == 0 {
-		return false
-	}
-	root, ok := trav[0].(hcl.TraverseRoot)
-	if !ok {
-		return false
-	}
-	switch root.Name {
-	case "var", "local", "module":
-		return false
-	}
-	return true // includes "data", "aws_*", "azurerm_*", etc.
-}
-
-// endsWithAttribute returns true if the final step is a TraverseAttr.
-func endsWithAttribute(trav hcl.Traversal) bool {
-	if len(trav) == 0 {
-		return false
-	}
-	_, ok := trav[len(trav)-1].(hcl.TraverseAttr)
-	return ok
-}
-
-// canonicalizeTraversal breaks up any hcl.TraverseAttr that includes [*] or [index] or . into multiple steps.
+// canonicalizeTraversal normalizes traversals with complex attribute names
 func canonicalizeTraversal(trav hcl.Traversal) hcl.Traversal {
 	var result hcl.Traversal
 
 	for _, step := range trav {
 		switch s := step.(type) {
 		case hcl.TraverseRoot:
-			result = append(result, hcl.TraverseRoot{Name: s.Name})
+			result = append(result, s)
 		case hcl.TraverseAttr:
-			// If s.Name includes brackets or dots, split it
-			subSteps := splitAttrName(s.Name)
-			// subSteps might be ["multiple", "[*]", "id"]
-			// We convert each piece into the right kind of traverser
-			for _, sub := range subSteps {
-				switch {
-				case sub == "[*]":
-					result = append(result, hcl.TraverseSplat{})
-				case strings.HasPrefix(sub, "[") && strings.HasSuffix(sub, "]"):
-					indexKey := strings.Trim(sub, "[]")
-					result = append(result, makeIndexStep(indexKey))
-				default:
-					result = append(result, hcl.TraverseAttr{Name: sub})
+			// Check if the attribute name contains brackets or dots
+			if strings.Contains(s.Name, "[") || strings.Contains(s.Name, ".") {
+				// Split the attribute name into parts
+				parts := splitAttrName(s.Name)
+				for _, part := range parts {
+					result = append(result, parseTraversalPart(part)...)
 				}
+			} else {
+				result = append(result, s)
 			}
-		case hcl.TraverseIndex:
-			result = append(result, hcl.TraverseIndex{Key: s.Key})
-		case hcl.TraverseSplat:
-			result = append(result, hcl.TraverseSplat{})
 		default:
 			result = append(result, step)
 		}
@@ -376,89 +290,77 @@ func canonicalizeTraversal(trav hcl.Traversal) hcl.Traversal {
 	return result
 }
 
-// splitAttrName splits an attribute like "multiple[*].id" into ["multiple", "[*]", "id"].
+// splitAttrName splits an attribute name that may contain dots and brackets
 func splitAttrName(name string) []string {
-	// Walk through name and cut on "." or bracket groups.
-	// We want to preserve bracket groups as separate tokens: "[*]", "[0]", etc.
-
 	var parts []string
-	var buf strings.Builder
+	var current strings.Builder
 
 	for i := 0; i < len(name); i++ {
-		c := name[i]
-
-		switch c {
+		switch name[i] {
 		case '.':
-			// dot means we finished one part
-			if buf.Len() > 0 {
-				parts = append(parts, buf.String())
-				buf.Reset()
+			if current.Len() > 0 {
+				parts = append(parts, current.String())
+				current.Reset()
 			}
 		case '[':
-			// flush anything we had before '['
-			if buf.Len() > 0 {
-				parts = append(parts, buf.String())
-				buf.Reset()
+			if current.Len() > 0 {
+				parts = append(parts, current.String())
+				current.Reset()
 			}
-			// now read until closing ']'
+			// Find the closing bracket
 			j := i + 1
 			for j < len(name) && name[j] != ']' {
 				j++
 			}
-			if j < len(name) && name[j] == ']' {
-				// j is at the ']'
-				parts = append(parts, name[i:j+1]) // e.g., "[*]" or "[0]"
-				i = j                              // skip ahead
+			if j < len(name) {
+				parts = append(parts, name[i:j+1])
+				i = j
 			} else {
-				// If no closing ']', treat as normal character
-				buf.WriteByte(c)
+				current.WriteByte(name[i])
 			}
 		default:
-			buf.WriteByte(c)
+			current.WriteByte(name[i])
 		}
 	}
 
-	if buf.Len() > 0 {
-		parts = append(parts, buf.String())
+	if current.Len() > 0 {
+		parts = append(parts, current.String())
 	}
 	return parts
 }
 
-// makeIndexStep tries to parse "[0]" into a numeric index step, or "*" into a splat, etc.
-func makeIndexStep(keyStr string) hcl.Traverser {
-	if keyStr == "*" {
-		return hcl.TraverseSplat{}
+// parseTraversalPart converts a string part into traversal steps
+func parseTraversalPart(part string) []hcl.Traverser {
+	if part == "[*]" {
+		return []hcl.Traverser{hcl.TraverseSplat{}}
 	}
-	// try to parse int
-	if idxVal, err := cty.ParseNumberVal(keyStr); err == nil {
-		return hcl.TraverseIndex{Key: idxVal}
+	if strings.HasPrefix(part, "[") && strings.HasSuffix(part, "]") {
+		key := strings.Trim(part, "[]\"'")
+		if idx, err := cty.ParseNumberVal(key); err == nil {
+			return []hcl.Traverser{hcl.TraverseIndex{Key: idx}}
+		}
+		return []hcl.Traverser{hcl.TraverseIndex{Key: cty.StringVal(key)}}
 	}
-	// fallback to string key
-	return hcl.TraverseIndex{Key: cty.StringVal(keyStr)}
+	return []hcl.Traverser{hcl.TraverseAttr{Name: part}}
 }
 
-// filterPrefixTraversals removes any traversal that is a strict prefix of another longer traversal.
-func filterPrefixTraversals(all []hcl.Traversal) []hcl.Traversal {
+// filterPrefixTraversals removes traversals that are prefixes of other traversals
+func filterPrefixTraversals(traversals []hcl.Traversal) []hcl.Traversal {
 	var result []hcl.Traversal
 
 outer:
-	for i, t1 := range all {
-		for j, t2 := range all {
-			if i == j {
-				continue
-			}
-			if isPrefix(t1, t2) {
-				// Skip t1 if it's a prefix of t2
+	for i, t1 := range traversals {
+		for j, t2 := range traversals {
+			if i != j && isPrefix(t1, t2) {
 				continue outer
 			}
 		}
-		// If t1 is not a prefix of any longer traversal
 		result = append(result, t1)
 	}
 	return result
 }
 
-// isPrefix returns true if t1 is strictly a prefix (same steps in order) of t2.
+// isPrefix checks if t1 is a prefix of t2
 func isPrefix(t1, t2 hcl.Traversal) bool {
 	if len(t1) >= len(t2) {
 		return false
@@ -471,7 +373,7 @@ func isPrefix(t1, t2 hcl.Traversal) bool {
 	return true
 }
 
-// stepEqual does a basic comparison of hcl.Traverser steps
+// stepEqual compares two traversal steps
 func stepEqual(a, b hcl.Traverser) bool {
 	switch aTyped := a.(type) {
 	case hcl.TraverseRoot:
@@ -480,23 +382,7 @@ func stepEqual(a, b hcl.Traverser) bool {
 		}
 	case hcl.TraverseAttr:
 		if bTyped, ok := b.(hcl.TraverseAttr); ok {
-			// If they're exactly the same, return true
-			if aTyped.Name == bTyped.Name {
-				return true
-			}
-
-			// If one side is "multiple" and the other is "multiple[*]", treat them as prefix
-			if aTyped.Name+"[*]" == bTyped.Name || bTyped.Name+"[*]" == aTyped.Name {
-				return true
-			}
-
-			// Handle "example" and "example.id" prefix
-			if strings.HasPrefix(bTyped.Name, aTyped.Name+".") {
-				return true
-			}
-			if strings.HasPrefix(aTyped.Name, bTyped.Name+".") {
-				return true
-			}
+			return aTyped.Name == bTyped.Name
 		}
 	case hcl.TraverseIndex:
 		if bTyped, ok := b.(hcl.TraverseIndex); ok {
@@ -507,4 +393,66 @@ func stepEqual(a, b hcl.Traverser) bool {
 		return ok
 	}
 	return false
+}
+
+// isFullResourceReference checks if the traversal is a complete resource reference
+func (r *TerraformOutputResourceRule) isFullResourceReference(trav hcl.Traversal) bool {
+	length := len(trav)
+	if length < 2 {
+		return false
+	}
+
+	root, ok := trav[0].(hcl.TraverseRoot)
+	if !ok {
+		return false
+	}
+
+	// Skip variables, locals, and modules
+	switch root.Name {
+	case TypeVar, TypeLocal, TypeModule:
+		return false
+	}
+
+	// For data sources: data.TYPE.NAME is a full reference (3 parts)
+	if root.Name == TypeData && length == 3 {
+		return true
+	}
+
+	// For resources: TYPE.NAME is a full reference (2 parts)
+	if root.Name != TypeData && length == 2 {
+		return true
+	}
+
+	// Check if the traversal ends with an attribute access
+	// If it does, it's accessing a specific attribute, not the entire resource
+	if _, ok := trav[length-1].(hcl.TraverseAttr); ok && length > minResourceLength(root.Name) {
+		return false
+	}
+
+	// Otherwise, it's a full resource reference (including indexed/splat access)
+	return true
+}
+
+// isResourceRootTraversal checks if the traversal starts with a resource or data reference
+func isResourceRootTraversal(trav hcl.Traversal) bool {
+	if len(trav) == 0 {
+		return false
+	}
+	root, ok := trav[0].(hcl.TraverseRoot)
+	if !ok {
+		return false
+	}
+	switch root.Name {
+	case TypeVar, TypeLocal, TypeModule:
+		return false
+	}
+	return true
+}
+
+// minResourceLength returns the minimum length for a complete resource reference
+func minResourceLength(rootName string) int {
+	if rootName == TypeData {
+		return 3 // data.TYPE.NAME
+	}
+	return 2 // TYPE.NAME
 }
