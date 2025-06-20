@@ -184,5 +184,6 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	return nil
 }
 
+// We'll do simple textual checks by slicing the file bytes from the attribute's expression Range.
 // Note: The old string-based helper functions (isTypeBool, isAttrNull, isAttrTrue)
 // have been replaced with the new expression utilities for more robust evaluation.
