@@ -267,12 +267,12 @@ func buildTypeString(funcExpr *hclsyntax.FunctionCallExpr) string {
 	// This is a simplified version - in practice, this would need more sophisticated handling
 	// of nested type expressions
 	result := funcExpr.Name + "("
-	
+
 	for i, arg := range funcExpr.Args {
 		if i > 0 {
 			result += ", "
 		}
-		
+
 		// Recursively handle nested type expressions
 		if argFunc, ok := arg.(*hclsyntax.FunctionCallExpr); ok {
 			result += buildTypeString(argFunc)
@@ -287,7 +287,7 @@ func buildTypeString(funcExpr *hclsyntax.FunctionCallExpr) string {
 			result += "unknown"
 		}
 	}
-	
+
 	result += ")"
 	return result
 }
@@ -311,7 +311,7 @@ func EvaluateBoolLiteralFromRawText(rawText string) (bool, bool, error) {
 // EvaluateStringLiteralFromRawText evaluates a string from raw text (legacy compatibility).
 func EvaluateStringLiteralFromRawText(rawText string) (string, bool, error) {
 	trimmed := strings.TrimSpace(rawText)
-	
+
 	// Check if it's a quoted string
 	if len(trimmed) >= 2 && trimmed[0] == '"' && trimmed[len(trimmed)-1] == '"' {
 		// Remove quotes and unescape
@@ -321,7 +321,7 @@ func EvaluateStringLiteralFromRawText(rawText string) (string, bool, error) {
 		unquoted = strings.ReplaceAll(unquoted, `\\`, `\`)
 		return unquoted, true, nil
 	}
-	
+
 	return "", false, fmt.Errorf("text %q is not a string literal", rawText)
 }
 

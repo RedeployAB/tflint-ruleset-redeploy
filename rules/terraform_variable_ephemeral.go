@@ -97,7 +97,7 @@ func (r *TerraformVariableEphemeralRule) checkVariableBlock(
 	if err != nil {
 		return err
 	}
-	
+
 	if isLiteral && !value {
 		return runner.EmitIssue(
 			r,

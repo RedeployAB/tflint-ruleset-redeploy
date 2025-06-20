@@ -101,7 +101,7 @@ func (r *TerraformOutputSensitiveRule) checkOutputBlock(
 	if err != nil {
 		return err
 	}
-	
+
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
 	if isLiteral && !value {
 		return runner.EmitIssue(

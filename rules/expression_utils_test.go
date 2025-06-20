@@ -635,24 +635,26 @@ func TestEvaluateAttributeValue(t *testing.T) {
 			}
 
 			// Check the value based on its type
-			switch tc.expectedVal.(type) {
+			switch v := tc.expectedVal.(type) {
 			case bool:
-				if value.Type() != cty.Bool || value.True() != tc.expectedVal.(bool) {
-					t.Errorf("Expected boolean value %v, got %v", tc.expectedVal, value)
+				if value.Type() != cty.Bool || value.True() != v {
+					t.Errorf("Expected boolean value %v, got %v", v, value)
 				}
 			case string:
-				if value.Type() != cty.String || value.AsString() != tc.expectedVal.(string) {
-					t.Errorf("Expected string value %q, got %v", tc.expectedVal, value)
+				if value.Type() != cty.String || value.AsString() != v {
+					t.Errorf("Expected string value %q, got %v", v, value)
 				}
 			case int:
 				if value.Type() != cty.Number {
 					t.Errorf("Expected number type, got %s", value.Type().FriendlyName())
 				} else {
 					intVal, _ := value.AsBigFloat().Int64()
-					if intVal != int64(tc.expectedVal.(int)) {
-						t.Errorf("Expected number value %d, got %d", tc.expectedVal, intVal)
+					if intVal != int64(v) {
+						t.Errorf("Expected number value %d, got %d", v, intVal)
 					}
 				}
+			default:
+				t.Errorf("Unexpected type %T", v)
 			}
 
 			if isLiteral != tc.expectLit {
