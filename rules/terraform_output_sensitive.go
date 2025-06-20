@@ -96,17 +96,14 @@ func (r *TerraformOutputSensitiveRule) checkOutputBlock(
 		return nil // No "sensitive" => fine
 	}
 
-	files, err := runner.GetFiles()
+	// Use the new expression utility for boolean evaluation
+	value, isLiteral, err := EvaluateBoolLiteral(sensitiveAttr.Expr)
 	if err != nil {
 		return err
 	}
-	fileBytes := files[block.DefRange().Filename].Bytes
-
-	src := GetAttributeRawText(sensitiveAttr, fileBytes)
-	src = strings.ToLower(strings.TrimSpace(src))
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
-	if src == StringFalse {
+	if isLiteral && !value {
 		return runner.EmitIssue(
 			r,
 			"sensitive should not be set to false (omit instead)",

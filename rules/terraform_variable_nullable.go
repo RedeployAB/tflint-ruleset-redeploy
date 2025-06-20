@@ -78,16 +78,17 @@ func (r *TerraformVariableNullableRule) processBody(
 
 func (r *TerraformVariableNullableRule) checkBoolDefaultNotNull(
 	typeVal, defaultVal *hclsyntax.Attribute,
-	fileBytes []byte,
 	runner tflint.Runner,
 ) error {
 	if typeVal != nil && defaultVal != nil {
-		isBool, err := isTypeBool(typeVal, fileBytes)
+		// Use the new expression utility for type checking
+		typeName, isType, err := EvaluateTypeExpr(typeVal.Expr)
 		if err != nil {
 			return err
 		}
-		if isBool {
-			isDefaultNull, err := isAttrNull(defaultVal, fileBytes)
+		if isType && typeName == TypeBool {
+			// Use the new expression utility for null checking
+			isDefaultNull, err := IsNullLiteral(defaultVal.Expr)
 			if err != nil {
 				return err
 			}
@@ -105,10 +106,10 @@ func (r *TerraformVariableNullableRule) checkBoolDefaultNotNull(
 
 func (r *TerraformVariableNullableRule) checkNullDefaultAndNullableNotDeclared(
 	defaultVal, nullableVal *hclsyntax.Attribute,
-	fileBytes []byte,
 	runner tflint.Runner,
 ) error {
-	isDefaultNull, err := isAttrNull(defaultVal, fileBytes)
+	// Use the new expression utility for null checking
+	isDefaultNull, err := IsNullLiteral(defaultVal.Expr)
 	if err != nil {
 		return err
 	}
@@ -124,14 +125,14 @@ func (r *TerraformVariableNullableRule) checkNullDefaultAndNullableNotDeclared(
 
 func (r *TerraformVariableNullableRule) checkNullableFalseIfDeclared(
 	nullableVal *hclsyntax.Attribute,
-	fileBytes []byte,
 	runner tflint.Runner,
 ) error {
-	isNullableTrue, err := isAttrTrue(nullableVal, fileBytes)
+	// Use the new expression utility for boolean evaluation
+	value, isLiteral, err := EvaluateBoolLiteral(nullableVal.Expr)
 	if err != nil {
 		return err
 	}
-	if isNullableTrue {
+	if isLiteral && value {
 		return runner.EmitIssue(
 			r,
 			"nullable should not be set to true (the default is already true)",
@@ -149,13 +150,6 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	var nullableVal *hclsyntax.Attribute
 	var typeVal *hclsyntax.Attribute
 
-	// We'll need the raw file bytes for slicing
-	files, err := runner.GetFiles()
-	if err != nil {
-		return err
-	}
-	fileBytes := files[block.DefRange().Filename].Bytes
-
 	// Gather relevant attributes
 	for _, attr := range block.Body.Attributes {
 		switch strings.ToLower(attr.Name) {
@@ -169,20 +163,20 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	}
 
 	// 1) If type = bool => default must not be null
-	if err := r.checkBoolDefaultNotNull(typeVal, defaultVal, fileBytes, runner); err != nil {
+	if err := r.checkBoolDefaultNotNull(typeVal, defaultVal, runner); err != nil {
 		return err
 	}
 
 	// 2) If default = null => must NOT define nullable
 	if defaultVal != nil {
-		if err := r.checkNullDefaultAndNullableNotDeclared(defaultVal, nullableVal, fileBytes, runner); err != nil {
+		if err := r.checkNullDefaultAndNullableNotDeclared(defaultVal, nullableVal, runner); err != nil {
 			return err
 		}
 	}
 
 	// 3) If nullable is declared => must be false
 	if nullableVal != nil {
-		if err := r.checkNullableFalseIfDeclared(nullableVal, fileBytes, runner); err != nil {
+		if err := r.checkNullableFalseIfDeclared(nullableVal, runner); err != nil {
 			return err
 		}
 	}
@@ -190,21 +184,6 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	return nil
 }
 
-// We'll do simple textual checks by slicing the file bytes from the attribute’s expression Range.
-func isTypeBool(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
-	src = strings.ToLower(strings.TrimSpace(src))
-	return (src == "bool"), nil
-}
-
-func isAttrNull(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
-	src = strings.ToLower(strings.TrimSpace(src))
-	return (src == "null"), nil
-}
-
-func isAttrTrue(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
-	src = strings.ToLower(strings.TrimSpace(src))
-	return (src == "true"), nil
-}
+// We'll do simple textual checks by slicing the file bytes from the attribute's expression Range.
+// Note: The old string-based helper functions (isTypeBool, isAttrNull, isAttrTrue)
+// have been replaced with the new expression utilities for more robust evaluation.

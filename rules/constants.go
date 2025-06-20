@@ -28,4 +28,10 @@ const (
 
 	// Common string constants
 	StringFalse = "false"
+
+	// Type constants
+	TypeBool   = "bool"
+	TypeString = "string"
+	TypeNumber = "number"
+	TypeAny    = "any"
 )

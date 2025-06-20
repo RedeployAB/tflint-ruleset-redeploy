@@ -93,16 +93,13 @@ func (r *TerraformOutputEphemeralRule) checkOutputBlock(
 		return nil // ephemeral not defined => no problem
 	}
 
-	files, err := runner.GetFiles()
+	// Use the new expression utility for boolean evaluation
+	value, isLiteral, err := EvaluateBoolLiteral(ephemeralAttr.Expr)
 	if err != nil {
 		return err
 	}
-	fileBytes := files[block.DefRange().Filename].Bytes
 
-	src := GetAttributeRawText(ephemeralAttr, fileBytes)
-	src = strings.ToLower(strings.TrimSpace(src))
-
-	if src == StringFalse {
+	if isLiteral && !value {
 		return runner.EmitIssue(
 			r,
 			"ephemeral should not be set to false (omit instead)",
