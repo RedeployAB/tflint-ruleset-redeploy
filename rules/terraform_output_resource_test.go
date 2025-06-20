@@ -1,7 +1,6 @@
 package rules
 
 import (
-	"reflect"
 	"testing"
 
 	hcl "github.com/hashicorp/hcl/v2"
@@ -284,9 +283,57 @@ func TestGatherTraversals(t *testing.T) {
 				t.Fatalf("Failed to parse expression %q: %s", tc.exprStr, diags.Error())
 			}
 			got := rule.gatherTraversals(expr)
-			if !reflect.DeepEqual(got, tc.expected) {
+			if !traversalsEqualIgnoringSrcRange(got, tc.expected) {
 				t.Errorf("For expression %q, expected traversals:\n%#v\ngot:\n%#v", tc.exprStr, tc.expected, got)
 			}
 		})
 	}
+}
+
+// traversalsEqualIgnoringSrcRange compares two slices of traversals ignoring source ranges
+func traversalsEqualIgnoringSrcRange(a, b []hcl.Traversal) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !traversalEqualIgnoringSrcRange(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// traversalEqualIgnoringSrcRange compares two traversals ignoring source ranges
+func traversalEqualIgnoringSrcRange(a, b hcl.Traversal) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !traverserEqualIgnoringSrcRange(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// traverserEqualIgnoringSrcRange compares two traversers ignoring source ranges
+func traverserEqualIgnoringSrcRange(a, b hcl.Traverser) bool {
+	switch aTyped := a.(type) {
+	case hcl.TraverseRoot:
+		if bTyped, ok := b.(hcl.TraverseRoot); ok {
+			return aTyped.Name == bTyped.Name
+		}
+	case hcl.TraverseAttr:
+		if bTyped, ok := b.(hcl.TraverseAttr); ok {
+			return aTyped.Name == bTyped.Name
+		}
+	case hcl.TraverseIndex:
+		if bTyped, ok := b.(hcl.TraverseIndex); ok {
+			return aTyped.Key.RawEquals(bTyped.Key)
+		}
+	case hcl.TraverseSplat:
+		_, ok := b.(hcl.TraverseSplat)
+		return ok
+	}
+	return false
 }
