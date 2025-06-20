@@ -1,4 +1,4 @@
-# terraform_provider_source
+# terraform_provider_source_order
 
 ## What does this rule do?
 

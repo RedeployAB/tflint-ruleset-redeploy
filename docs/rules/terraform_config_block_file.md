@@ -1,4 +1,4 @@
-# terraform_config_block
+# terraform_config_block_file
 
 ## What does this rule do?
 
