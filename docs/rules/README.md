@@ -22,9 +22,7 @@ the documentation below.
 | [terraform_output_ephemeral](terraform_output_ephemeral.md)                               | Validates outputs that reference ephemeral resources.                                                                        | Error    | Yes     |
 | [terraform_output_file](terraform_output_file.md)                                         | Ensures that output file declarations follow a prescribed structure.                                                         | Error    | Yes     |
 | [terraform_output_order](terraform_output_order.md)                                       | Enforces a specific ordering for output blocks.                                                                              | Error    | Yes     |
-| [terraform_output_resource](terraform_output_resource.md)
-            | Ensures outputs reference a specific attribute of a resource or data source, rather than the entire block.
-                                                           | Error    | Yes |
+| [terraform_output_resource](terraform_output_resource.md)                                 | Ensures outputs reference a specific attribute of a resource or data source, rather than the entire block.                   | Error    | Yes     |
 | [terraform_output_sensitive](terraform_output_sensitive.md)                               | Checks that outputs marked as sensitive are handled appropriately.                                                           | Error    | Yes     |
 | [terraform_provider_minimum_major_version](terraform_provider_minimum_major_version.md)   | Ensures providers meet minimum major version constraints.                                                                    | Error    | Yes     |
 | [terraform_provider_source_order](terraform_provider_source_order.md)                                 | Validates the ordering of provider source declarations.                                                                      | Error    | Yes     |
