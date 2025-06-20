@@ -86,7 +86,7 @@ func (r *TerraformVariableNullableRule) checkBoolDefaultNotNull(
 			return err
 		}
 		if isBool {
-			isDefaultNull, err := isAttrNull(defaultVal, runner)
+			isDefaultNull, err := isAttrNull(defaultVal)
 			if err != nil {
 				return err
 			}
@@ -106,7 +106,7 @@ func (r *TerraformVariableNullableRule) checkNullDefaultAndNullableNotDeclared(
 	defaultVal, nullableVal *hclsyntax.Attribute,
 	runner tflint.Runner,
 ) error {
-	isDefaultNull, err := isAttrNull(defaultVal, runner)
+	isDefaultNull, err := isAttrNull(defaultVal)
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ func isTypeBool(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
 	return false, nil
 }
 
-func isAttrNull(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
+func isAttrNull(attr *hclsyntax.Attribute) (bool, error) {
 	// Check if the expression is a literal null
 	if expr, ok := attr.Expr.(*hclsyntax.LiteralValueExpr); ok {
 		// The Val field is a cty.Value - check if it's null
