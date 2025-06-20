@@ -165,6 +165,54 @@ func TestTerraformBasicModuleStructure(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "files in sibling subdirectories - module root correctly identified",
+			Files: map[string]string{
+				"main.tf":               `# dummy`,
+				"variables.tf":          `# dummy`,
+				"locals.tf":             `# dummy`,
+				"outputs.tf":            `# dummy`,
+				"terraform.tf":          `# dummy`,
+				"subdir1/helper.tf":     `# helper in subdir1`,
+				"subdir2/sub/helper.tf": `# helper in subdir2/sub`,
+			},
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "files only in sibling subdirectories - missing root files",
+			Files: map[string]string{
+				"subdir1/main.tf":       `# main in subdir1`,
+				"subdir2/variables.tf":  `# variables in subdir2`,
+				"subdir2/sub/helper.tf": `# helper in nested`,
+			},
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformBasicModuleStructureRule(),
+					Message: "Missing required file: main.tf",
+					Range:   hcl.Range{Filename: "main.tf"},
+				},
+				{
+					Rule:    NewTerraformBasicModuleStructureRule(),
+					Message: "Missing required file: variables.tf",
+					Range:   hcl.Range{Filename: "variables.tf"},
+				},
+				{
+					Rule:    NewTerraformBasicModuleStructureRule(),
+					Message: "Missing required file: locals.tf",
+					Range:   hcl.Range{Filename: "locals.tf"},
+				},
+				{
+					Rule:    NewTerraformBasicModuleStructureRule(),
+					Message: "Missing required file: outputs.tf",
+					Range:   hcl.Range{Filename: "outputs.tf"},
+				},
+				{
+					Rule:    NewTerraformBasicModuleStructureRule(),
+					Message: "Missing required file: terraform.tf",
+					Range:   hcl.Range{Filename: "terraform.tf"},
+				},
+			},
+		},
 	}
 
 	rule := NewTerraformBasicModuleStructureRule()
