@@ -92,13 +92,31 @@ func (r *TerraformVariableEphemeralRule) checkVariableBlock(
 		return nil // ephemeral not defined => no problem
 	}
 
+	// First try HCL evaluation
+	var value bool
+	if err := runner.EvaluateExpr(ephemeralAttr.Expr, &value, nil); err == nil {
+		if !value {
+			return runner.EmitIssue(
+				r,
+				"ephemeral should not be set to false (omit instead)",
+				ephemeralAttr.Range(),
+			)
+		}
+		return nil
+	}
+
+	// Fallback to text-based parsing for literal boolean
 	files, err := runner.GetFiles()
 	if err != nil {
 		return err
 	}
 	fileBytes := files[block.DefRange().Filename].Bytes
 
-	src := GetAttributeRawText(ephemeralAttr, fileBytes)
+	rng := ephemeralAttr.Expr.Range()
+	if rng.End.Byte > len(fileBytes) || rng.Start.Byte >= rng.End.Byte {
+		return nil
+	}
+	src := string(fileBytes[rng.Start.Byte:rng.End.Byte])
 	src = strings.ToLower(strings.TrimSpace(src))
 
 	if src == StringFalse {

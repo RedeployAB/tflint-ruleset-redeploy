@@ -78,16 +78,15 @@ func (r *TerraformVariableNullableRule) processBody(
 
 func (r *TerraformVariableNullableRule) checkBoolDefaultNotNull(
 	typeVal, defaultVal *hclsyntax.Attribute,
-	fileBytes []byte,
 	runner tflint.Runner,
 ) error {
 	if typeVal != nil && defaultVal != nil {
-		isBool, err := isTypeBool(typeVal, fileBytes)
+		isBool, err := isTypeBool(typeVal, runner)
 		if err != nil {
 			return err
 		}
 		if isBool {
-			isDefaultNull, err := isAttrNull(defaultVal, fileBytes)
+			isDefaultNull, err := isAttrNull(defaultVal, runner)
 			if err != nil {
 				return err
 			}
@@ -105,10 +104,9 @@ func (r *TerraformVariableNullableRule) checkBoolDefaultNotNull(
 
 func (r *TerraformVariableNullableRule) checkNullDefaultAndNullableNotDeclared(
 	defaultVal, nullableVal *hclsyntax.Attribute,
-	fileBytes []byte,
 	runner tflint.Runner,
 ) error {
-	isDefaultNull, err := isAttrNull(defaultVal, fileBytes)
+	isDefaultNull, err := isAttrNull(defaultVal, runner)
 	if err != nil {
 		return err
 	}
@@ -124,10 +122,9 @@ func (r *TerraformVariableNullableRule) checkNullDefaultAndNullableNotDeclared(
 
 func (r *TerraformVariableNullableRule) checkNullableFalseIfDeclared(
 	nullableVal *hclsyntax.Attribute,
-	fileBytes []byte,
 	runner tflint.Runner,
 ) error {
-	isNullableTrue, err := isAttrTrue(nullableVal, fileBytes)
+	isNullableTrue, err := isAttrTrue(nullableVal, runner)
 	if err != nil {
 		return err
 	}
@@ -149,13 +146,6 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	var nullableVal *hclsyntax.Attribute
 	var typeVal *hclsyntax.Attribute
 
-	// We'll need the raw file bytes for slicing
-	files, err := runner.GetFiles()
-	if err != nil {
-		return err
-	}
-	fileBytes := files[block.DefRange().Filename].Bytes
-
 	// Gather relevant attributes
 	for _, attr := range block.Body.Attributes {
 		switch strings.ToLower(attr.Name) {
@@ -169,20 +159,20 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	}
 
 	// 1) If type = bool => default must not be null
-	if err := r.checkBoolDefaultNotNull(typeVal, defaultVal, fileBytes, runner); err != nil {
+	if err := r.checkBoolDefaultNotNull(typeVal, defaultVal, runner); err != nil {
 		return err
 	}
 
 	// 2) If default = null => must NOT define nullable
 	if defaultVal != nil {
-		if err := r.checkNullDefaultAndNullableNotDeclared(defaultVal, nullableVal, fileBytes, runner); err != nil {
+		if err := r.checkNullDefaultAndNullableNotDeclared(defaultVal, nullableVal, runner); err != nil {
 			return err
 		}
 	}
 
 	// 3) If nullable is declared => must be false
 	if nullableVal != nil {
-		if err := r.checkNullableFalseIfDeclared(nullableVal, fileBytes, runner); err != nil {
+		if err := r.checkNullableFalseIfDeclared(nullableVal, runner); err != nil {
 			return err
 		}
 	}
@@ -190,21 +180,72 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	return nil
 }
 
-// We'll do simple textual checks by slicing the file bytes from the attribute’s expression Range.
-func isTypeBool(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
+// We'll do proper HCL expression evaluation with fallback to text parsing for edge cases.
+func isTypeBool(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
+	// First try HCL evaluation for string type
+	var typeStr string
+	if err := runner.EvaluateExpr(attr.Expr, &typeStr, nil); err == nil {
+		return strings.ToLower(strings.TrimSpace(typeStr)) == "bool", nil
+	}
+	
+	// Fallback to text-based parsing for literal values
+	files, err := runner.GetFiles()
+	if err != nil {
+		return false, err
+	}
+	fileBytes := files[attr.Range().Filename].Bytes
+	
+	rng := attr.Expr.Range()
+	if rng.End.Byte > len(fileBytes) || rng.Start.Byte >= rng.End.Byte {
+		return false, nil
+	}
+	src := string(fileBytes[rng.Start.Byte:rng.End.Byte])
 	src = strings.ToLower(strings.TrimSpace(src))
-	return (src == "bool"), nil
+	return src == "bool", nil
 }
 
-func isAttrNull(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
+func isAttrNull(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
+	// First try HCL evaluation
+	var value interface{}
+	if err := runner.EvaluateExpr(attr.Expr, &value, nil); err == nil {
+		return value == nil, nil
+	}
+	
+	// Fallback to text-based parsing for literal null
+	files, err := runner.GetFiles()
+	if err != nil {
+		return false, err
+	}
+	fileBytes := files[attr.Range().Filename].Bytes
+	
+	rng := attr.Expr.Range()
+	if rng.End.Byte > len(fileBytes) || rng.Start.Byte >= rng.End.Byte {
+		return false, nil
+	}
+	src := string(fileBytes[rng.Start.Byte:rng.End.Byte])
 	src = strings.ToLower(strings.TrimSpace(src))
-	return (src == "null"), nil
+	return src == "null", nil
 }
 
-func isAttrTrue(attr *hclsyntax.Attribute, fileBytes []byte) (bool, error) {
-	src := GetAttributeRawText(attr, fileBytes)
+func isAttrTrue(attr *hclsyntax.Attribute, runner tflint.Runner) (bool, error) {
+	// First try HCL evaluation
+	var value bool
+	if err := runner.EvaluateExpr(attr.Expr, &value, nil); err == nil {
+		return value, nil
+	}
+	
+	// Fallback to text-based parsing for literal boolean
+	files, err := runner.GetFiles()
+	if err != nil {
+		return false, err
+	}
+	fileBytes := files[attr.Range().Filename].Bytes
+	
+	rng := attr.Expr.Range()
+	if rng.End.Byte > len(fileBytes) || rng.Start.Byte >= rng.End.Byte {
+		return false, nil
+	}
+	src := string(fileBytes[rng.Start.Byte:rng.End.Byte])
 	src = strings.ToLower(strings.TrimSpace(src))
-	return (src == "true"), nil
+	return src == "true", nil
 }

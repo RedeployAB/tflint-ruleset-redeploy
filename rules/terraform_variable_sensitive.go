@@ -98,14 +98,32 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 		return nil // No "sensitive" => fine
 	}
 
-	// Slice the raw text for "sensitive"
+	// First try HCL evaluation
+	var value bool
+	if err := runner.EvaluateExpr(sensitiveAttr.Expr, &value, nil); err == nil {
+		// If we see 'false', that's invalid => prefer omitting "sensitive"
+		if !value {
+			return runner.EmitIssue(
+				r,
+				"sensitive should not be set to false (omit instead)",
+				sensitiveAttr.Range(),
+			)
+		}
+		return nil
+	}
+
+	// Fallback to text-based parsing for literal boolean
 	files, err := runner.GetFiles()
 	if err != nil {
 		return err
 	}
 	fileBytes := files[block.DefRange().Filename].Bytes
 
-	src := GetAttributeRawText(sensitiveAttr, fileBytes)
+	rng := sensitiveAttr.Expr.Range()
+	if rng.End.Byte > len(fileBytes) || rng.Start.Byte >= rng.End.Byte {
+		return nil
+	}
+	src := string(fileBytes[rng.Start.Byte:rng.End.Byte])
 	src = strings.ToLower(strings.TrimSpace(src))
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
