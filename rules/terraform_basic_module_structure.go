@@ -59,7 +59,7 @@ func (r *TerraformBasicModuleStructureRule) Check(runner tflint.Runner) error {
 		base := filepath.Base(filename)
 
 		// Check if this file is in the module root directory
-		if dir == moduleRoot || (moduleRoot == "." && dir == ".") {
+		if dir == moduleRoot {
 			foundFiles[base] = true
 		}
 	}
