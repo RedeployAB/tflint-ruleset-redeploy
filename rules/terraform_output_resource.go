@@ -104,6 +104,11 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 		return nil
 	}
 
+	// Special handling for for expressions
+	if forExpr, ok := valAttr.Expr.(*hclsyntax.ForExpr); ok {
+		return r.checkForExpression(forExpr, runner, valAttr.Range())
+	}
+
 	// Gather traversals from the expression
 	traversals := r.gatherTraversals(valAttr.Expr)
 	if len(traversals) == 0 {
@@ -127,6 +132,44 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	return nil
 }
 
+// checkForExpression checks if a for expression outputs entire resources
+func (r *TerraformOutputResourceRule) checkForExpression(
+	forExpr *hclsyntax.ForExpr,
+	runner tflint.Runner,
+	exprRange hcl.Range,
+) error {
+	// Check if the value expression is just the loop variable
+	// For example: [for x in resource : x] is bad
+	// But: [for x in resource : x.attr] is OK
+	if scopeTrav, ok := forExpr.ValExpr.(*hclsyntax.ScopeTraversalExpr); ok {
+		// If it's just a single variable reference (the loop variable),
+		// then we're outputting the entire resource
+		if len(scopeTrav.Traversal) == 1 {
+			if root, ok := scopeTrav.Traversal[0].(hcl.TraverseRoot); ok {
+				// Check if this is the loop variable
+				if forExpr.ValVar == root.Name ||
+					(forExpr.KeyVar != "" && forExpr.KeyVar == root.Name) {
+					// The value expression is just the loop variable
+					// Check if the collection is a resource
+					collTraversals := r.gatherTraversals(forExpr.CollExpr)
+					for _, trav := range collTraversals {
+						if isResourceRootTraversal(trav) && r.isFullResourceReference(trav) {
+							return runner.EmitIssue(
+								r,
+								"Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+								exprRange,
+							)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// For all other cases (accessing attributes on loop variable, complex expressions, etc.), it's OK
+	return nil
+}
+
 // gatherTraversals extracts and normalizes traversals from an expression
 func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hcl.Traversal {
 	// For splat expressions or function calls containing splats, we need special handling
@@ -144,6 +187,19 @@ func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hc
 	// For function calls, we need to walk the arguments manually
 	// since Variables() might not capture splat expressions correctly
 	if _, ok := expr.(*hclsyntax.FunctionCallExpr); ok {
+		var collected []hcl.Traversal
+		r.walkExpression(expr, &collected)
+
+		var canonical []hcl.Traversal
+		for _, trav := range collected {
+			canonical = append(canonical, canonicalizeTraversal(trav))
+		}
+		return filterPrefixTraversals(canonical)
+	}
+
+	// For for expressions, we need special handling to avoid considering
+	// the loop variable references as resource references
+	if _, ok := expr.(*hclsyntax.ForExpr); ok {
 		var collected []hcl.Traversal
 		r.walkExpression(expr, &collected)
 
@@ -239,6 +295,18 @@ func (r *TerraformOutputResourceRule) walkExpression(e hcl.Expression, collected
 		// Walk all arguments of the function
 		for _, arg := range typed.Args {
 			r.walkExpression(arg, collected)
+		}
+
+	case *hclsyntax.ForExpr:
+		// For expressions like: [for item in collection : item.attr]
+		// We only want to walk the collection expression, not the value expression
+		// because the value expression references the loop variable, not the resource
+		r.walkExpression(typed.CollExpr, collected)
+		// Don't walk ValExpr or KeyExpr as they reference the loop variable
+
+		// Walk the condition if present
+		if typed.CondExpr != nil {
+			r.walkExpression(typed.CondExpr, collected)
 		}
 
 	default:
