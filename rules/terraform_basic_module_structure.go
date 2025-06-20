@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
@@ -45,8 +46,33 @@ func (r *TerraformBasicModuleStructureRule) Check(runner tflint.Runner) error {
 		return err
 	}
 
+	// Determine the common directory prefix for all files (module root)
+	var moduleRoot string
+	for filename := range files {
+		dir := filepath.Dir(filename)
+		if moduleRoot == "" {
+			moduleRoot = dir
+		} else if len(dir) < len(moduleRoot) {
+			moduleRoot = dir
+		}
+	}
+
+	// Build a set of base filenames that exist in the module root
+	foundFiles := make(map[string]bool)
+
+	for filename := range files {
+		// Get the directory of this file
+		dir := filepath.Dir(filename)
+		base := filepath.Base(filename)
+
+		// Check if this file is in the module root directory
+		if dir == moduleRoot || dir == "." {
+			foundFiles[base] = true
+		}
+	}
+
 	for _, required := range requiredFiles {
-		if _, ok := files[required]; !ok {
+		if !foundFiles[required] {
 			if err := runner.EmitIssue(
 				r,
 				fmt.Sprintf("Missing required file: %s", required),

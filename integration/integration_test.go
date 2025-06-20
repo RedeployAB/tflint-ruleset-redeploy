@@ -33,6 +33,11 @@ func TestIntegration(t *testing.T) {
 			Command: exec.Command("tflint", "--format", "json", "--force"),
 			Dir:     "invalid-module",
 		},
+		{
+			Name:    "monorepo-module",
+			Command: exec.Command("tflint", "--format", "json", "--force"),
+			Dir:     "monorepo-module",
+		},
 	}
 
 	dir, err := os.Getwd()
