@@ -143,10 +143,41 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, run
 						Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
 						End:      hcl.Pos{Line: nextLineIdx + 1, Column: 1},
 					}
-					return runner.EmitIssue(
+					return runner.EmitIssueWithFix(
 						r,
 						fmt.Sprintf("Unexpected blank line after '%s' when block ends", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
 						rng,
+						func(f tflint.Fixer) error {
+							// Calculate byte position for the blank line
+							bytePos := 0
+							for i := 0; i < nextLineIdx; i++ {
+								bytePos += len(lines[i]) + 1 // +1 for newline
+							}
+
+							// Range for the blank line (entire line including newline)
+							lineStart := bytePos
+							lineEnd := bytePos + len(lines[nextLineIdx])
+							if nextLineIdx < len(lines)-1 {
+								lineEnd++ // Include the newline
+							}
+
+							removeRange := hcl.Range{
+								Filename: srcRange.Filename,
+								Start: hcl.Pos{
+									Line:   nextLineIdx + 1,
+									Column: 1,
+									Byte:   lineStart,
+								},
+								End: hcl.Pos{
+									Line:   nextLineIdx + 2,
+									Column: 1,
+									Byte:   lineEnd,
+								},
+							}
+
+							// Remove the blank line
+							return f.Remove(removeRange)
+						},
 					)
 				}
 				return nil
@@ -156,10 +187,41 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, run
 				Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
 				End:      hcl.Pos{Line: nextLineIdx + 1, Column: 1},
 			}
-			return runner.EmitIssue(
+			return runner.EmitIssueWithFix(
 				r,
 				fmt.Sprintf("Unexpected blank line after '%s' when block ends", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
 				rng,
+				func(f tflint.Fixer) error {
+					// Calculate byte position for the blank line
+					bytePos := 0
+					for i := 0; i < nextLineIdx; i++ {
+						bytePos += len(lines[i]) + 1 // +1 for newline
+					}
+
+					// Range for the blank line (entire line including newline)
+					lineStart := bytePos
+					lineEnd := bytePos + len(lines[nextLineIdx])
+					if nextLineIdx < len(lines)-1 {
+						lineEnd++ // Include the newline
+					}
+
+					removeRange := hcl.Range{
+						Filename: srcRange.Filename,
+						Start: hcl.Pos{
+							Line:   nextLineIdx + 1,
+							Column: 1,
+							Byte:   lineStart,
+						},
+						End: hcl.Pos{
+							Line:   nextLineIdx + 2,
+							Column: 1,
+							Byte:   lineEnd,
+						},
+					}
+
+					// Remove the blank line
+					return f.Remove(removeRange)
+				},
 			)
 		case strings.HasPrefix(nextText, "//"), strings.HasPrefix(nextText, "#"):
 			nextLineIdx++
@@ -175,10 +237,36 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, run
 				Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
 				End:      hcl.Pos{Line: nextLineIdx + 1, Column: 1},
 			}
-			return runner.EmitIssue(
+			return runner.EmitIssueWithFix(
 				r,
 				fmt.Sprintf("Expected a blank line after '%s'", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
 				rng,
+				func(f tflint.Fixer) error {
+					// Calculate byte position for insertion
+					bytePos := 0
+					for i := 0; i < nextLineIdx-1; i++ {
+						bytePos += len(lines[i]) + 1 // +1 for newline
+					}
+					// Add the length of the previous line (line with source/version)
+					bytePos += len(lines[nextLineIdx-1]) + 1
+
+					insertPos := hcl.Range{
+						Filename: srcRange.Filename,
+						Start: hcl.Pos{
+							Line:   nextLineIdx,
+							Column: len(lines[nextLineIdx-1]) + 1,
+							Byte:   bytePos - 1, // Position at end of previous line
+						},
+						End: hcl.Pos{
+							Line:   nextLineIdx,
+							Column: len(lines[nextLineIdx-1]) + 1,
+							Byte:   bytePos - 1,
+						},
+					}
+
+					// Insert a newline to create a blank line
+					return f.InsertTextAfter(insertPos, "\n")
+				},
 			)
 		}
 	}

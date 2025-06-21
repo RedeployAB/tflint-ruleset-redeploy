@@ -3,6 +3,7 @@ package rules
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -13,7 +14,8 @@ func readFixture(t *testing.T, filename string) string {
 	if err != nil {
 		t.Fatalf("Failed reading %s: %v", path, err)
 	}
-	return string(content)
+	// Normalize line endings to Unix style (\n) for cross-platform compatibility
+	return strings.ReplaceAll(string(content), "\r\n", "\n")
 }
 
 func TestMax(t *testing.T) {

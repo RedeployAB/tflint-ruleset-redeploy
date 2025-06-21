@@ -1,0 +1,2 @@
+variable "zzz" {}
+variable "aaa" {}
