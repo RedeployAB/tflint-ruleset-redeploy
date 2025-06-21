@@ -100,14 +100,31 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) checkBlock(
 	if startLine+1 < len(lines) {
 		next := strings.TrimSpace(lines[startLine+1])
 		if next == "" {
+			// Calculate byte position for the blank line
+			bytePos := 0
+			for i := 0; i <= startLine; i++ {
+				bytePos += len(lines[i]) + 1 // +1 for newline
+			}
+
+			// Range for the blank line (entire line including newline)
+			lineStart := bytePos
+			lineEnd := bytePos + len(lines[startLine+1])
+			if startLine+1 < len(lines)-1 {
+				lineEnd++ // Include the newline
+			}
+
 			rng := hcl.Range{
 				Filename: filename,
-				Start:    hcl.Pos{Line: startLine + 2, Column: 1},
-				End:      hcl.Pos{Line: startLine + 2, Column: 1},
+				Start:    hcl.Pos{Line: startLine + 2, Column: 1, Byte: lineStart},
+				End:      hcl.Pos{Line: startLine + 3, Column: 1, Byte: lineEnd},
 			}
-			return runner.EmitIssue(r,
+			return runner.EmitIssueWithFix(r,
 				"No blank line allowed immediately after '{'",
 				rng,
+				func(f tflint.Fixer) error {
+					// Remove the entire blank line
+					return f.Remove(rng)
+				},
 			)
 		}
 	}
@@ -116,14 +133,31 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) checkBlock(
 	if endLine-1 >= 0 {
 		prev := strings.TrimSpace(lines[endLine-1])
 		if prev == "" {
+			// Calculate byte position for the blank line
+			bytePos := 0
+			for i := 0; i < endLine-1; i++ {
+				bytePos += len(lines[i]) + 1 // +1 for newline
+			}
+
+			// Range for the blank line
+			lineStart := bytePos
+			lineEnd := bytePos + len(lines[endLine-1])
+			if endLine-1 < len(lines)-1 {
+				lineEnd++ // Include the newline
+			}
+
 			rng := hcl.Range{
 				Filename: filename,
-				Start:    hcl.Pos{Line: endLine, Column: 1},
-				End:      hcl.Pos{Line: endLine, Column: 1},
+				Start:    hcl.Pos{Line: endLine, Column: 1, Byte: lineStart},
+				End:      hcl.Pos{Line: endLine + 1, Column: 1, Byte: lineEnd},
 			}
-			return runner.EmitIssue(r,
+			return runner.EmitIssueWithFix(r,
 				"No blank line allowed immediately before '}'",
 				rng,
+				func(f tflint.Fixer) error {
+					// Remove the entire blank line
+					return f.Remove(rng)
+				},
 			)
 		}
 	}
