@@ -64,112 +64,46 @@ func TestTerraformSingleBlankLinesRule(t *testing.T) {
 
 func TestTerraformSingleBlankLinesRule_Autofix(t *testing.T) {
 	tests := []struct {
-		Name     string
-		Content  string
-		Expected string
-		HasFix   bool
+		Name         string
+		ContentFile  string
+		ExpectedFile string
+		HasFix       bool
 	}{
 		{
-			Name: "Fix two consecutive blank lines",
-			Content: `resource "random_uuid" "test" {
-  for_each = local.test
-
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}`,
-			Expected: `resource "random_uuid" "test" {
-  for_each = local.test
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}`,
-			HasFix: true,
+			Name:         "Fix two consecutive blank lines",
+			ContentFile:  "single_blank_autofix_two_consecutive.tf",
+			ExpectedFile: "single_blank_autofix_two_consecutive_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Fix three consecutive blank lines",
-			Content: `variable "test" {
-  type = string
-
-
-
-  default = "value"
-}`,
-			Expected: `variable "test" {
-  type = string
-
-  default = "value"
-}`,
-			HasFix: true,
+			Name:         "Fix three consecutive blank lines",
+			ContentFile:  "single_blank_autofix_three_consecutive.tf",
+			ExpectedFile: "single_blank_autofix_three_consecutive_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Fix multiple occurrences",
-			Content: `locals {
-  a = 1
-
-
-  b = 2
-
-
-
-  c = 3
-}`,
-			Expected: `locals {
-  a = 1
-
-  b = 2
-
-  c = 3
-}`,
-			HasFix: true,
+			Name:         "Fix multiple occurrences",
+			ContentFile:  "single_blank_autofix_multiple_occurrences.tf",
+			ExpectedFile: "single_blank_autofix_multiple_occurrences_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Preserve single blank lines",
-			Content: `resource "test" "example" {
-  name = "test"
-
-  tags = {
-    Environment = "test"
-  }
-}`,
-			Expected: `resource "test" "example" {
-  name = "test"
-
-  tags = {
-    Environment = "test"
-  }
-}`,
-			HasFix: false,
+			Name:         "Preserve single blank lines",
+			ContentFile:  "single_blank_autofix_preserve_single.tf",
+			ExpectedFile: "single_blank_autofix_preserve_single.tf",
+			HasFix:       false,
 		},
 		{
-			Name: "Fix blank lines at end of file",
-			Content: `output "test" {
-  value = "test"
-}
-
-
-`,
-			Expected: `output "test" {
-  value = "test"
-}
-
-`,
-			HasFix: true,
+			Name:         "Fix blank lines at end of file",
+			ContentFile:  "single_blank_autofix_end_of_file.tf",
+			ExpectedFile: "single_blank_autofix_end_of_file_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Fix blank lines at start",
-			Content: `
-
-module "test" {
-  source = "./test"
-}`,
-			Expected: `
-module "test" {
-  source = "./test"
-}`,
-			HasFix: true,
+			Name:         "Fix blank lines at start",
+			ContentFile:  "single_blank_autofix_start.tf",
+			ExpectedFile: "single_blank_autofix_start_expected.tf",
+			HasFix:       true,
 		},
 	}
 
@@ -177,8 +111,9 @@ module "test" {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
+			content := readFixture(t, tc.ContentFile)
 			runner := helper.TestRunner(t, map[string]string{
-				"main.tf": tc.Content,
+				"main.tf": content,
 			})
 
 			if err := rule.Check(runner); err != nil {
@@ -187,8 +122,9 @@ module "test" {
 
 			changes := runner.Changes()
 			if tc.HasFix {
+				expected := readFixture(t, tc.ExpectedFile)
 				helper.AssertChanges(t, map[string]string{
-					"main.tf": tc.Expected,
+					"main.tf": expected,
 				}, changes)
 			} else if len(changes) > 0 {
 				t.Errorf("Expected no changes, but got: %v", changes)

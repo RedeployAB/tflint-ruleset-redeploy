@@ -60,105 +60,46 @@ func TestTerraformOutputSensitiveRule(t *testing.T) {
 
 func TestTerraformOutputSensitiveRule_Autofix(t *testing.T) {
 	tests := []struct {
-		Name     string
-		Content  string
-		Expected string
-		HasFix   bool
+		Name         string
+		ContentFile  string
+		ExpectedFile string
+		HasFix       bool
 	}{
 		{
-			Name: "Remove sensitive = false",
-			Content: `output "username" {
-  description = "An output incorrectly marked sensitive = false."
-  value       = "username"
-  sensitive   = false
-}`,
-			Expected: `output "username" {
-  description = "An output incorrectly marked sensitive = false."
-  value       = "username"
-}`,
-			HasFix: true,
+			Name:         "Remove sensitive = false",
+			ContentFile:  "output_sensitive_autofix_remove_false.tf",
+			ExpectedFile: "output_sensitive_autofix_remove_false_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Remove sensitive = false with extra spaces",
-			Content: `output "test" {
-  value     = "test value"
-
-  sensitive = false
-}`,
-			Expected: `output "test" {
-  value = "test value"
-
-}`,
-			HasFix: true,
+			Name:         "Remove sensitive = false with extra spaces",
+			ContentFile:  "output_sensitive_autofix_extra_spaces.tf",
+			ExpectedFile: "output_sensitive_autofix_extra_spaces_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Remove sensitive = false between other attributes",
-			Content: `output "test" {
-  description = "test output"
-  sensitive   = false
-  value       = "test value"
-}`,
-			Expected: `output "test" {
-  description = "test output"
-  value       = "test value"
-}`,
-			HasFix: true,
+			Name:         "Remove sensitive = false between other attributes",
+			ContentFile:  "output_sensitive_autofix_between_attrs.tf",
+			ExpectedFile: "output_sensitive_autofix_between_attrs_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Preserve sensitive = true",
-			Content: `output "secret" {
-  description = "A secret output"
-  value       = var.secret_value
-  sensitive   = true
-}`,
-			Expected: `output "secret" {
-  description = "A secret output"
-  value       = var.secret_value
-  sensitive   = true
-}`,
-			HasFix: false,
+			Name:         "Preserve sensitive = true",
+			ContentFile:  "output_sensitive_autofix_preserve_true.tf",
+			ExpectedFile: "output_sensitive_autofix_preserve_true.tf",
+			HasFix:       false,
 		},
 		{
-			Name: "Multiple outputs with one needing fix",
-			Content: `output "public" {
-  value     = "public value"
-  sensitive = false
-}
-
-output "secret" {
-  value     = "secret value"
-  sensitive = true
-}`,
-			Expected: `output "public" {
-  value = "public value"
-}
-
-output "secret" {
-  value     = "secret value"
-  sensitive = true
-}`,
-			HasFix: true,
+			Name:         "Multiple outputs with one needing fix",
+			ContentFile:  "output_sensitive_autofix_multiple.tf",
+			ExpectedFile: "output_sensitive_autofix_multiple_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Output with precondition",
-			Content: `output "test" {
-  value     = "test"
-  sensitive = false
-
-  precondition {
-    condition     = length(var.name) > 0
-    error_message = "Name must not be empty"
-  }
-}`,
-			Expected: `output "test" {
-  value = "test"
-
-  precondition {
-    condition     = length(var.name) > 0
-    error_message = "Name must not be empty"
-  }
-}`,
-			HasFix: true,
+			Name:         "Output with precondition",
+			ContentFile:  "output_sensitive_autofix_with_precondition.tf",
+			ExpectedFile: "output_sensitive_autofix_with_precondition_expected.tf",
+			HasFix:       true,
 		},
 	}
 
@@ -166,8 +107,9 @@ output "secret" {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
+			content := readFixture(t, tc.ContentFile)
 			runner := helper.TestRunner(t, map[string]string{
-				"outputs.tf": tc.Content,
+				"outputs.tf": content,
 			})
 
 			if err := rule.Check(runner); err != nil {
@@ -176,8 +118,9 @@ output "secret" {
 
 			changes := runner.Changes()
 			if tc.HasFix {
+				expected := readFixture(t, tc.ExpectedFile)
 				helper.AssertChanges(t, map[string]string{
-					"outputs.tf": tc.Expected,
+					"outputs.tf": expected,
 				}, changes)
 			} else if len(changes) > 0 {
 				t.Errorf("Expected no changes, but got: %v", changes)

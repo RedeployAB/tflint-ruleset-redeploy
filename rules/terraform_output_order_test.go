@@ -67,137 +67,50 @@ output "alpha" {}
 
 func TestTerraformOutputOrderRule_Autofix(t *testing.T) {
 	tests := []struct {
-		Name     string
-		Content  string
-		Expected string
+		Name         string
+		ContentFile  string
+		ExpectedFile string
 	}{
 		{
-			Name: "Autofix - simple out of order",
-			Content: `output "zzz" {}
-output "alpha" {}
-`,
-			Expected: `output "alpha" {}
-output "zzz" {}
-`,
+			Name:         "Autofix - simple out of order",
+			ContentFile:  "output_order_autofix_simple.tf",
+			ExpectedFile: "output_order_autofix_simple_expected.tf",
 		},
 		{
-			Name: "Autofix - multiple outputs out of order",
-			Content: `output "charlie" {
-	value = "c"
-}
-output "beta" {
-	value = "b"
-}
-output "alpha" {
-	value = "a"
-}
-`,
-			Expected: `output "alpha" {
-  value = "a"
-}
-output "beta" {
-  value = "b"
-}
-output "charlie" {
-  value = "c"
-}
-`,
+			Name:         "Autofix - multiple outputs out of order",
+			ContentFile:  "output_order_autofix_multiple.tf",
+			ExpectedFile: "output_order_autofix_multiple_expected.tf",
 		},
 		{
-			Name: "Autofix - preserve spacing between outputs",
-			Content: `output "beta" {}
-
-
-output "alpha" {}
-`,
-			Expected: `output "alpha" {}
-
-
-output "beta" {}
-`,
+			Name:         "Autofix - preserve spacing between outputs",
+			ContentFile:  "output_order_autofix_preserve_spacing.tf",
+			ExpectedFile: "output_order_autofix_preserve_spacing_expected.tf",
 		},
 		{
-			Name: "Autofix - preserve single line spacing",
-			Content: `output "beta" {}
-output "alpha" {}
-`,
-			Expected: `output "alpha" {}
-output "beta" {}
-`,
+			Name:         "Autofix - preserve single line spacing",
+			ContentFile:  "output_order_autofix_single_line.tf",
+			ExpectedFile: "output_order_autofix_single_line_expected.tf",
 		},
 		{
-			Name: "Autofix - complex mix with different spacing",
-			Content: `output "delta" {
-	value = "d"
-}
-
-output "beta" {}
-
-output "echo" {
-	value = "e"
-}
-
-output "alpha" {}
-
-output "charlie" {
-	value = "c"
-}
-`,
-			Expected: `output "alpha" {}
-
-output "beta" {}
-
-output "charlie" {
-  value = "c"
-}
-
-output "delta" {
-  value = "d"
-}
-
-output "echo" {
-  value = "e"
-}
-`,
+			Name:         "Autofix - complex mix with different spacing",
+			ContentFile:  "output_order_autofix_complex_mix.tf",
+			ExpectedFile: "output_order_autofix_complex_mix_expected.tf",
 		},
 		{
-			Name: "Autofix - outputs with complex values",
-			Content: `output "second" {
-	value = {
-		a = 1
-		b = 2
-	}
-}
-
-output "first" {
-	value = [
-		"one",
-		"two"
-	]
-}
-`,
-			Expected: `output "first" {
-  value = [
-    "one",
-    "two"
-  ]
-}
-
-output "second" {
-  value = {
-    a = 1
-    b = 2
-  }
-}
-`,
+			Name:         "Autofix - outputs with complex values",
+			ContentFile:  "output_order_autofix_complex_values.tf",
+			ExpectedFile: "output_order_autofix_complex_values_expected.tf",
 		},
 	}
 
 	rule := NewTerraformOutputOrderRule()
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
+			content := readFixture(t, tc.ContentFile)
+			expected := readFixture(t, tc.ExpectedFile)
+
 			runner := helper.TestRunner(t, map[string]string{
-				"test.tf": tc.Content,
+				"test.tf": content,
 			})
 
 			if err := rule.Check(runner); err != nil {
@@ -205,7 +118,7 @@ output "second" {
 			}
 
 			helper.AssertChanges(t, map[string]string{
-				"test.tf": tc.Expected,
+				"test.tf": expected,
 			}, runner.Changes())
 		})
 	}

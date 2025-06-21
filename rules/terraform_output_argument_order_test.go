@@ -148,141 +148,44 @@ output "bad_depends_order" {
 
 func TestTerraformOutputArgumentOrderRule_Autofix(t *testing.T) {
 	tests := []struct {
-		Name     string
-		Content  string
-		Expected string
+		Name         string
+		ContentFile  string
+		ExpectedFile string
 	}{
 		{
-			Name: "Autofix - sensitive before ephemeral",
-			Content: `output "bad_order" {
-	description = "some desc"
-	value = "some val"
-	sensitive = true
-	ephemeral = true
-}
-`,
-			Expected: `output "bad_order" {
-  description = "some desc"
-  value       = "some val"
-  ephemeral   = true
-  sensitive   = true
-}
-`,
+			Name:         "Autofix - sensitive before ephemeral",
+			ContentFile:  "output_arg_order_autofix_sensitive_before_ephemeral.tf",
+			ExpectedFile: "output_arg_order_autofix_sensitive_before_ephemeral_expected.tf",
 		},
 		{
-			Name: "Autofix - value before description",
-			Content: `output "test" {
-	value = "test value"
-	description = "test description"
-}
-`,
-			Expected: `output "test" {
-  description = "test description"
-  value       = "test value"
-}
-`,
+			Name:         "Autofix - value before description",
+			ContentFile:  "output_arg_order_autofix_value_before_desc.tf",
+			ExpectedFile: "output_arg_order_autofix_value_before_desc_expected.tf",
 		},
 		{
-			Name: "Autofix - complex reordering",
-			Content: `output "complex" {
-	depends_on = []
-	sensitive = true
-	value = "value"
-	description = "desc"
-}
-`,
-			Expected: `output "complex" {
-  description = "desc"
-  value       = "value"
-  sensitive   = true
-
-  depends_on = []
-}
-`,
+			Name:         "Autofix - complex reordering",
+			ContentFile:  "output_arg_order_autofix_complex.tf",
+			ExpectedFile: "output_arg_order_autofix_complex_expected.tf",
 		},
 		{
-			Name: "Autofix - with blank lines",
-			Content: `output "spaced" {
-	sensitive = true
-
-	value = "val"
-
-	description = "desc"
-}
-`,
-			Expected: `output "spaced" {
-  description = "desc"
-  value       = "val"
-  sensitive   = true
-}
-`,
+			Name:         "Autofix - with blank lines",
+			ContentFile:  "output_arg_order_autofix_with_blank_lines.tf",
+			ExpectedFile: "output_arg_order_autofix_with_blank_lines_expected.tf",
 		},
 		{
-			Name: "Autofix - with precondition block",
-			Content: `output "with_precondition" {
-	value = var.test
-	precondition {
-		condition = var.test != ""
-		error_message = "Test must not be empty"
-	}
-	description = "Output with validation"
-}
-`,
-			Expected: `output "with_precondition" {
-  description = "Output with validation"
-  value       = var.test
-
-  precondition {
-    condition     = var.test != ""
-    error_message = "Test must not be empty"
-  }
-}
-`,
+			Name:         "Autofix - with precondition block",
+			ContentFile:  "output_arg_order_autofix_with_precondition.tf",
+			ExpectedFile: "output_arg_order_autofix_with_precondition_expected.tf",
 		},
 		{
-			Name: "Autofix - with depends_on",
-			Content: `output "with_depends" {
-	depends_on = [aws_instance.example]
-	value = var.instance_id
-	description = "Instance ID"
-}
-`,
-			Expected: `output "with_depends" {
-  description = "Instance ID"
-  value       = var.instance_id
-
-  depends_on = [aws_instance.example]
-}
-`,
+			Name:         "Autofix - with depends_on",
+			ContentFile:  "output_arg_order_autofix_with_depends.tf",
+			ExpectedFile: "output_arg_order_autofix_with_depends_expected.tf",
 		},
 		{
-			Name: "Autofix - full reordering with precondition and depends_on",
-			Content: `output "full_reorder" {
-	depends_on = [aws_instance.example]
-	sensitive = true
-	precondition {
-		condition = var.test != ""
-		error_message = "Test required"
-	}
-	value = var.test
-	description = "Full test"
-	ephemeral = true
-}
-`,
-			Expected: `output "full_reorder" {
-  description = "Full test"
-  value       = var.test
-  ephemeral   = true
-  sensitive   = true
-
-  precondition {
-    condition     = var.test != ""
-    error_message = "Test required"
-  }
-
-  depends_on = [aws_instance.example]
-}
-`,
+			Name:         "Autofix - full reordering with precondition and depends_on",
+			ContentFile:  "output_arg_order_autofix_full_reorder.tf",
+			ExpectedFile: "output_arg_order_autofix_full_reorder_expected.tf",
 		},
 	}
 
@@ -290,8 +193,11 @@ func TestTerraformOutputArgumentOrderRule_Autofix(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
+			content := readFixture(t, tc.ContentFile)
+			expected := readFixture(t, tc.ExpectedFile)
+
 			runner := helper.TestRunner(t, map[string]string{
-				"outputs.tf": tc.Content,
+				"outputs.tf": content,
 			})
 
 			if err := rule.Check(runner); err != nil {
@@ -299,7 +205,7 @@ func TestTerraformOutputArgumentOrderRule_Autofix(t *testing.T) {
 			}
 
 			helper.AssertChanges(t, map[string]string{
-				"outputs.tf": tc.Expected,
+				"outputs.tf": expected,
 			}, runner.Changes())
 		})
 	}

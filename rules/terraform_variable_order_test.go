@@ -105,129 +105,55 @@ variable "opt_a" {
 
 func TestTerraformVariableOrderRule_Autofix(t *testing.T) {
 	tests := []struct {
-		Name     string
-		Content  string
-		Expected string
+		Name         string
+		ContentFile  string
+		ExpectedFile string
 	}{
 		{
-			Name: "Autofix - optional before required",
-			Content: `variable "bar" {
-	default = 123
-}
-variable "foo" {}
-`,
-			Expected: `variable "foo" {}
-variable "bar" {
-  default = 123
-}
-`,
+			Name:         "Autofix - optional before required",
+			ContentFile:  "variable_order_autofix_optional_before_required.tf",
+			ExpectedFile: "variable_order_autofix_optional_before_required_expected.tf",
 		},
 		{
-			Name: "Autofix - required out of alphabetical order",
-			Content: `variable "zzz" {}
-variable "aaa" {}
-`,
-			Expected: `variable "aaa" {}
-variable "zzz" {}
-`,
+			Name:         "Autofix - required out of alphabetical order",
+			ContentFile:  "variable_order_autofix_required_out_of_order.tf",
+			ExpectedFile: "variable_order_autofix_required_out_of_order_expected.tf",
 		},
 		{
-			Name: "Autofix - optional out of alphabetical order",
-			Content: `variable "opt_x" {
-	default = 1
-}
-variable "opt_a" {
-	default = 2
-}
-`,
-			Expected: `variable "opt_a" {
-  default = 2
-}
-variable "opt_x" {
-  default = 1
-}
-`,
+			Name:         "Autofix - optional out of alphabetical order",
+			ContentFile:  "variable_order_autofix_optional_out_of_order.tf",
+			ExpectedFile: "variable_order_autofix_optional_out_of_order_expected.tf",
 		},
 		{
-			Name: "Autofix - complex mix of required and optional",
-			Content: `variable "charlie" {
-	default = "c"
-}
-
-variable "beta" {}
-
-variable "echo" {
-	default = "e"
-}
-
-variable "alpha" {}
-
-variable "delta" {
-	default = "d"
-}
-`,
-			Expected: `variable "alpha" {}
-
-variable "beta" {}
-
-variable "charlie" {
-  default = "c"
-}
-
-variable "delta" {
-  default = "d"
-}
-
-variable "echo" {
-  default = "e"
-}
-`,
+			Name:         "Autofix - complex mix of required and optional",
+			ContentFile:  "variable_order_autofix_complex_mix.tf",
+			ExpectedFile: "variable_order_autofix_complex_mix_expected.tf",
 		},
 		{
-			Name: "Autofix - preserve spacing between variables",
-			Content: `variable "beta" {}
-
-
-variable "alpha" {}
-`,
-			Expected: `variable "alpha" {}
-
-
-variable "beta" {}
-`,
+			Name:         "Autofix - preserve spacing between variables",
+			ContentFile:  "variable_order_autofix_preserve_spacing.tf",
+			ExpectedFile: "variable_order_autofix_preserve_spacing_expected.tf",
 		},
 		{
-			Name: "Autofix - preserve single line spacing",
-			Content: `variable "beta" {}
-variable "alpha" {}
-`,
-			Expected: `variable "alpha" {}
-variable "beta" {}
-`,
+			Name:         "Autofix - preserve single line spacing",
+			ContentFile:  "variable_order_autofix_single_line.tf",
+			ExpectedFile: "variable_order_autofix_single_line_expected.tf",
 		},
 		{
-			Name: "Autofix - no space between adjacent variables originally",
-			Content: `variable "b" {}
-variable "c" {
-	default = 1
-}
-variable "a" {}
-`,
-			Expected: `variable "a" {}
-
-variable "b" {}
-variable "c" {
-  default = 1
-}
-`,
+			Name:         "Autofix - no space between adjacent variables originally",
+			ContentFile:  "variable_order_autofix_no_space.tf",
+			ExpectedFile: "variable_order_autofix_no_space_expected.tf",
 		},
 	}
 
 	rule := NewTerraformVariableOrderRule()
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
+			content := readFixture(t, tc.ContentFile)
+			expected := readFixture(t, tc.ExpectedFile)
+
 			runner := helper.TestRunner(t, map[string]string{
-				"test.tf": tc.Content,
+				"test.tf": content,
 			})
 
 			if err := rule.Check(runner); err != nil {
@@ -235,7 +161,7 @@ variable "c" {
 			}
 
 			helper.AssertChanges(t, map[string]string{
-				"test.tf": tc.Expected,
+				"test.tf": expected,
 			}, runner.Changes())
 		})
 	}

@@ -81,159 +81,44 @@ func TestTerraformVariableArgumentOrderRule(t *testing.T) {
 
 func TestTerraformVariableArgumentOrderRule_Autofix(t *testing.T) {
 	tests := []struct {
-		Name     string
-		Content  string
-		Expected string
+		Name         string
+		ContentFile  string
+		ExpectedFile string
 	}{
 		{
-			Name: "Autofix - type after default",
-			Content: `variable "fail_type_after_default" {
-  description = "Out-of-order example"
-  default     = "some_value"
-  type        = string
-}
-`,
-			Expected: `variable "fail_type_after_default" {
-  description = "Out-of-order example"
-  type        = string
-  default     = "some_value"
-}
-`,
+			Name:         "Autofix - type after default",
+			ContentFile:  "variable_arg_order_autofix_type_after_default.tf",
+			ExpectedFile: "variable_arg_order_autofix_type_after_default_expected.tf",
 		},
 		{
-			Name: "Autofix - nullable before sensitive",
-			Content: `variable "test" {
-  nullable = false
-  sensitive = true
-}
-`,
-			Expected: `variable "test" {
-  sensitive = true
-  nullable  = false
-}
-`,
+			Name:         "Autofix - nullable before sensitive",
+			ContentFile:  "variable_arg_order_autofix_nullable_before_sensitive.tf",
+			ExpectedFile: "variable_arg_order_autofix_nullable_before_sensitive_expected.tf",
 		},
 		{
-			Name: "Autofix - validation before default",
-			Content: `variable "test" {
-  description = "Test variable"
-  type        = string
-  validation {
-    condition     = length(var.test) > 0
-    error_message = "Must not be empty"
-  }
-  default = "value"
-}
-`,
-			Expected: `variable "test" {
-  description = "Test variable"
-  type        = string
-  default     = "value"
-
-  validation {
-    condition     = length(var.test) > 0
-    error_message = "Must not be empty"
-  }
-}
-`,
+			Name:         "Autofix - validation before default",
+			ContentFile:  "variable_arg_order_autofix_validation_before_default.tf",
+			ExpectedFile: "variable_arg_order_autofix_validation_before_default_expected.tf",
 		},
 		{
-			Name: "Autofix - complex out of order",
-			Content: `variable "complex" {
-  nullable = false
-  description = "Complex example"
-  sensitive = true
-  type = list(string)
-  default = ["a", "b"]
-}
-`,
-			Expected: `variable "complex" {
-  description = "Complex example"
-  type        = list(string)
-  default     = ["a", "b"]
-  sensitive   = true
-  nullable    = false
-}
-`,
+			Name:         "Autofix - complex out of order",
+			ContentFile:  "variable_arg_order_autofix_complex.tf",
+			ExpectedFile: "variable_arg_order_autofix_complex_expected.tf",
 		},
 		{
-			Name: "Autofix - ephemeral in wrong position",
-			Content: `variable "ephemeral_test" {
-  description = "Test"
-  type = string
-  sensitive = true
-  ephemeral = true
-  default = "value"
-}
-`,
-			Expected: `variable "ephemeral_test" {
-  description = "Test"
-  type        = string
-  default     = "value"
-  ephemeral   = true
-  sensitive   = true
-}
-`,
+			Name:         "Autofix - ephemeral in wrong position",
+			ContentFile:  "variable_arg_order_autofix_ephemeral_wrong.tf",
+			ExpectedFile: "variable_arg_order_autofix_ephemeral_wrong_expected.tf",
 		},
 		{
-			Name: "Autofix - multiple validation blocks",
-			Content: `variable "multi_validation" {
-  type = string
-  validation {
-    condition = true
-    error_message = "First"
-  }
-  default = "value"
-  validation {
-    condition = true
-    error_message = "Second"
-  }
-}
-`,
-			Expected: `variable "multi_validation" {
-  type    = string
-  default = "value"
-
-  validation {
-    condition     = true
-    error_message = "First"
-  }
-  validation {
-    condition     = true
-    error_message = "Second"
-  }
-}
-`,
+			Name:         "Autofix - multiple validation blocks",
+			ContentFile:  "variable_arg_order_autofix_multi_validation.tf",
+			ExpectedFile: "variable_arg_order_autofix_multi_validation_expected.tf",
 		},
 		{
-			Name: "Autofix - all attributes with validation",
-			Content: `variable "full_example" {
-  nullable = false
-  validation {
-    condition = var.full_example != ""
-    error_message = "Cannot be empty"
-  }
-  type = string
-  sensitive = true
-  description = "Full example"
-  default = "test"
-  ephemeral = true
-}
-`,
-			Expected: `variable "full_example" {
-  description = "Full example"
-  type        = string
-  default     = "test"
-  ephemeral   = true
-  sensitive   = true
-  nullable    = false
-
-  validation {
-    condition     = var.full_example != ""
-    error_message = "Cannot be empty"
-  }
-}
-`,
+			Name:         "Autofix - all attributes with validation",
+			ContentFile:  "variable_arg_order_autofix_full_example.tf",
+			ExpectedFile: "variable_arg_order_autofix_full_example_expected.tf",
 		},
 	}
 
@@ -241,8 +126,11 @@ func TestTerraformVariableArgumentOrderRule_Autofix(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
+			content := readFixture(t, tc.ContentFile)
+			expected := readFixture(t, tc.ExpectedFile)
+
 			runner := helper.TestRunner(t, map[string]string{
-				"variables.tf": tc.Content,
+				"variables.tf": content,
 			})
 
 			if err := rule.Check(runner); err != nil {
@@ -250,7 +138,7 @@ func TestTerraformVariableArgumentOrderRule_Autofix(t *testing.T) {
 			}
 
 			helper.AssertChanges(t, map[string]string{
-				"variables.tf": tc.Expected,
+				"variables.tf": expected,
 			}, runner.Changes())
 		})
 	}

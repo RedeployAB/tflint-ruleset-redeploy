@@ -81,132 +81,58 @@ func TestTerraformNoLeadingTrailingBlankLinesRule(t *testing.T) {
 
 func TestTerraformNoLeadingTrailingBlankLinesRule_Autofix(t *testing.T) {
 	tests := []struct {
-		Name     string
-		Content  string
-		Expected string
-		HasFix   bool
+		Name         string
+		ContentFile  string
+		ExpectedFile string
+		HasFix       bool
 	}{
 		{
-			Name: "Remove blank line after opening brace",
-			Content: `resource "random_id" "example" {
-
-  byte_length = 8
-  keepers = {
-    env = var.env_name
-  }
-}`,
-			Expected: `resource "random_id" "example" {
-  byte_length = 8
-  keepers = {
-    env = var.env_name
-  }
-}`,
-			HasFix: true,
+			Name:         "Remove blank line after opening brace",
+			ContentFile:  "no_leading_trailing_autofix_blank_after_open.tf",
+			ExpectedFile: "no_leading_trailing_autofix_blank_after_open_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Remove blank line before closing brace",
-			Content: `resource "random_id" "example" {
-  byte_length = 8
-  keepers = {
-    env = var.env_name
-  }
-
-}`,
-			Expected: `resource "random_id" "example" {
-  byte_length = 8
-  keepers = {
-    env = var.env_name
-  }
-}`,
-			HasFix: true,
+			Name:         "Remove blank line before closing brace",
+			ContentFile:  "no_leading_trailing_autofix_blank_before_close.tf",
+			ExpectedFile: "no_leading_trailing_autofix_blank_before_close_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Remove both leading and trailing blank lines in simple block",
-			Content: `resource "test" "both" {
-
-  name = "test"
-  type = "example"
-
-}`,
-			Expected: `resource "test" "both" {
-  name = "test"
-  type = "example"
-
-}`,
-			HasFix: true,
+			Name:         "Remove both leading and trailing blank lines in simple block",
+			ContentFile:  "no_leading_trailing_autofix_both.tf",
+			ExpectedFile: "no_leading_trailing_autofix_both_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Preserve well-formatted blocks",
-			Content: `resource "test" "example" {
-  name = "test"
-  tags = {
-    Environment = "test"
-  }
-}`,
-			Expected: `resource "test" "example" {
-  name = "test"
-  tags = {
-    Environment = "test"
-  }
-}`,
-			HasFix: false,
+			Name:         "Preserve well-formatted blocks",
+			ContentFile:  "no_leading_trailing_autofix_well_formatted.tf",
+			ExpectedFile: "no_leading_trailing_autofix_well_formatted.tf",
+			HasFix:       false,
 		},
 		{
-			Name:     "Preserve empty blocks",
-			Content:  `resource "null_resource" "empty" {}`,
-			Expected: `resource "null_resource" "empty" {}`,
-			HasFix:   false,
+			Name:         "Preserve empty blocks",
+			ContentFile:  "no_leading_trailing_autofix_empty_block.tf",
+			ExpectedFile: "no_leading_trailing_autofix_empty_block.tf",
+			HasFix:       false,
 		},
 		{
-			Name: "Preserve blocks with comments after opening brace",
-			Content: `resource "test" "example" {
-  # This is a comment
-  name = "test"
-}`,
-			Expected: `resource "test" "example" {
-  # This is a comment
-  name = "test"
-}`,
-			HasFix: false,
+			Name:         "Preserve blocks with comments after opening brace",
+			ContentFile:  "no_leading_trailing_autofix_comment_after_brace.tf",
+			ExpectedFile: "no_leading_trailing_autofix_comment_after_brace.tf",
+			HasFix:       false,
 		},
 		{
-			Name: "Remove blank line in nested resource blocks",
-			Content: `resource "test" "example" {
-
-  name = "test"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}`,
-			Expected: `resource "test" "example" {
-  name = "test"
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}`,
-			HasFix: true,
+			Name:         "Remove blank line in nested resource blocks",
+			ContentFile:  "no_leading_trailing_autofix_nested.tf",
+			ExpectedFile: "no_leading_trailing_autofix_nested_expected.tf",
+			HasFix:       true,
 		},
 		{
-			Name: "Multiple blocks with issues",
-			Content: `resource "test" "one" {
-
-  name = "one"
-}
-
-module "two" {
-  source = "./two"
-
-}`,
-			Expected: `resource "test" "one" {
-  name = "one"
-}
-
-module "two" {
-  source = "./two"
-}`,
-			HasFix: true,
+			Name:         "Multiple blocks with issues",
+			ContentFile:  "no_leading_trailing_autofix_multiple.tf",
+			ExpectedFile: "no_leading_trailing_autofix_multiple_expected.tf",
+			HasFix:       true,
 		},
 	}
 
@@ -214,8 +140,9 @@ module "two" {
 
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
+			content := readFixture(t, tc.ContentFile)
 			runner := helper.TestRunner(t, map[string]string{
-				"main.tf": tc.Content,
+				"main.tf": content,
 			})
 
 			if err := rule.Check(runner); err != nil {
@@ -224,8 +151,9 @@ module "two" {
 
 			changes := runner.Changes()
 			if tc.HasFix {
+				expected := readFixture(t, tc.ExpectedFile)
 				helper.AssertChanges(t, map[string]string{
-					"main.tf": tc.Expected,
+					"main.tf": expected,
 				}, changes)
 			} else if len(changes) > 0 {
 				t.Errorf("Expected no changes, but got: %v", changes)
