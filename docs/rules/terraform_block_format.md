@@ -18,7 +18,7 @@ Specifically, it checks that:
 - Any subsequent nested blocks in the same block are also preceded by exactly
   one empty line.
 
-Note: Comment lines are not counted as blank lines and do not affect the
+Note: Comment lines are not counted as empty lines and do not affect the
 spacing requirements.
 
 If the spacing does not conform to these rules, an error is emitted.
