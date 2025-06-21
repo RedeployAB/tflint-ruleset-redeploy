@@ -19,7 +19,7 @@ You can install the plugin with `tflint --init`. Declare a config in
 ```hcl
 plugin "redeploy" {
   enabled = true
-  version = "0.1.0"
+  version = "0.2.0"
   source  = "github.com/RedeployAB/tflint-ruleset-redeploy"
 
   signing_key = <<-KEY
@@ -108,8 +108,8 @@ You can run the built plugin like the following:
 $ cat << EOS > .tflint.hcl
 plugin "redeploy" {
   enabled = true
-  version = "0.1.0"
-  source  = "github.com/terraform-linters/tflint-ruleset-redeploy"
+  version = "0.2.0"
+  source  = "github.com/RedeployAB/tflint-ruleset-redeploy"
 }
 EOS
 $ tflint
