@@ -10,7 +10,7 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-// TerraformResourceArgumentOrderRule ensures that for resource/data/provider/terraform blocks:
+// TerraformResourceArgumentOrderRule ensures that for all blocks:
 // Non-block attributes come first, followed by block attributes (sub-blocks).
 // This rule is recursive, so it checks nested blocks as well.
 // It ignores meta-arguments (count, for_each, depends_on, lifecycle, provider, tags).
@@ -67,15 +67,11 @@ func (r *TerraformResourceArgumentOrderRule) Check(runner tflint.Runner) error {
 
 func (r *TerraformResourceArgumentOrderRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
 	for _, block := range body.Blocks {
-		// We only care about blocks of type resource, data, provider, or terraform
-		blockType := strings.ToLower(block.Type)
-		if blockType == TypeResource || blockType == TypeData ||
-			blockType == TypeProvider || blockType == TypeTerraform {
-			if err := r.checkArgumentOrder(block, runner); err != nil {
-				return err
-			}
+		// Check argument order for all blocks
+		if err := r.checkArgumentOrder(block, runner); err != nil {
+			return err
 		}
-		// Recurse
+		// Recurse into nested blocks
 		if err := r.processBody(block.Body, runner); err != nil {
 			return err
 		}
