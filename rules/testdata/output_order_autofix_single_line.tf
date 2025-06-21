@@ -1,0 +1,2 @@
+output "beta" {}
+output "alpha" {}

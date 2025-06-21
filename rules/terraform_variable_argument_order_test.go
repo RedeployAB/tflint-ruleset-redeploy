@@ -78,3 +78,68 @@ func TestTerraformVariableArgumentOrderRule(t *testing.T) {
 		})
 	}
 }
+
+func TestTerraformVariableArgumentOrderRule_Autofix(t *testing.T) {
+	tests := []struct {
+		Name         string
+		ContentFile  string
+		ExpectedFile string
+	}{
+		{
+			Name:         "Autofix - type after default",
+			ContentFile:  "variable_arg_order_autofix_type_after_default.tf",
+			ExpectedFile: "variable_arg_order_autofix_type_after_default_expected.tf",
+		},
+		{
+			Name:         "Autofix - nullable before sensitive",
+			ContentFile:  "variable_arg_order_autofix_nullable_before_sensitive.tf",
+			ExpectedFile: "variable_arg_order_autofix_nullable_before_sensitive_expected.tf",
+		},
+		{
+			Name:         "Autofix - validation before default",
+			ContentFile:  "variable_arg_order_autofix_validation_before_default.tf",
+			ExpectedFile: "variable_arg_order_autofix_validation_before_default_expected.tf",
+		},
+		{
+			Name:         "Autofix - complex out of order",
+			ContentFile:  "variable_arg_order_autofix_complex.tf",
+			ExpectedFile: "variable_arg_order_autofix_complex_expected.tf",
+		},
+		{
+			Name:         "Autofix - ephemeral in wrong position",
+			ContentFile:  "variable_arg_order_autofix_ephemeral_wrong.tf",
+			ExpectedFile: "variable_arg_order_autofix_ephemeral_wrong_expected.tf",
+		},
+		{
+			Name:         "Autofix - multiple validation blocks",
+			ContentFile:  "variable_arg_order_autofix_multi_validation.tf",
+			ExpectedFile: "variable_arg_order_autofix_multi_validation_expected.tf",
+		},
+		{
+			Name:         "Autofix - all attributes with validation",
+			ContentFile:  "variable_arg_order_autofix_full_example.tf",
+			ExpectedFile: "variable_arg_order_autofix_full_example_expected.tf",
+		},
+	}
+
+	rule := NewTerraformVariableArgumentOrderRule()
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			content := readFixture(t, tc.ContentFile)
+			expected := readFixture(t, tc.ExpectedFile)
+
+			runner := helper.TestRunner(t, map[string]string{
+				"variables.tf": content,
+			})
+
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			helper.AssertChanges(t, map[string]string{
+				"variables.tf": expected,
+			}, runner.Changes())
+		})
+	}
+}

@@ -106,10 +106,13 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
 	if isLiteral && !value {
-		return runner.EmitIssue(
+		return runner.EmitIssueWithFix(
 			r,
 			"sensitive should not be set to false (omit instead)",
 			sensitiveAttr.Range(),
+			func(f tflint.Fixer) error {
+				return removeAttributeLine(f, runner, sensitiveAttr.Range())
+			},
 		)
 	}
 

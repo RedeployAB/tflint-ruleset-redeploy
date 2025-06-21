@@ -1,0 +1,4 @@
+variable "beta" {}
+
+
+variable "alpha" {}
