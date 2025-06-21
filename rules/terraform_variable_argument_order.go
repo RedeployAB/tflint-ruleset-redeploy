@@ -128,7 +128,7 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 	// Gather recognized blocks: "validation"
 	for _, childBlock := range block.Body.Blocks {
 		lcType := strings.ToLower(childBlock.Type)
-		if lcType == "validation" {
+		if lcType == TypeValidation {
 			items = append(items, variableArgumentItem{
 				Name:  lcType,
 				Index: orderMap[lcType], // 6
@@ -186,6 +186,22 @@ func (r *TerraformVariableArgumentOrderRule) fixVariableArgumentOrder(
 	}
 
 	// Sort items by their expected order
+	orderedItems := r.sortItemsByExpectedOrder(items)
+
+	// Check if already in correct order
+	if r.isAlreadyOrdered(items, orderedItems) {
+		return nil
+	}
+
+	// Extract text content for all items
+	attrTexts, blockTexts := r.extractItemTexts(f, block, items)
+
+	// Build and apply the reordered content
+	return r.applyReorderedContent(f, block, orderedItems, attrTexts, blockTexts)
+}
+
+// sortItemsByExpectedOrder sorts items by their expected order index
+func (r *TerraformVariableArgumentOrderRule) sortItemsByExpectedOrder(items []variableArgumentItem) []variableArgumentItem {
 	orderedItems := make([]variableArgumentItem, len(items))
 	copy(orderedItems, items)
 	sort.Slice(orderedItems, func(i, j int) bool {
@@ -195,30 +211,49 @@ func (r *TerraformVariableArgumentOrderRule) fixVariableArgumentOrder(
 		// For same index (multiple validation blocks), keep original order
 		return orderedItems[i].Start < orderedItems[j].Start
 	})
+	return orderedItems
+}
 
-	// Check if already in correct order
-	alreadyOrdered := true
+// isAlreadyOrdered checks if items are already in the correct order
+func (r *TerraformVariableArgumentOrderRule) isAlreadyOrdered(items, orderedItems []variableArgumentItem) bool {
 	for i := range items {
 		if items[i].Name != orderedItems[i].Name {
-			alreadyOrdered = false
-			break
+			return false
 		}
 	}
-	if alreadyOrdered {
-		return nil
-	}
+	return true
+}
 
-	// Create maps to store text content
+// extractItemTexts extracts text content for attributes and blocks
+func (r *TerraformVariableArgumentOrderRule) extractItemTexts(
+	f tflint.Fixer,
+	block *hclsyntax.Block,
+	items []variableArgumentItem,
+) (map[string]string, map[int]string) {
 	attrTexts := make(map[string]string)
 	blockTexts := make(map[int]string) // Use start position as key for validation blocks
 
-	// Get the text for each attribute
+	// Extract attribute texts
+	r.extractAttributeTexts(f, block, items, attrTexts)
+
+	// Extract validation block texts
+	r.extractValidationBlockTexts(f, block, items, blockTexts)
+
+	return attrTexts, blockTexts
+}
+
+// extractAttributeTexts extracts text for all attributes
+func (r *TerraformVariableArgumentOrderRule) extractAttributeTexts(
+	f tflint.Fixer,
+	block *hclsyntax.Block,
+	items []variableArgumentItem,
+	attrTexts map[string]string,
+) {
 	for _, attr := range block.Body.Attributes {
 		lcName := strings.ToLower(attr.Name)
 		// Check if this is one of our tracked attributes
 		for _, item := range items {
 			if item.Name == lcName && !item.IsBlk {
-				// Get the range from the start of the attribute name to the end of the value
 				attrRange := attr.Range()
 				text := f.TextAt(attrRange)
 				attrTexts[lcName] = string(text.Bytes)
@@ -226,14 +261,20 @@ func (r *TerraformVariableArgumentOrderRule) fixVariableArgumentOrder(
 			}
 		}
 	}
+}
 
-	// Get the text for validation blocks
+// extractValidationBlockTexts extracts text for validation blocks
+func (r *TerraformVariableArgumentOrderRule) extractValidationBlockTexts(
+	f tflint.Fixer,
+	block *hclsyntax.Block,
+	items []variableArgumentItem,
+	blockTexts map[int]string,
+) {
 	for _, blk := range block.Body.Blocks {
-		if strings.ToLower(blk.Type) == "validation" {
+		if strings.ToLower(blk.Type) == TypeValidation {
 			// Find the corresponding item by start position
 			for _, item := range items {
 				if item.IsBlk && item.Start == blk.DefRange().Start.Byte {
-					// Get the full block range
 					blockRange := hcl.Range{
 						Filename: blk.DefRange().Filename,
 						Start:    blk.DefRange().Start,
@@ -246,50 +287,23 @@ func (r *TerraformVariableArgumentOrderRule) fixVariableArgumentOrder(
 			}
 		}
 	}
+}
 
-	// Build the reordered content
+// applyReorderedContent builds and applies the reordered content
+func (r *TerraformVariableArgumentOrderRule) applyReorderedContent(
+	f tflint.Fixer,
+	block *hclsyntax.Block,
+	orderedItems []variableArgumentItem,
+	attrTexts map[string]string,
+	blockTexts map[int]string,
+) error {
 	var result strings.Builder
 
 	// Write the opening line
-	result.WriteString("variable ")
-	if len(block.Labels) > 0 {
-		result.WriteString(`"`)
-		result.WriteString(block.Labels[0])
-		result.WriteString(`" `)
-	}
-	result.WriteString("{\n")
+	r.writeBlockOpening(&result, block)
 
 	// Write attributes and blocks in the correct order
-	for i, orderedItem := range orderedItems {
-		if i > 0 {
-			// Add extra blank line before validation blocks
-			if orderedItem.IsBlk && (i == 0 || !orderedItems[i-1].IsBlk) {
-				result.WriteString("\n")
-			}
-			result.WriteString("\n")
-		}
-
-		if orderedItem.IsBlk {
-			// Add proper indentation for blocks
-			lines := strings.Split(blockTexts[orderedItem.Start], "\n")
-			for j, line := range lines {
-				if j > 0 {
-					result.WriteString("\n")
-				}
-				if line != "" {
-					result.WriteString("  ")
-					result.WriteString(line)
-				}
-			}
-		} else {
-			// Add proper indentation for attributes
-			result.WriteString("  ")
-			// Add the attribute text
-			if text, ok := attrTexts[orderedItem.Name]; ok {
-				result.WriteString(text)
-			}
-		}
-	}
+	r.writeOrderedItems(&result, orderedItems, attrTexts, blockTexts)
 
 	result.WriteString("\n}")
 
@@ -301,4 +315,59 @@ func (r *TerraformVariableArgumentOrderRule) fixVariableArgumentOrder(
 	}
 
 	return f.ReplaceText(fullBlockRange, result.String())
+}
+
+// writeBlockOpening writes the opening line of the block
+func (r *TerraformVariableArgumentOrderRule) writeBlockOpening(result *strings.Builder, block *hclsyntax.Block) {
+	result.WriteString("variable ")
+	if len(block.Labels) > 0 {
+		result.WriteString(`"`)
+		result.WriteString(block.Labels[0])
+		result.WriteString(`" `)
+	}
+	result.WriteString("{\n")
+}
+
+// writeOrderedItems writes the items in the correct order with proper formatting
+func (r *TerraformVariableArgumentOrderRule) writeOrderedItems(
+	result *strings.Builder,
+	orderedItems []variableArgumentItem,
+	attrTexts map[string]string,
+	blockTexts map[int]string,
+) {
+	for i, orderedItem := range orderedItems {
+		if i > 0 {
+			// Add extra blank line before validation blocks
+			if orderedItem.IsBlk && (i == 0 || !orderedItems[i-1].IsBlk) {
+				result.WriteString("\n")
+			}
+			result.WriteString("\n")
+		}
+
+		if orderedItem.IsBlk {
+			r.writeBlock(result, blockTexts[orderedItem.Start])
+		} else {
+			r.writeAttribute(result, attrTexts[orderedItem.Name])
+		}
+	}
+}
+
+// writeBlock writes a block with proper indentation
+func (r *TerraformVariableArgumentOrderRule) writeBlock(result *strings.Builder, text string) {
+	lines := strings.Split(text, "\n")
+	for j, line := range lines {
+		if j > 0 {
+			result.WriteString("\n")
+		}
+		if line != "" {
+			result.WriteString("  ")
+			result.WriteString(line)
+		}
+	}
+}
+
+// writeAttribute writes an attribute with proper indentation
+func (r *TerraformVariableArgumentOrderRule) writeAttribute(result *strings.Builder, text string) {
+	result.WriteString("  ")
+	result.WriteString(text)
 }

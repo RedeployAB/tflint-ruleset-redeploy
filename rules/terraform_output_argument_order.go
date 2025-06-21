@@ -105,7 +105,7 @@ func (r *TerraformOutputArgumentOrderRule) checkOutputBlock(
 	for _, attr := range block.Body.Attributes {
 		lcName := strings.ToLower(attr.Name)
 		idx, found := orderMap[lcName]
-		if found && lcName != "precondition" { // precondition is a block, not an attribute
+		if found && lcName != TypePrecondition { // precondition is a block, not an attribute
 			items = append(items, outputArgumentItem{
 				Name:    lcName,
 				Index:   idx,
@@ -118,10 +118,10 @@ func (r *TerraformOutputArgumentOrderRule) checkOutputBlock(
 
 	// Gather precondition blocks
 	for _, blk := range block.Body.Blocks {
-		if strings.ToLower(blk.Type) == "precondition" {
-			idx := orderMap["precondition"]
+		if strings.ToLower(blk.Type) == TypePrecondition {
+			idx := orderMap[TypePrecondition]
 			items = append(items, outputArgumentItem{
-				Name:    "precondition",
+				Name:    TypePrecondition,
 				Index:   idx,
 				Range:   blk.DefRange(),
 				Start:   blk.DefRange().Start.Byte,
@@ -173,25 +173,46 @@ func (r *TerraformOutputArgumentOrderRule) fixOutputArgumentOrder(
 	}
 
 	// Sort items by their expected order
+	orderedItems := r.sortItemsByExpectedOrder(items)
+
+	// Check if already in correct order
+	if r.isAlreadyOrdered(items, orderedItems) {
+		return nil
+	}
+
+	// Extract text content for all items
+	attrTexts, blockTexts := r.extractItemTexts(f, block, items)
+
+	// Build and apply the reordered content
+	return r.applyReorderedContent(f, block, orderedItems, attrTexts, blockTexts)
+}
+
+// sortItemsByExpectedOrder sorts items by their expected order index
+func (r *TerraformOutputArgumentOrderRule) sortItemsByExpectedOrder(items []outputArgumentItem) []outputArgumentItem {
 	orderedItems := make([]outputArgumentItem, len(items))
 	copy(orderedItems, items)
 	sort.Slice(orderedItems, func(i, j int) bool {
 		return orderedItems[i].Index < orderedItems[j].Index
 	})
+	return orderedItems
+}
 
-	// Check if already in correct order
-	alreadyOrdered := true
+// isAlreadyOrdered checks if items are already in the correct order
+func (r *TerraformOutputArgumentOrderRule) isAlreadyOrdered(items, orderedItems []outputArgumentItem) bool {
 	for i := range items {
 		if items[i].Name != orderedItems[i].Name {
-			alreadyOrdered = false
-			break
+			return false
 		}
 	}
-	if alreadyOrdered {
-		return nil
-	}
+	return true
+}
 
-	// Create a map to store attribute text content
+// extractItemTexts extracts text content for attributes and blocks
+func (r *TerraformOutputArgumentOrderRule) extractItemTexts(
+	f tflint.Fixer,
+	block *hclsyntax.Block,
+	items []outputArgumentItem,
+) (map[string]string, map[string]string) {
 	attrTexts := make(map[string]string)
 	blockTexts := make(map[string]string)
 
@@ -201,8 +222,6 @@ func (r *TerraformOutputArgumentOrderRule) fixOutputArgumentOrder(
 		// Check if this is one of our tracked attributes
 		for _, item := range items {
 			if item.Name == lcName && !item.IsBlock {
-				// Get the range from the start of the attribute name to the end of the value
-				// This includes the entire line like "description = "some desc""
 				attrRange := attr.Range()
 				text := f.TextAt(attrRange)
 				attrTexts[lcName] = string(text.Bytes)
@@ -213,62 +232,34 @@ func (r *TerraformOutputArgumentOrderRule) fixOutputArgumentOrder(
 
 	// Get the text for precondition blocks
 	for _, blk := range block.Body.Blocks {
-		if strings.ToLower(blk.Type) == "precondition" {
-			// Get the full block range
+		if strings.ToLower(blk.Type) == TypePrecondition {
 			blockRange := hcl.Range{
 				Filename: blk.DefRange().Filename,
 				Start:    blk.DefRange().Start,
 				End:      blk.Body.Range().End,
 			}
 			text := f.TextAt(blockRange)
-			blockTexts["precondition"] = string(text.Bytes)
+			blockTexts[TypePrecondition] = string(text.Bytes)
 		}
 	}
 
-	// Build the reordered content
+	return attrTexts, blockTexts
+}
+
+// applyReorderedContent builds and applies the reordered content
+func (r *TerraformOutputArgumentOrderRule) applyReorderedContent(
+	f tflint.Fixer,
+	block *hclsyntax.Block,
+	orderedItems []outputArgumentItem,
+	attrTexts, blockTexts map[string]string,
+) error {
 	var result strings.Builder
 
 	// Write the opening line
-	result.WriteString("output ")
-	if len(block.Labels) > 0 {
-		result.WriteString(`"`)
-		result.WriteString(block.Labels[0])
-		result.WriteString(`" `)
-	}
-	result.WriteString("{\n")
+	r.writeBlockOpening(&result, block)
 
 	// Write attributes and blocks in the correct order
-	for i, orderedItem := range orderedItems {
-		if i > 0 {
-			// Add extra blank line before precondition and depends_on for better formatting
-			if orderedItem.Name == "precondition" || orderedItem.Name == "depends_on" {
-				// Always add blank line before these special items
-				result.WriteString("\n")
-			}
-			result.WriteString("\n")
-		}
-
-		if orderedItem.IsBlock {
-			// Add proper indentation for blocks
-			lines := strings.Split(blockTexts[orderedItem.Name], "\n")
-			for j, line := range lines {
-				if j > 0 {
-					result.WriteString("\n")
-				}
-				if line != "" {
-					result.WriteString("  ")
-					result.WriteString(line)
-				}
-			}
-		} else {
-			// Add proper indentation for attributes
-			result.WriteString("  ")
-			// Add the attribute text
-			if text, ok := attrTexts[orderedItem.Name]; ok {
-				result.WriteString(text)
-			}
-		}
-	}
+	r.writeOrderedItems(&result, orderedItems, attrTexts, blockTexts)
 
 	result.WriteString("\n}")
 
@@ -280,4 +271,58 @@ func (r *TerraformOutputArgumentOrderRule) fixOutputArgumentOrder(
 	}
 
 	return f.ReplaceText(fullBlockRange, result.String())
+}
+
+// writeBlockOpening writes the opening line of the block
+func (r *TerraformOutputArgumentOrderRule) writeBlockOpening(result *strings.Builder, block *hclsyntax.Block) {
+	result.WriteString("output ")
+	if len(block.Labels) > 0 {
+		result.WriteString(`"`)
+		result.WriteString(block.Labels[0])
+		result.WriteString(`" `)
+	}
+	result.WriteString("{\n")
+}
+
+// writeOrderedItems writes the items in the correct order with proper formatting
+func (r *TerraformOutputArgumentOrderRule) writeOrderedItems(
+	result *strings.Builder,
+	orderedItems []outputArgumentItem,
+	attrTexts, blockTexts map[string]string,
+) {
+	for i, orderedItem := range orderedItems {
+		if i > 0 {
+			// Add extra blank line before precondition and depends_on for better formatting
+			if orderedItem.Name == TypePrecondition || orderedItem.Name == ArgDependsOn {
+				result.WriteString("\n")
+			}
+			result.WriteString("\n")
+		}
+
+		if orderedItem.IsBlock {
+			r.writeBlock(result, orderedItem.Name, blockTexts[orderedItem.Name])
+		} else {
+			r.writeAttribute(result, orderedItem.Name, attrTexts[orderedItem.Name])
+		}
+	}
+}
+
+// writeBlock writes a block with proper indentation
+func (r *TerraformOutputArgumentOrderRule) writeBlock(result *strings.Builder, _, text string) {
+	lines := strings.Split(text, "\n")
+	for j, line := range lines {
+		if j > 0 {
+			result.WriteString("\n")
+		}
+		if line != "" {
+			result.WriteString("  ")
+			result.WriteString(line)
+		}
+	}
+}
+
+// writeAttribute writes an attribute with proper indentation
+func (r *TerraformOutputArgumentOrderRule) writeAttribute(result *strings.Builder, _, text string) {
+	result.WriteString("  ")
+	result.WriteString(text)
 }
