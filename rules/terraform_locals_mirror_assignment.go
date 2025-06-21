@@ -119,7 +119,21 @@ func (r *TerraformLocalsMirrorAssignmentRule) checkLocals(
 									),
 									attr.Range(),
 									func(f tflint.Fixer) error {
-										return f.Remove(attr.Range())
+										// Remove entire line including the newline
+										lineRange := hcl.Range{
+											Filename: attr.Range().Filename,
+											Start: hcl.Pos{
+												Line:   attr.Range().Start.Line,
+												Column: 1,
+												Byte:   0,
+											},
+											End: hcl.Pos{
+												Line:   attr.Range().Start.Line + 1,
+												Column: 1,
+												Byte:   0,
+											},
+										}
+										return f.Remove(lineRange)
 									},
 								); err != nil {
 									return err

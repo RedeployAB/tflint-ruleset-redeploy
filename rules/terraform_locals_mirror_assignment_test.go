@@ -111,7 +111,6 @@ locals {
 				"locals.tf": `variable "foo" {}
 
 locals {
-
 }
 `,
 			},
@@ -142,8 +141,6 @@ variable "region" {
 }
 
 locals {
-
-
   computed = lower(var.env)
 }
 `,
@@ -165,7 +162,6 @@ locals {
 
 locals {
   hello = lower(var.hello)
-
 }
 `,
 			},
