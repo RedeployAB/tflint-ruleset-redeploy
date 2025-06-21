@@ -175,7 +175,7 @@ variable "test" {
 	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
 			runner := helper.TestRunner(t, map[string]string{"variables.tf": tc.Content})
-			
+
 			// Execute rule
 			if err := rule.Check(runner); err != nil {
 				t.Fatalf("Unexpected error: %s", err)
