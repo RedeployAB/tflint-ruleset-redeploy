@@ -186,7 +186,7 @@ locals {
 			// Apply autofixes by triggering the fix functions
 			// The helper runner should automatically apply fixes when EmitIssueWithFix is called
 			changes := runner.Changes()
-			
+
 			// Use AssertChanges to verify the fixes were applied correctly
 			helper.AssertChanges(t, tc.Expected, changes)
 		})
