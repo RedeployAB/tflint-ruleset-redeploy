@@ -108,3 +108,88 @@ variable "test" {
 		})
 	}
 }
+
+func TestTerraformVariableNullableRuleAutofix(t *testing.T) {
+	tests := []struct {
+		Name     string
+		Content  string
+		Expected string
+	}{
+		{
+			Name: "Fix - remove nullable = true",
+			Content: `
+variable "test" {
+	description = "test variable"
+	nullable    = true
+}
+`,
+			Expected: `
+variable "test" {
+  description = "test variable"
+}
+`,
+		},
+		{
+			Name: "Fix - remove nullable when default = null",
+			Content: `
+variable "test" {
+	description = "test variable"
+	default     = null
+	nullable    = false
+}
+`,
+			Expected: `
+variable "test" {
+  description = "test variable"
+  default     = null
+}
+`,
+		},
+		{
+			Name: "Fix - remove nullable = true with other attributes",
+			Content: `
+variable "test" {
+	description = "test variable"
+	type        = string
+	nullable    = true
+	validation {
+		condition     = length(var.test) > 0
+		error_message = "Must not be empty"
+	}
+}
+`,
+			Expected: `
+variable "test" {
+  description = "test variable"
+  type        = string
+  validation {
+    condition     = length(var.test) > 0
+    error_message = "Must not be empty"
+  }
+}
+`,
+		},
+	}
+
+	rule := NewTerraformVariableNullableRule()
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{"variables.tf": tc.Content})
+			
+			// Execute rule
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			// Check that we have issues
+			if len(runner.Issues) == 0 {
+				t.Fatalf("Expected issues but got none")
+			}
+
+			// Check the autofix
+			changes := runner.Changes()
+			expected := map[string]string{"variables.tf": tc.Expected}
+			helper.AssertChanges(t, expected, changes)
+		})
+	}
+}

@@ -114,10 +114,18 @@ func (r *TerraformVariableNullableRule) checkNullDefaultAndNullableNotDeclared(
 		return err
 	}
 	if isDefaultNull && nullableVal != nil {
-		return runner.EmitIssue(
+		return runner.EmitIssueWithFix(
 			r,
 			"nullable must not be declared if default = null",
 			nullableVal.Range(),
+			func(f tflint.Fixer) error {
+				return f.RemoveAttribute(&hcl.Attribute{
+					Name:      nullableVal.Name,
+					Expr:      nullableVal.Expr,
+					Range:     nullableVal.Range(),
+					NameRange: nullableVal.NameRange,
+				})
+			},
 		)
 	}
 	return nil
@@ -133,10 +141,18 @@ func (r *TerraformVariableNullableRule) checkNullableFalseIfDeclared(
 		return err
 	}
 	if isLiteral && value {
-		return runner.EmitIssue(
+		return runner.EmitIssueWithFix(
 			r,
 			"nullable should not be set to true (the default is already true)",
 			nullableVal.Range(),
+			func(f tflint.Fixer) error {
+				return f.RemoveAttribute(&hcl.Attribute{
+					Name:      nullableVal.Name,
+					Expr:      nullableVal.Expr,
+					Range:     nullableVal.Range(),
+					NameRange: nullableVal.NameRange,
+				})
+			},
 		)
 	}
 	return nil
