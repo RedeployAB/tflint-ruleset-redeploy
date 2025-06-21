@@ -88,6 +88,21 @@ func TestTerraformResourceArgumentOrder(t *testing.T) {
 			FileName: "resource_arg_order_ok_tags.tf",
 			Expected: helper.Issues{},
 		},
+		{
+			Name:     "Invalid - attribute after nested block in nested block",
+			FileName: "resource_arg_order_invalid_nested_attr_after_block.tf",
+			Expected: helper.Issues{
+				{
+					Rule:    NewTerraformResourceArgumentOrderRule(),
+					Message: "Argument 'versioning_enabled' must not come after a nested block",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 16, Column: 5},
+						End:      hcl.Pos{Line: 16, Column: 31},
+					},
+				},
+			},
+		},
 	}
 
 	rule := NewTerraformResourceArgumentOrderRule()
