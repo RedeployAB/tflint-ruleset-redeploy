@@ -184,8 +184,8 @@ func TestTerraformBlockFormat(t *testing.T) {
 					Message: "Expected exactly one blank line before this block",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 6, Column: 5},
-						End:      hcl.Pos{Line: 6, Column: 11},
+						Start:    hcl.Pos{Line: 6, Column: 3},
+						End:      hcl.Pos{Line: 6, Column: 9},
 					},
 				},
 			},
@@ -245,8 +245,8 @@ func TestTerraformBlockFormat(t *testing.T) {
 					Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 7, Column: 5},
-						End:      hcl.Pos{Line: 7, Column: 14},
+						Start:    hcl.Pos{Line: 7, Column: 3},
+						End:      hcl.Pos{Line: 7, Column: 12},
 					},
 				},
 			},
@@ -301,8 +301,8 @@ func TestTerraformBlockFormat(t *testing.T) {
 					Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
 					Range: hcl.Range{
 						Filename: "resource.tf",
-						Start:    hcl.Pos{Line: 7, Column: 5},
-						End:      hcl.Pos{Line: 7, Column: 17},
+						Start:    hcl.Pos{Line: 7, Column: 3},
+						End:      hcl.Pos{Line: 7, Column: 15},
 					},
 				},
 			},
