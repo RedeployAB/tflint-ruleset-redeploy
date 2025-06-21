@@ -186,6 +186,132 @@ output "bad_splat" {
 				},
 			},
 		},
+		{
+			Name: "OK - references resource attribute with splat inside function",
+			Content: `
+resource "azurerm_consumption_budget_subscription" "this" {
+	count = 1
+	amount = 100
+}
+
+output "budget_amount" {
+	description = "The budget amount that was set. If a budget tag was set, this will be the value of the tag."
+	value       = one(azurerm_consumption_budget_subscription.this[*].amount)
+}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "NOT OK - references entire resource with splat inside function",
+			Content: `
+resource "aws_instance" "example" {
+	count = 2
+}
+
+output "bad_with_function" {
+	value = length(aws_instance.example[*])
+}
+`,
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Range: hcl.Range{
+						Filename: "main.tf",
+						Start:    hcl.Pos{Line: 7, Column: 2},
+						End:      hcl.Pos{Line: 7, Column: 41},
+					},
+				},
+			},
+		},
+		{
+			Name: "OK - references resource attribute in nested function",
+			Content: `
+resource "aws_instance" "example" {
+	count = 2
+}
+
+output "nested_function" {
+	value = join(",", compact(aws_instance.example[*].id))
+}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "OK - for expression accessing resource attribute",
+			Content: `
+resource "azurerm_private_dns_zone" "this" {
+	count = 2
+	name = "example-${count.index}.com"
+}
+
+output "private_dns_zones" {
+	description = "List of all the deployed private DNS zones"
+	value       = [for dns_zone in azurerm_private_dns_zone.this : dns_zone.name]
+}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "NOT OK - for expression accessing entire resource",
+			Content: `
+resource "azurerm_private_dns_zone" "this" {
+	count = 2
+	name = "example-${count.index}.com"
+}
+
+output "bad_for_expression" {
+	value = [for dns_zone in azurerm_private_dns_zone.this : dns_zone]
+}
+`,
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Range: hcl.Range{
+						Filename: "main.tf",
+						Start:    hcl.Pos{Line: 8, Column: 2},
+						End:      hcl.Pos{Line: 8, Column: 68},
+					},
+				},
+			},
+		},
+		{
+			Name: "OK - map for expression accessing resource attributes",
+			Content: `
+resource "aws_instance" "example" {
+	count = 2
+}
+
+output "instance_map" {
+	value = {for idx, inst in aws_instance.example : idx => inst.id}
+}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "NOT OK - map for expression accessing entire resource",
+			Content: `
+resource "aws_instance" "example" {
+	count = 2
+}
+
+output "bad_instance_map" {
+	value = {for idx, inst in aws_instance.example : idx => inst}
+}
+`,
+			Issues: helper.Issues{
+				{
+					Rule:    NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Range: hcl.Range{
+						Filename: "main.tf",
+						Start:    hcl.Pos{Line: 7, Column: 2},
+						End:      hcl.Pos{Line: 7, Column: 63},
+					},
+				},
+			},
+		},
 	}
 
 	rule := NewTerraformOutputResourceRule()
@@ -271,6 +397,61 @@ func TestGatherTraversals(t *testing.T) {
 					hcl.TraverseRoot{Name: "aws_instance"},
 					hcl.TraverseAttr{Name: "example"},
 					hcl.TraverseAttr{Name: "id"},
+				},
+			},
+		},
+		{
+			name:    "splat with attribute inside function",
+			exprStr: "one(azurerm_consumption_budget_subscription.this[*].amount)",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "azurerm_consumption_budget_subscription"},
+					hcl.TraverseAttr{Name: "this"},
+					hcl.TraverseSplat{},
+					hcl.TraverseAttr{Name: "amount"},
+				},
+			},
+		},
+		{
+			name:    "splat without attribute inside function",
+			exprStr: "length(aws_instance.example[*])",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
+					hcl.TraverseSplat{},
+				},
+			},
+		},
+		{
+			name:    "nested functions with splat",
+			exprStr: "join(\",\", compact(aws_instance.example[*].id))",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
+					hcl.TraverseSplat{},
+					hcl.TraverseAttr{Name: "id"},
+				},
+			},
+		},
+		{
+			name:    "for expression with attribute access",
+			exprStr: "[for item in aws_instance.example : item.name]",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
+				},
+			},
+		},
+		{
+			name:    "for expression with entire resource",
+			exprStr: "[for item in aws_instance.example : item]",
+			expected: []hcl.Traversal{
+				{
+					hcl.TraverseRoot{Name: "aws_instance"},
+					hcl.TraverseAttr{Name: "example"},
 				},
 			},
 		},

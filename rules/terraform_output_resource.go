@@ -104,6 +104,11 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 		return nil
 	}
 
+	// Special handling for for expressions
+	if forExpr, ok := valAttr.Expr.(*hclsyntax.ForExpr); ok {
+		return r.checkForExpression(forExpr, runner, valAttr.Range())
+	}
+
 	// Gather traversals from the expression
 	traversals := r.gatherTraversals(valAttr.Expr)
 	if len(traversals) == 0 {
@@ -127,62 +132,92 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 	return nil
 }
 
+// checkForExpression checks if a for expression outputs entire resources
+func (r *TerraformOutputResourceRule) checkForExpression(
+	forExpr *hclsyntax.ForExpr,
+	runner tflint.Runner,
+	exprRange hcl.Range,
+) error {
+	// Check if the value expression is just the loop variable
+	// For example: [for x in resource : x] is bad
+	// But: [for x in resource : x.attr] is OK
+	if scopeTrav, ok := forExpr.ValExpr.(*hclsyntax.ScopeTraversalExpr); ok {
+		// If it's just a single variable reference (the loop variable),
+		// then we're outputting the entire resource
+		if len(scopeTrav.Traversal) == 1 {
+			if root, ok := scopeTrav.Traversal[0].(hcl.TraverseRoot); ok {
+				// Check if this is the loop variable
+				if forExpr.ValVar == root.Name ||
+					(forExpr.KeyVar != "" && forExpr.KeyVar == root.Name) {
+					// The value expression is just the loop variable
+					// Check if the collection is a resource
+					collTraversals := r.gatherTraversals(forExpr.CollExpr)
+					for _, trav := range collTraversals {
+						if isResourceRootTraversal(trav) && r.isFullResourceReference(trav) {
+							return runner.EmitIssue(
+								r,
+								"Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+								exprRange,
+							)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// For all other cases (accessing attributes on loop variable, complex expressions, etc.), it's OK
+	return nil
+}
+
 // gatherTraversals extracts and normalizes traversals from an expression
 func (r *TerraformOutputResourceRule) gatherTraversals(expr hcl.Expression) []hcl.Traversal {
-	// For splat expressions, we need special handling
-	if _, ok := expr.(*hclsyntax.SplatExpr); ok {
-		var collected []hcl.Traversal
-		r.walkExpression(expr, &collected)
-
-		var canonical []hcl.Traversal
-		for _, trav := range collected {
-			canonical = append(canonical, canonicalizeTraversal(trav))
-		}
-		return filterPrefixTraversals(canonical)
+	// Check if expression requires manual walking
+	switch expr.(type) {
+	case *hclsyntax.SplatExpr, *hclsyntax.FunctionCallExpr, *hclsyntax.ForExpr:
+		return r.collectAndCanonicalizeTraversals(expr)
 	}
 
 	// For other expressions, try HCL's built-in variable extraction first
 	vars := expr.Variables()
 	if len(vars) > 0 {
-		// Check if we need to canonicalize any of the traversals
-		needsCanonical := false
-		for _, trav := range vars {
-			for _, step := range trav {
-				if attr, ok := step.(hcl.TraverseAttr); ok {
-					if strings.Contains(attr.Name, "[") || strings.Contains(attr.Name, ".") {
-						needsCanonical = true
-						break
-					}
-				}
-			}
-			if needsCanonical {
-				break
-			}
+		if r.needsCanonicalization(vars) {
+			return r.canonicalizeTraversals(vars)
 		}
-
-		// If no canonicalization needed, use the vars directly
-		if !needsCanonical {
-			return filterPrefixTraversals(vars)
-		}
-
-		// Canonicalize if needed
-		var canonical []hcl.Traversal
-		for _, trav := range vars {
-			canonical = append(canonical, canonicalizeTraversal(trav))
-		}
-		return filterPrefixTraversals(canonical)
+		return filterPrefixTraversals(vars)
 	}
 
 	// Fall back to manual walking for complex cases
+	return r.collectAndCanonicalizeTraversals(expr)
+}
+
+// collectAndCanonicalizeTraversals walks expression and canonicalizes traversals
+func (r *TerraformOutputResourceRule) collectAndCanonicalizeTraversals(expr hcl.Expression) []hcl.Traversal {
 	var collected []hcl.Traversal
 	r.walkExpression(expr, &collected)
+	return r.canonicalizeTraversals(collected)
+}
 
-	// Canonicalize traversals to handle complex attribute names
+// needsCanonicalization checks if any traversal needs canonicalization
+func (r *TerraformOutputResourceRule) needsCanonicalization(traversals []hcl.Traversal) bool {
+	for _, trav := range traversals {
+		for _, step := range trav {
+			if attr, ok := step.(hcl.TraverseAttr); ok {
+				if strings.Contains(attr.Name, "[") || strings.Contains(attr.Name, ".") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// canonicalizeTraversals canonicalizes a slice of traversals
+func (r *TerraformOutputResourceRule) canonicalizeTraversals(traversals []hcl.Traversal) []hcl.Traversal {
 	var canonical []hcl.Traversal
-	for _, trav := range collected {
+	for _, trav := range traversals {
 		canonical = append(canonical, canonicalizeTraversal(trav))
 	}
-
 	return filterPrefixTraversals(canonical)
 }
 
@@ -196,36 +231,88 @@ func (r *TerraformOutputResourceRule) walkExpression(e hcl.Expression, collected
 		r.walkSplatExpr(typed, collected)
 
 	case *hclsyntax.ConditionalExpr:
-		r.walkExpression(typed.Condition, collected)
-		r.walkExpression(typed.TrueResult, collected)
-		r.walkExpression(typed.FalseResult, collected)
+		r.walkConditionalExpr(typed, collected)
 
 	case *hclsyntax.TemplateExpr:
-		for _, part := range typed.Parts {
-			r.walkExpression(part, collected)
-		}
+		r.walkTemplateExpr(typed, collected)
 
 	case *hclsyntax.TupleConsExpr:
-		for _, elem := range typed.Exprs {
-			r.walkExpression(elem, collected)
-		}
+		r.walkTupleExpr(typed, collected)
 
 	case *hclsyntax.ObjectConsExpr:
-		for _, item := range typed.Items {
-			r.walkExpression(item.ValueExpr, collected)
-		}
+		r.walkObjectExpr(typed, collected)
 
 	case *hclsyntax.BinaryOpExpr:
-		r.walkExpression(typed.LHS, collected)
-		r.walkExpression(typed.RHS, collected)
+		r.walkBinaryOpExpr(typed, collected)
 
 	case *hclsyntax.UnaryOpExpr:
 		r.walkExpression(typed.Val, collected)
+
+	case *hclsyntax.FunctionCallExpr:
+		r.walkFunctionCallExpr(typed, collected)
+
+	case *hclsyntax.ForExpr:
+		r.walkForExpr(typed, collected)
 
 	default:
 		// Try to get variables from the expression
 		vars := e.Variables()
 		*collected = append(*collected, vars...)
+	}
+}
+
+// walkConditionalExpr walks a conditional expression
+func (r *TerraformOutputResourceRule) walkConditionalExpr(e *hclsyntax.ConditionalExpr, collected *[]hcl.Traversal) {
+	r.walkExpression(e.Condition, collected)
+	r.walkExpression(e.TrueResult, collected)
+	r.walkExpression(e.FalseResult, collected)
+}
+
+// walkTemplateExpr walks a template expression
+func (r *TerraformOutputResourceRule) walkTemplateExpr(e *hclsyntax.TemplateExpr, collected *[]hcl.Traversal) {
+	for _, part := range e.Parts {
+		r.walkExpression(part, collected)
+	}
+}
+
+// walkTupleExpr walks a tuple expression
+func (r *TerraformOutputResourceRule) walkTupleExpr(e *hclsyntax.TupleConsExpr, collected *[]hcl.Traversal) {
+	for _, elem := range e.Exprs {
+		r.walkExpression(elem, collected)
+	}
+}
+
+// walkObjectExpr walks an object expression
+func (r *TerraformOutputResourceRule) walkObjectExpr(e *hclsyntax.ObjectConsExpr, collected *[]hcl.Traversal) {
+	for _, item := range e.Items {
+		r.walkExpression(item.ValueExpr, collected)
+	}
+}
+
+// walkBinaryOpExpr walks a binary operation expression
+func (r *TerraformOutputResourceRule) walkBinaryOpExpr(e *hclsyntax.BinaryOpExpr, collected *[]hcl.Traversal) {
+	r.walkExpression(e.LHS, collected)
+	r.walkExpression(e.RHS, collected)
+}
+
+// walkFunctionCallExpr walks a function call expression
+func (r *TerraformOutputResourceRule) walkFunctionCallExpr(e *hclsyntax.FunctionCallExpr, collected *[]hcl.Traversal) {
+	for _, arg := range e.Args {
+		r.walkExpression(arg, collected)
+	}
+}
+
+// walkForExpr walks a for expression
+func (r *TerraformOutputResourceRule) walkForExpr(e *hclsyntax.ForExpr, collected *[]hcl.Traversal) {
+	// For expressions like: [for item in collection : item.attr]
+	// We only want to walk the collection expression, not the value expression
+	// because the value expression references the loop variable, not the resource
+	r.walkExpression(e.CollExpr, collected)
+	// Don't walk ValExpr or KeyExpr as they reference the loop variable
+
+	// Walk the condition if present
+	if e.CondExpr != nil {
+		r.walkExpression(e.CondExpr, collected)
 	}
 }
 
