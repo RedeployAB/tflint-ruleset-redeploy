@@ -168,15 +168,15 @@ func TestTerraformBlockFormat(t *testing.T) {
 		{
 			Name: "NOT OK - metric_query block missing blank line",
 			Content: `resource "aws_cloudwatch_metric_alarm" "node_load15" {
-  alarm_name = "test-alarm"
+	alarm_name = "test-alarm"
 
-  metric_query {
-    id = "m1"
-    metric {
-      namespace   = "AWS/EC2"
-      metric_name = "CPUUtilization"
-    }
-  }
+	metric_query {
+		id = "m1"
+		metric {
+			namespace   = "AWS/EC2"
+			metric_name = "CPUUtilization"
+		}
+	}
 }`,
 			Issues: helper.Issues{
 				{
@@ -193,51 +193,51 @@ func TestTerraformBlockFormat(t *testing.T) {
 		{
 			Name: "OK - metric_query block with proper blank line",
 			Content: `resource "aws_cloudwatch_metric_alarm" "node_load15" {
-  alarm_name = "test-alarm"
+	alarm_name = "test-alarm"
 
-  metric_query {
-    id = "m1"
+	metric_query {
+		id = "m1"
 
-    metric {
-      namespace   = "AWS/EC2"
-      metric_name = "CPUUtilization"
-    }
-  }
+		metric {
+			namespace   = "AWS/EC2"
+			metric_name = "CPUUtilization"
+		}
+	}
 }`,
 			Issues: helper.Issues{},
 		},
 		{
 			Name: "OK - nested block before attributes (rotation_policy pattern)",
 			Content: `resource "azurerm_key_vault_key" "disk_encryption_set" {
-  name         = "des-encryption-key"
-  key_vault_id = azurerm_key_vault.this.id
+	name         = "des-encryption-key"
+	key_vault_id = azurerm_key_vault.this.id
 
-  rotation_policy {
-    automatic {
-      time_before_expiry = "P30D"
-    }
+	rotation_policy {
+		automatic {
+			time_before_expiry = "P30D"
+		}
 
-    expire_after         = "P90D"
-    notify_before_expiry = "P29D"
-  }
+		expire_after         = "P90D"
+		notify_before_expiry = "P29D"
+	}
 }`,
 			Issues: helper.Issues{},
 		},
 		{
 			Name: "NOT OK - nested block before attributes with blank line",
 			Content: `resource "azurerm_key_vault_key" "disk_encryption_set" {
-  name         = "des-encryption-key"
-  key_vault_id = azurerm_key_vault.this.id
+	name         = "des-encryption-key"
+	key_vault_id = azurerm_key_vault.this.id
 
-  rotation_policy {
+	rotation_policy {
 
-    automatic {
-      time_before_expiry = "P30D"
-    }
+		automatic {
+			time_before_expiry = "P30D"
+		}
 
-    expire_after         = "P90D"
-    notify_before_expiry = "P29D"
-  }
+		expire_after         = "P90D"
+		notify_before_expiry = "P29D"
+	}
 }`,
 			Issues: helper.Issues{
 				{
@@ -254,46 +254,46 @@ func TestTerraformBlockFormat(t *testing.T) {
 		{
 			Name: "OK - comment after opening brace before nested block",
 			Content: `resource "azurerm_backup_policy_vm" "default" {
-  name                = "default"
-  resource_group_name = azurerm_resource_group.this.name
+	name                = "default"
+	resource_group_name = azurerm_resource_group.this.name
 
-  lifecycle {
-    # Postcondition: checks if the final resource has a valid time zone
-    postcondition {
-      condition     = contains(local.valid_timezones, self.timezone)
-      error_message = "Invalid time zone format."
-    }
-  }
+	lifecycle {
+		# Postcondition: checks if the final resource has a valid time zone
+		postcondition {
+			condition     = contains(local.valid_timezones, self.timezone)
+			error_message = "Invalid time zone format."
+		}
+	}
 }`,
 			Issues: helper.Issues{},
 		},
 		{
 			Name: "OK - multiple comments after opening brace",
 			Content: `resource "aws_instance" "example" {
-  ami = "ami-123456"
+	ami = "ami-123456"
 
-  provisioner "local-exec" {
-    # This is a provisioner block
-    # With multiple comment lines
-    # Before the attributes
-    command = "echo Hello"
-  }
+	provisioner "local-exec" {
+		# This is a provisioner block
+		# With multiple comment lines
+		# Before the attributes
+		command = "echo Hello"
+	}
 }`,
 			Issues: helper.Issues{},
 		},
 		{
 			Name: "NOT OK - blank line after comment before nested block",
 			Content: `resource "aws_instance" "example" {
-  ami = "ami-123456"
+	ami = "ami-123456"
 
-  lifecycle {
-    # This is a comment
+	lifecycle {
+		# This is a comment
 
-    precondition {
-      condition     = true
-      error_message = "Error"
-    }
-  }
+		precondition {
+			condition     = true
+			error_message = "Error"
+		}
+	}
 }`,
 			Issues: helper.Issues{
 				{
