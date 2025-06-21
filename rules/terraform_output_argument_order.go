@@ -18,11 +18,11 @@ type TerraformOutputArgumentOrderRule struct {
 
 // outputArgumentItem represents an attribute or block within an output block
 type outputArgumentItem struct {
-	Name     string
-	Index    int
-	Range    hcl.Range
-	Start    int
-	IsBlock  bool
+	Name    string
+	Index   int
+	Range   hcl.Range
+	Start   int
+	IsBlock bool
 }
 
 func NewTerraformOutputArgumentOrderRule() *TerraformOutputArgumentOrderRule {
