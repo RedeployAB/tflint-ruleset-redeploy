@@ -23,7 +23,6 @@ type outputArgumentItem struct {
 	Range    hcl.Range
 	Start    int
 	IsBlock  bool
-	FullText string // Store the full text for blocks
 }
 
 func NewTerraformOutputArgumentOrderRule() *TerraformOutputArgumentOrderRule {
