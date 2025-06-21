@@ -90,3 +90,109 @@ locals {
 		})
 	}
 }
+
+func TestTerraformLocalsMirrorAssignmentRule_Autofix(t *testing.T) {
+	tests := []struct {
+		Name     string
+		Files    map[string]string
+		Expected map[string]string
+	}{
+		{
+			Name: "Autofix - remove direct mirror assignment",
+			Files: map[string]string{
+				"locals.tf": `variable "foo" {}
+
+locals {
+	bar = var.foo
+}
+`,
+			},
+			Expected: map[string]string{
+				"locals.tf": `variable "foo" {}
+
+locals {
+
+}
+`,
+			},
+		},
+		{
+			Name: "Autofix - remove multiple mirror assignments",
+			Files: map[string]string{
+				"locals.tf": `variable "env" {
+	default = "dev"
+}
+variable "region" {
+	default = "us-east-1"
+}
+
+locals {
+	environment = var.env
+	aws_region  = var.region
+	computed    = lower(var.env)
+}
+`,
+			},
+			Expected: map[string]string{
+				"locals.tf": `variable "env" {
+  default = "dev"
+}
+variable "region" {
+  default = "us-east-1"
+}
+
+locals {
+
+
+  computed = lower(var.env)
+}
+`,
+			},
+		},
+		{
+			Name: "Autofix - preserve valid expressions",
+			Files: map[string]string{
+				"locals.tf": `variable "hello" {}
+
+locals {
+	hello      = lower(var.hello)
+	direct_bad = var.hello
+}
+`,
+			},
+			Expected: map[string]string{
+				"locals.tf": `variable "hello" {}
+
+locals {
+  hello = lower(var.hello)
+
+}
+`,
+			},
+		},
+	}
+
+	rule := NewTerraformLocalsMirrorAssignmentRule()
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, tc.Files)
+
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			// Check that we have issues and they are fixable
+			if len(runner.Issues) == 0 {
+				t.Fatal("Expected issues to be found, but none were found")
+			}
+
+			// Apply autofixes by triggering the fix functions
+			// The helper runner should automatically apply fixes when EmitIssueWithFix is called
+			changes := runner.Changes()
+			
+			// Use AssertChanges to verify the fixes were applied correctly
+			helper.AssertChanges(t, tc.Expected, changes)
+		})
+	}
+}
