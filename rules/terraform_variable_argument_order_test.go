@@ -78,3 +78,180 @@ func TestTerraformVariableArgumentOrderRule(t *testing.T) {
 		})
 	}
 }
+
+func TestTerraformVariableArgumentOrderRule_Autofix(t *testing.T) {
+	tests := []struct {
+		Name     string
+		Content  string
+		Expected string
+	}{
+		{
+			Name: "Autofix - type after default",
+			Content: `variable "fail_type_after_default" {
+  description = "Out-of-order example"
+  default     = "some_value"
+  type        = string
+}
+`,
+			Expected: `variable "fail_type_after_default" {
+  description = "Out-of-order example"
+  type        = string
+  default     = "some_value"
+}
+`,
+		},
+		{
+			Name: "Autofix - nullable before sensitive",
+			Content: `variable "test" {
+  nullable = false
+  sensitive = true
+}
+`,
+			Expected: `variable "test" {
+  sensitive = true
+  nullable  = false
+}
+`,
+		},
+		{
+			Name: "Autofix - validation before default",
+			Content: `variable "test" {
+  description = "Test variable"
+  type        = string
+  validation {
+    condition     = length(var.test) > 0
+    error_message = "Must not be empty"
+  }
+  default = "value"
+}
+`,
+			Expected: `variable "test" {
+  description = "Test variable"
+  type        = string
+  default     = "value"
+
+  validation {
+    condition     = length(var.test) > 0
+    error_message = "Must not be empty"
+  }
+}
+`,
+		},
+		{
+			Name: "Autofix - complex out of order",
+			Content: `variable "complex" {
+  nullable = false
+  description = "Complex example"
+  sensitive = true
+  type = list(string)
+  default = ["a", "b"]
+}
+`,
+			Expected: `variable "complex" {
+  description = "Complex example"
+  type        = list(string)
+  default     = ["a", "b"]
+  sensitive   = true
+  nullable    = false
+}
+`,
+		},
+		{
+			Name: "Autofix - ephemeral in wrong position",
+			Content: `variable "ephemeral_test" {
+  description = "Test"
+  type = string
+  sensitive = true
+  ephemeral = true
+  default = "value"
+}
+`,
+			Expected: `variable "ephemeral_test" {
+  description = "Test"
+  type        = string
+  default     = "value"
+  ephemeral   = true
+  sensitive   = true
+}
+`,
+		},
+		{
+			Name: "Autofix - multiple validation blocks",
+			Content: `variable "multi_validation" {
+  type = string
+  validation {
+    condition = true
+    error_message = "First"
+  }
+  default = "value"
+  validation {
+    condition = true
+    error_message = "Second"
+  }
+}
+`,
+			Expected: `variable "multi_validation" {
+  type    = string
+  default = "value"
+
+  validation {
+    condition     = true
+    error_message = "First"
+  }
+  validation {
+    condition     = true
+    error_message = "Second"
+  }
+}
+`,
+		},
+		{
+			Name: "Autofix - all attributes with validation",
+			Content: `variable "full_example" {
+  nullable = false
+  validation {
+    condition = var.full_example != ""
+    error_message = "Cannot be empty"
+  }
+  type = string
+  sensitive = true
+  description = "Full example"
+  default = "test"
+  ephemeral = true
+}
+`,
+			Expected: `variable "full_example" {
+  description = "Full example"
+  type        = string
+  default     = "test"
+  ephemeral   = true
+  sensitive   = true
+  nullable    = false
+
+  validation {
+    condition     = var.full_example != ""
+    error_message = "Cannot be empty"
+  }
+}
+`,
+		},
+	}
+
+	rule := NewTerraformVariableArgumentOrderRule()
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{
+				"variables.tf": tc.Content,
+			})
+
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			helper.AssertChanges(t, map[string]string{
+				"variables.tf": tc.Expected,
+			}, runner.Changes())
+		})
+	}
+}

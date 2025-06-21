@@ -20,6 +20,15 @@ type TerraformVariableArgumentOrderRule struct {
 	tflint.DefaultRule
 }
 
+// variableArgumentItem represents an attribute or block within a variable block
+type variableArgumentItem struct {
+	Name  string
+	Index int
+	Range hcl.Range
+	Start int
+	IsBlk bool
+}
+
 func NewTerraformVariableArgumentOrderRule() *TerraformVariableArgumentOrderRule {
 	return &TerraformVariableArgumentOrderRule{}
 }
@@ -99,22 +108,14 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 		"validation":  6,
 	}
 
-	type item struct {
-		Name  string
-		Index int
-		Range hcl.Range
-		Start int
-		IsBlk bool
-	}
-
-	var items []item
+	var items []variableArgumentItem
 
 	// Gather recognized attributes
 	for _, attr := range block.Body.Attributes {
 		lcName := strings.ToLower(attr.Name)
 		idx, found := orderMap[lcName]
 		if found {
-			items = append(items, item{
+			items = append(items, variableArgumentItem{
 				Name:  lcName,
 				Index: idx,
 				Range: attr.Range(),
@@ -128,7 +129,7 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 	for _, childBlock := range block.Body.Blocks {
 		lcType := strings.ToLower(childBlock.Type)
 		if lcType == "validation" {
-			items = append(items, item{
+			items = append(items, variableArgumentItem{
 				Name:  lcType,
 				Index: orderMap[lcType], // 6
 				Range: childBlock.DefRange(),
@@ -150,17 +151,154 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 
 	// Track the highest index encountered so far
 	lastIndex := -1
+	var outOfOrderItem *variableArgumentItem
 
-	for _, it := range items {
-		if it.Index < lastIndex {
+	for i := range items {
+		if items[i].Index < lastIndex {
 			// Out-of-order argument found
-			msg := fmt.Sprintf(
-				"Out-of-order argument '%s'. Expected sequence: description, type, default, ephemeral, sensitive, nullable, validation",
-				it.Name,
-			)
-			return runner.EmitIssue(r, msg, it.Range)
+			outOfOrderItem = &items[i]
+			break
 		}
-		lastIndex = it.Index
+		lastIndex = items[i].Index
+	}
+
+	if outOfOrderItem != nil {
+		msg := fmt.Sprintf(
+			"Out-of-order argument '%s'. Expected sequence: description, type, default, ephemeral, sensitive, nullable, validation",
+			outOfOrderItem.Name,
+		)
+		return runner.EmitIssueWithFix(r, msg, outOfOrderItem.Range, func(f tflint.Fixer) error {
+			return r.fixVariableArgumentOrder(f, block, items)
+		})
 	}
 	return nil
+}
+
+// fixVariableArgumentOrder reorders the arguments within a variable block
+func (r *TerraformVariableArgumentOrderRule) fixVariableArgumentOrder(
+	f tflint.Fixer,
+	block *hclsyntax.Block,
+	items []variableArgumentItem,
+) error {
+	// For JSON files, we can't reliably preserve formatting
+	if strings.HasSuffix(block.DefRange().Filename, ".json") {
+		return tflint.ErrFixNotSupported
+	}
+
+	// Sort items by their expected order
+	orderedItems := make([]variableArgumentItem, len(items))
+	copy(orderedItems, items)
+	sort.Slice(orderedItems, func(i, j int) bool {
+		if orderedItems[i].Index != orderedItems[j].Index {
+			return orderedItems[i].Index < orderedItems[j].Index
+		}
+		// For same index (multiple validation blocks), keep original order
+		return orderedItems[i].Start < orderedItems[j].Start
+	})
+
+	// Check if already in correct order
+	alreadyOrdered := true
+	for i := range items {
+		if items[i].Name != orderedItems[i].Name {
+			alreadyOrdered = false
+			break
+		}
+	}
+	if alreadyOrdered {
+		return nil
+	}
+
+	// Create maps to store text content
+	attrTexts := make(map[string]string)
+	blockTexts := make(map[int]string) // Use start position as key for validation blocks
+
+	// Get the text for each attribute
+	for _, attr := range block.Body.Attributes {
+		lcName := strings.ToLower(attr.Name)
+		// Check if this is one of our tracked attributes
+		for _, item := range items {
+			if item.Name == lcName && !item.IsBlk {
+				// Get the range from the start of the attribute name to the end of the value
+				attrRange := attr.Range()
+				text := f.TextAt(attrRange)
+				attrTexts[lcName] = string(text.Bytes)
+				break
+			}
+		}
+	}
+
+	// Get the text for validation blocks
+	for _, blk := range block.Body.Blocks {
+		if strings.ToLower(blk.Type) == "validation" {
+			// Find the corresponding item by start position
+			for _, item := range items {
+				if item.IsBlk && item.Start == blk.DefRange().Start.Byte {
+					// Get the full block range
+					blockRange := hcl.Range{
+						Filename: blk.DefRange().Filename,
+						Start:    blk.DefRange().Start,
+						End:      blk.Body.Range().End,
+					}
+					text := f.TextAt(blockRange)
+					blockTexts[item.Start] = string(text.Bytes)
+					break
+				}
+			}
+		}
+	}
+
+	// Build the reordered content
+	var result strings.Builder
+
+	// Write the opening line
+	result.WriteString("variable ")
+	if len(block.Labels) > 0 {
+		result.WriteString(`"`)
+		result.WriteString(block.Labels[0])
+		result.WriteString(`" `)
+	}
+	result.WriteString("{\n")
+
+	// Write attributes and blocks in the correct order
+	for i, orderedItem := range orderedItems {
+		if i > 0 {
+			// Add extra blank line before validation blocks
+			if orderedItem.IsBlk && (i == 0 || !orderedItems[i-1].IsBlk) {
+				result.WriteString("\n")
+			}
+			result.WriteString("\n")
+		}
+
+		if orderedItem.IsBlk {
+			// Add proper indentation for blocks
+			lines := strings.Split(blockTexts[orderedItem.Start], "\n")
+			for j, line := range lines {
+				if j > 0 {
+					result.WriteString("\n")
+				}
+				if line != "" {
+					result.WriteString("  ")
+					result.WriteString(line)
+				}
+			}
+		} else {
+			// Add proper indentation for attributes
+			result.WriteString("  ")
+			// Add the attribute text
+			if text, ok := attrTexts[orderedItem.Name]; ok {
+				result.WriteString(text)
+			}
+		}
+	}
+
+	result.WriteString("\n}")
+
+	// Replace the entire block
+	fullBlockRange := hcl.Range{
+		Filename: block.DefRange().Filename,
+		Start:    block.DefRange().Start,
+		End:      block.Body.Range().End,
+	}
+
+	return f.ReplaceText(fullBlockRange, result.String())
 }
