@@ -64,3 +64,149 @@ output "alpha" {}
 		})
 	}
 }
+
+func TestTerraformOutputOrderRule_Autofix(t *testing.T) {
+	tests := []struct {
+		Name     string
+		Content  string
+		Expected string
+	}{
+		{
+			Name: "Autofix - simple out of order",
+			Content: `output "zzz" {}
+output "alpha" {}
+`,
+			Expected: `output "alpha" {}
+output "zzz" {}
+`,
+		},
+		{
+			Name: "Autofix - multiple outputs out of order",
+			Content: `output "charlie" {
+	value = "c"
+}
+output "beta" {
+	value = "b"
+}
+output "alpha" {
+	value = "a"
+}
+`,
+			Expected: `output "alpha" {
+  value = "a"
+}
+output "beta" {
+  value = "b"
+}
+output "charlie" {
+  value = "c"
+}
+`,
+		},
+		{
+			Name: "Autofix - preserve spacing between outputs",
+			Content: `output "beta" {}
+
+
+output "alpha" {}
+`,
+			Expected: `output "alpha" {}
+
+
+output "beta" {}
+`,
+		},
+		{
+			Name: "Autofix - preserve single line spacing",
+			Content: `output "beta" {}
+output "alpha" {}
+`,
+			Expected: `output "alpha" {}
+output "beta" {}
+`,
+		},
+		{
+			Name: "Autofix - complex mix with different spacing",
+			Content: `output "delta" {
+	value = "d"
+}
+
+output "beta" {}
+
+output "echo" {
+	value = "e"
+}
+
+output "alpha" {}
+
+output "charlie" {
+	value = "c"
+}
+`,
+			Expected: `output "alpha" {}
+
+output "beta" {}
+
+output "charlie" {
+  value = "c"
+}
+
+output "delta" {
+  value = "d"
+}
+
+output "echo" {
+  value = "e"
+}
+`,
+		},
+		{
+			Name: "Autofix - outputs with complex values",
+			Content: `output "second" {
+	value = {
+		a = 1
+		b = 2
+	}
+}
+
+output "first" {
+	value = [
+		"one",
+		"two"
+	]
+}
+`,
+			Expected: `output "first" {
+  value = [
+    "one",
+    "two"
+  ]
+}
+
+output "second" {
+  value = {
+    a = 1
+    b = 2
+  }
+}
+`,
+		},
+	}
+
+	rule := NewTerraformOutputOrderRule()
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{
+				"test.tf": tc.Content,
+			})
+
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			helper.AssertChanges(t, map[string]string{
+				"test.tf": tc.Expected,
+			}, runner.Changes())
+		})
+	}
+}

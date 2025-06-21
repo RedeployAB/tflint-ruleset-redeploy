@@ -102,3 +102,141 @@ variable "opt_a" {
 		})
 	}
 }
+
+func TestTerraformVariableOrderRule_Autofix(t *testing.T) {
+	tests := []struct {
+		Name     string
+		Content  string
+		Expected string
+	}{
+		{
+			Name: "Autofix - optional before required",
+			Content: `variable "bar" {
+	default = 123
+}
+variable "foo" {}
+`,
+			Expected: `variable "foo" {}
+variable "bar" {
+  default = 123
+}
+`,
+		},
+		{
+			Name: "Autofix - required out of alphabetical order",
+			Content: `variable "zzz" {}
+variable "aaa" {}
+`,
+			Expected: `variable "aaa" {}
+variable "zzz" {}
+`,
+		},
+		{
+			Name: "Autofix - optional out of alphabetical order",
+			Content: `variable "opt_x" {
+	default = 1
+}
+variable "opt_a" {
+	default = 2
+}
+`,
+			Expected: `variable "opt_a" {
+  default = 2
+}
+variable "opt_x" {
+  default = 1
+}
+`,
+		},
+		{
+			Name: "Autofix - complex mix of required and optional",
+			Content: `variable "charlie" {
+	default = "c"
+}
+
+variable "beta" {}
+
+variable "echo" {
+	default = "e"
+}
+
+variable "alpha" {}
+
+variable "delta" {
+	default = "d"
+}
+`,
+			Expected: `variable "alpha" {}
+
+variable "beta" {}
+
+variable "charlie" {
+  default = "c"
+}
+
+variable "delta" {
+  default = "d"
+}
+
+variable "echo" {
+  default = "e"
+}
+`,
+		},
+		{
+			Name: "Autofix - preserve spacing between variables",
+			Content: `variable "beta" {}
+
+
+variable "alpha" {}
+`,
+			Expected: `variable "alpha" {}
+
+
+variable "beta" {}
+`,
+		},
+		{
+			Name: "Autofix - preserve single line spacing",
+			Content: `variable "beta" {}
+variable "alpha" {}
+`,
+			Expected: `variable "alpha" {}
+variable "beta" {}
+`,
+		},
+		{
+			Name: "Autofix - no space between adjacent variables originally",
+			Content: `variable "b" {}
+variable "c" {
+	default = 1
+}
+variable "a" {}
+`,
+			Expected: `variable "a" {}
+
+variable "b" {}
+variable "c" {
+  default = 1
+}
+`,
+		},
+	}
+
+	rule := NewTerraformVariableOrderRule()
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{
+				"test.tf": tc.Content,
+			})
+
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			helper.AssertChanges(t, map[string]string{
+				"test.tf": tc.Expected,
+			}, runner.Changes())
+		})
+	}
+}
