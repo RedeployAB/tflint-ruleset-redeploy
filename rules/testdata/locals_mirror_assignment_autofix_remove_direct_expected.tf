@@ -1,0 +1,4 @@
+variable "foo" {}
+
+locals {
+}

@@ -110,14 +110,17 @@ func (r *TerraformLocalsMirrorAssignmentRule) checkLocals(
 					if len(scopeExpr.Traversal) == 2 {
 						if root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot); ok && root.Name == TypeVar {
 							if second, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr); ok {
-								// Emit an issue for any direct assignment local_name = var.<something>
-								if err := runner.EmitIssue(
+								// Emit an issue with autofix for any direct assignment local_name = var.<something>
+								if err := runner.EmitIssueWithFix(
 									r,
 									fmt.Sprintf(
 										"Local '%s' is assigned directly from variable '%s'. This should not be a simple mirror assignment.",
 										attrName, second.Name,
 									),
 									attr.Range(),
+									func(f tflint.Fixer) error {
+										return removeAttributeLine(f, runner, attr.Range())
+									},
 								); err != nil {
 									return err
 								}
