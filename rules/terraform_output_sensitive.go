@@ -104,10 +104,40 @@ func (r *TerraformOutputSensitiveRule) checkOutputBlock(
 
 	// If we see 'false', that's invalid => prefer omitting "sensitive"
 	if isLiteral && !value {
-		return runner.EmitIssue(
+		return runner.EmitIssueWithFix(
 			r,
 			"sensitive should not be set to false (omit instead)",
 			sensitiveAttr.Range(),
+			func(f tflint.Fixer) error {
+				// Get the file content to check for newline after the attribute
+				file, err := runner.GetFile(sensitiveAttr.Range().Filename)
+				if err != nil {
+					return err
+				}
+
+				// Extend the range to include the entire line
+				lineRange := sensitiveAttr.Range()
+
+				// Find the end of the line (including newline)
+				fileBytes := file.Bytes
+				endPos := lineRange.End.Byte
+
+				// Look for newline after the attribute
+				for endPos < len(fileBytes) && fileBytes[endPos] != '\n' {
+					endPos++
+				}
+
+				// If we found a newline, include it
+				if endPos < len(fileBytes) && fileBytes[endPos] == '\n' {
+					endPos++
+					lineRange.End.Byte = endPos
+					lineRange.End.Column = 1
+					lineRange.End.Line++
+				}
+
+				// Remove the entire line including trailing newline
+				return f.Remove(lineRange)
+			},
 		)
 	}
 	return nil

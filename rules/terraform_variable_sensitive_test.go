@@ -71,3 +71,106 @@ variable "test" {
 		})
 	}
 }
+
+func TestTerraformVariableSensitiveRule_Autofix(t *testing.T) {
+	tests := []struct {
+		Name     string
+		Content  string
+		Expected string
+		HasFix   bool
+	}{
+		{
+			Name: "Remove sensitive = false",
+			Content: `variable "test" {
+	description = "sensitive false"
+	sensitive = false
+}`,
+			Expected: `variable "test" {
+  description = "sensitive false"
+}`,
+			HasFix: true,
+		},
+		{
+			Name: "Remove sensitive = false with extra spaces",
+			Content: `variable "test" {
+	description = "sensitive false"
+
+	sensitive   =   false
+}`,
+			Expected: `variable "test" {
+  description = "sensitive false"
+
+}`,
+			HasFix: true,
+		},
+		{
+			Name: "Remove sensitive = false between other attributes",
+			Content: `variable "test" {
+	description = "sensitive false"
+	sensitive = false
+	type = string
+}`,
+			Expected: `variable "test" {
+  description = "sensitive false"
+  type        = string
+}`,
+			HasFix: true,
+		},
+		{
+			Name: "Preserve sensitive = true",
+			Content: `variable "test" {
+	description = "sensitive true"
+	sensitive = true
+}`,
+			Expected: `variable "test" {
+	description = "sensitive true"
+	sensitive = true
+}`,
+			HasFix: false,
+		},
+		{
+			Name: "Multiple variables with one needing fix",
+			Content: `variable "test1" {
+	description = "sensitive false"
+	sensitive = false
+}
+
+variable "test2" {
+	description = "sensitive true"
+	sensitive = true
+}`,
+			Expected: `variable "test1" {
+  description = "sensitive false"
+}
+
+variable "test2" {
+  description = "sensitive true"
+  sensitive   = true
+}`,
+			HasFix: true,
+		},
+	}
+
+	rule := NewTerraformVariableSensitiveRule()
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{
+				"variables.tf": tc.Content,
+			})
+
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			changes := runner.Changes()
+			if tc.HasFix {
+				helper.AssertChanges(t, map[string]string{
+					"variables.tf": tc.Expected,
+				}, changes)
+			} else if len(changes) > 0 {
+				t.Errorf("Expected no changes, but got: %v", changes)
+			}
+		})
+	}
+}

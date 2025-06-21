@@ -124,13 +124,15 @@ func (r *TerraformVariableOrderRule) checkVarBlockOrder(varBlocks []variableBloc
 		if !vb.HasDefault {
 			// Required variable: if we've already seen an optional variable or out-of-order name, emit an issue.
 			if seenOptional || (lastRequiredName != "" && vb.Name < lastRequiredName) {
-				return r.emitIssue(runner, vb.Range, vb.Name)
+				// For autofixing, we need to pass all variable blocks so we can reorder them
+				return r.emitIssueWithFix(runner, vb.Range, vb.Name, varBlocks)
 			}
 			lastRequiredName = vb.Name
 		} else {
 			// Optional variable: check alphabetical order.
 			if lastOptionalName != "" && vb.Name < lastOptionalName {
-				return r.emitIssue(runner, vb.Range, vb.Name)
+				// For autofixing, we need to pass all variable blocks so we can reorder them
+				return r.emitIssueWithFix(runner, vb.Range, vb.Name, varBlocks)
 			}
 			lastOptionalName = vb.Name
 			seenOptional = true
@@ -139,14 +141,25 @@ func (r *TerraformVariableOrderRule) checkVarBlockOrder(varBlocks []variableBloc
 	return nil
 }
 
-func (r *TerraformVariableOrderRule) emitIssue(
+// emitIssueWithFix emits an issue with autofix support
+func (r *TerraformVariableOrderRule) emitIssueWithFix(
 	runner tflint.Runner,
 	rng hcl.Range,
 	varName string,
+	_ []variableBlock,
 ) error {
 	msg := fmt.Sprintf(
 		`Out-of-order variable %q. Required variables must come first in alphabetical order, followed by optional variables in alphabetical order.`,
 		varName,
 	)
-	return runner.EmitIssue(r, msg, rng)
+
+	return runner.EmitIssueWithFix(r, msg, rng, func(_ tflint.Fixer) error {
+		// TODO: Implement the autofix logic here
+		// This is a placeholder - the actual implementation would:
+		// 1. Get the text content of all variable blocks using f.TextAt()
+		// 2. Sort the blocks according to the rule
+		// 3. Replace the entire range from first to last variable with the sorted content
+		// For now, return ErrFixNotSupported to indicate autofix is not yet implemented
+		return tflint.ErrFixNotSupported
+	})
 }

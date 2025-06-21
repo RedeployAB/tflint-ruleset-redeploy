@@ -96,3 +96,143 @@ func TestTerraformSourceFormat(t *testing.T) {
 		})
 	}
 }
+
+func TestTerraformSourceFormat_Autofix(t *testing.T) {
+	tests := []struct {
+		Name     string
+		Content  string
+		Expected string
+		HasFix   bool
+	}{
+		{
+			Name: "Add blank line after source when property follows",
+			Content: `module "example" {
+  source   = "a source address"
+  property = "value"
+}`,
+			Expected: `module "example" {
+  source = "a source address"
+
+  property = "value"
+}`,
+			HasFix: true,
+		},
+		{
+			Name: "Add blank line after version when property follows",
+			Content: `module "example" {
+  source   = "a source address"
+  version  = "x.x.x"
+  property = "value"
+}`,
+			Expected: `module "example" {
+  source  = "a source address"
+  version = "x.x.x"
+
+  property = "value"
+}`,
+			HasFix: true,
+		},
+		{
+			Name: "Remove blank line after source when block ends",
+			Content: `module "example" {
+  source = "a source address"
+
+}`,
+			Expected: `module "example" {
+  source = "a source address"
+}`,
+			HasFix: true,
+		},
+		{
+			Name: "Remove blank line after version when block ends",
+			Content: `module "example" {
+  source  = "a source address"
+  version = "1.0.0"
+
+}`,
+			Expected: `module "example" {
+  source  = "a source address"
+  version = "1.0.0"
+}`,
+			HasFix: true,
+		},
+		{
+			Name: "Preserve correct format with blank line",
+			Content: `module "example" {
+  source  = "a source address"
+  version = "x.x.x"
+
+  property = "value"
+}`,
+			Expected: `module "example" {
+  source  = "a source address"
+  version = "x.x.x"
+
+  property = "value"
+}`,
+			HasFix: false,
+		},
+		{
+			Name: "Preserve correct format without blank line when block ends",
+			Content: `module "example" {
+  source = "a source address"
+}`,
+			Expected: `module "example" {
+  source = "a source address"
+}`,
+			HasFix: false,
+		},
+		{
+			Name: "Handle comments after source/version",
+			Content: `module "example" {
+  source  = "a source address"
+  version = "x.x.x"
+  # This is a comment
+  property = "value"
+}`,
+			Expected: `module "example" {
+  source  = "a source address"
+  version = "x.x.x"
+  # This is a comment
+  property = "value"
+}`,
+			HasFix: false,
+		},
+		{
+			Name: "Multiple blank lines after source when block ends",
+			Content: `module "example" {
+  source = "a source address"
+
+
+}`,
+			Expected: `module "example" {
+  source = "a source address"
+
+}`,
+			HasFix: true,
+		},
+	}
+
+	rule := NewTerraformSourceFormatRule()
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{
+				"main.tf": tc.Content,
+			})
+
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+
+			changes := runner.Changes()
+			if tc.HasFix {
+				helper.AssertChanges(t, map[string]string{
+					"main.tf": tc.Expected,
+				}, changes)
+			} else if len(changes) > 0 {
+				t.Errorf("Expected no changes, but got: %v", changes)
+			}
+		})
+	}
+}
