@@ -83,8 +83,6 @@ plugin "redeploy" {
 > can do this by setting the `GITHUB_TOKEN` environment variable to a GitHub
 > personal access token with the `read:packages` scope.
 
-> Breaking change: Support for TFLint v0.45 and earlier has been dropped. You must use TFLint v0.46 or newer.
-
 ## Rules
 
 For a complete list of implemented rules with descriptions and severity levels,
