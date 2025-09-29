@@ -8,7 +8,7 @@ It is currently a work in progress, rules will be added as they are developed.
 
 ## Requirements
 
-- TFLint v0.42+
+- TFLint v0.46+
 - Go v1.24
 
 ## Installation
@@ -82,6 +82,8 @@ plugin "redeploy" {
 > Note: You will need to authenticate with GitHub to download the plugin. You
 > can do this by setting the `GITHUB_TOKEN` environment variable to a GitHub
 > personal access token with the `read:packages` scope.
+
+> Breaking change: Support for TFLint v0.45 and earlier has been dropped. You must use TFLint v0.46 or newer.
 
 ## Rules
 
