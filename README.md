@@ -8,7 +8,7 @@ It is currently a work in progress, rules will be added as they are developed.
 
 ## Requirements
 
-- TFLint v0.42+
+- TFLint v0.46+
 - Go v1.24
 
 ## Installation
