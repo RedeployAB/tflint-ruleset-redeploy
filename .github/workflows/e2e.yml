@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -34,7 +36,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v5
+        uses: terraform-linters/setup-tflint@ae78205cfffec9e8d93fd2b3115c7e9d3166d4b6
         with:
           tflint_version: v0.52.0
 

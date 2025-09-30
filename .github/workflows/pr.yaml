@@ -17,7 +17,7 @@ jobs:
     permissions:
       pull-requests: read
     steps:
-      - uses: amannn/action-semantic-pull-request@v6
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -47,7 +47,7 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: codelytv/pr-size-labeler@v1
+      - uses: codelytv/pr-size-labeler@4ec67706cd878fbc1c8db0a5dcd28b6bb412e85a
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           message_if_xl: ""
