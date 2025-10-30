@@ -36,7 +36,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@ae78205cfffec9e8d93fd2b3115c7e9d3166d4b6
+        uses: terraform-linters/setup-tflint@4cb9feea73331a35b422df102992a03a44a3bb33
         with:
           tflint_version: v0.52.0
 
