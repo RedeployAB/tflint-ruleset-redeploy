@@ -47,19 +47,19 @@ func TestLineOffsets(t *testing.T) {
 		lineOffsetEnds map[int]int // line -> expected end byte offset
 	}{
 		{
-			name:          "multiple lines without trailing newline",
-			content:       "line1\nline2\nline3",
-			expectedLines: []string{"line1", "line2", "line3"},
-			expectedEOF:   17,
-			lineOffsets:   map[int]int{0: 0, 1: 6, 2: 12},
+			name:           "multiple lines without trailing newline",
+			content:        "line1\nline2\nline3",
+			expectedLines:  []string{"line1", "line2", "line3"},
+			expectedEOF:    17,
+			lineOffsets:    map[int]int{0: 0, 1: 6, 2: 12},
 			lineOffsetEnds: map[int]int{0: 6, 1: 12, 2: 17}, // last line has no newline
 		},
 		{
-			name:          "multiple lines with trailing newline",
-			content:       "line1\nline2\nline3\n",
-			expectedLines: []string{"line1", "line2", "line3", ""},
-			expectedEOF:   18,
-			lineOffsets:   map[int]int{0: 0, 1: 6, 2: 12, 3: 18},
+			name:           "multiple lines with trailing newline",
+			content:        "line1\nline2\nline3\n",
+			expectedLines:  []string{"line1", "line2", "line3", ""},
+			expectedEOF:    18,
+			lineOffsets:    map[int]int{0: 0, 1: 6, 2: 12, 3: 18},
 			lineOffsetEnds: map[int]int{0: 6, 1: 12, 2: 18, 3: 18},
 		},
 		{
