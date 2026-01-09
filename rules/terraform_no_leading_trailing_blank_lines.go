@@ -47,11 +47,11 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) Check(runner tflint.Runner) e
 			continue
 		}
 
-		// Pre-split lines once per file to avoid repeated splitting
-		lines := strings.Split(string(hclFile.Bytes), "\n")
+		// Use LineOffsets for O(1) byte position lookups
+		lineOffsets := NewLineOffsets(string(hclFile.Bytes))
 
 		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
-			if err := r.processBody(body, filename, lines, runner); err != nil {
+			if err := r.processBody(body, filename, lineOffsets, runner); err != nil {
 				return err
 			}
 		}
@@ -62,17 +62,17 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) Check(runner tflint.Runner) e
 func (r *TerraformNoLeadingTrailingBlankLinesRule) processBody(
 	body *hclsyntax.Body,
 	filename string,
-	lines []string,
+	lineOffsets *LineOffsets,
 	runner tflint.Runner,
 ) error {
 	for _, blk := range body.Blocks {
 		if blk.Type == TypeResource || blk.Type == TypeModule {
-			if err := r.checkBlock(blk, filename, lines, runner); err != nil {
+			if err := r.checkBlock(blk, filename, lineOffsets, runner); err != nil {
 				return err
 			}
 		}
 		// Recurse into child blocks
-		if err := r.processBody(blk.Body, filename, lines, runner); err != nil {
+		if err := r.processBody(blk.Body, filename, lineOffsets, runner); err != nil {
 			return err
 		}
 	}
@@ -82,9 +82,10 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) processBody(
 func (r *TerraformNoLeadingTrailingBlankLinesRule) checkBlock(
 	block *hclsyntax.Block,
 	filename string,
-	lines []string,
+	lineOffsets *LineOffsets,
 	runner tflint.Runner,
 ) error {
+	lines := lineOffsets.Lines()
 	startLine := block.Body.Range().Start.Line - 1
 	endLine := block.Body.Range().End.Line - 1
 
@@ -98,18 +99,9 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) checkBlock(
 	if startLine+1 < len(lines) {
 		next := strings.TrimSpace(lines[startLine+1])
 		if next == "" {
-			// Calculate byte position for the blank line
-			bytePos := 0
-			for i := 0; i <= startLine; i++ {
-				bytePos += len(lines[i]) + 1 // +1 for newline
-			}
-
-			// Range for the blank line (entire line including newline)
-			lineStart := bytePos
-			lineEnd := bytePos + len(lines[startLine+1])
-			if startLine+1 < len(lines)-1 {
-				lineEnd++ // Include the newline
-			}
+			// O(1) byte position lookup using precomputed offsets
+			lineStart := lineOffsets.ByteOffset(startLine + 1)
+			lineEnd := lineOffsets.ByteOffsetEnd(startLine + 1)
 
 			rng := hcl.Range{
 				Filename: filename,
@@ -131,18 +123,9 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) checkBlock(
 	if endLine-1 >= 0 {
 		prev := strings.TrimSpace(lines[endLine-1])
 		if prev == "" {
-			// Calculate byte position for the blank line
-			bytePos := 0
-			for i := 0; i < endLine-1; i++ {
-				bytePos += len(lines[i]) + 1 // +1 for newline
-			}
-
-			// Range for the blank line
-			lineStart := bytePos
-			lineEnd := bytePos + len(lines[endLine-1])
-			if endLine-1 < len(lines)-1 {
-				lineEnd++ // Include the newline
-			}
+			// O(1) byte position lookup using precomputed offsets
+			lineStart := lineOffsets.ByteOffset(endLine - 1)
+			lineEnd := lineOffsets.ByteOffsetEnd(endLine - 1)
 
 			rng := hcl.Range{
 				Filename: filename,

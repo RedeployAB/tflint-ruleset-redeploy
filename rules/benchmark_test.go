@@ -223,6 +223,16 @@ func BenchmarkBytePositionCalculation(b *testing.B) {
 			}
 		}
 	})
+
+	b.Run("LineOffsetsType", func(b *testing.B) {
+		// Use the LineOffsets type
+		lineOffsets := NewLineOffsets(content)
+		targetLine := 50
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = lineOffsets.ByteOffset(targetLine)
+		}
+	})
 }
 
 // BenchmarkTrimSpace benchmarks the trimspace operation used in blank line checks

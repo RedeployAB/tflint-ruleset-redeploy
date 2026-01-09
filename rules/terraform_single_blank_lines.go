@@ -64,8 +64,9 @@ func (r *TerraformSingleBlankLinesRule) checkBody(
 	content string,
 	runner tflint.Runner,
 ) error {
-	// Grab the file content lines (split once and reuse)
-	lines := strings.Split(content, "\n")
+	// Use LineOffsets for O(1) byte position lookups
+	lineOffsets := NewLineOffsets(content)
+	lines := lineOffsets.Lines()
 
 	blankCount := 0
 	blankStartLine := -1
@@ -82,7 +83,7 @@ func (r *TerraformSingleBlankLinesRule) checkBody(
 			// Check if we just finished a sequence of multiple blank lines
 			if blankCount > 1 {
 				if err := r.emitIssueForMultipleBlankLines(
-					runner, filename, lines, blankStartLine, i-1,
+					runner, filename, lineOffsets, blankStartLine, i-1,
 				); err != nil {
 					return err
 				}
@@ -95,7 +96,7 @@ func (r *TerraformSingleBlankLinesRule) checkBody(
 	// Check if file ends with multiple blank lines
 	if blankCount > 1 {
 		if err := r.emitIssueForMultipleBlankLines(
-			runner, filename, lines, blankStartLine, len(lines)-1,
+			runner, filename, lineOffsets, blankStartLine, len(lines)-1,
 		); err != nil {
 			return err
 		}
@@ -107,27 +108,15 @@ func (r *TerraformSingleBlankLinesRule) checkBody(
 func (r *TerraformSingleBlankLinesRule) emitIssueForMultipleBlankLines(
 	runner tflint.Runner,
 	filename string,
-	lines []string,
+	lineOffsets *LineOffsets,
 	startLine int,
 	endLine int,
 ) error {
-	// Calculate byte positions for the range
-	startByte := 0
+	lines := lineOffsets.Lines()
 
-	// Calculate start byte position
-	for i := 0; i < startLine && i < len(lines); i++ {
-		startByte += len(lines[i]) + 1 // +1 for newline
-	}
-
-	// Calculate end byte position
-	endByte := startByte
-	for i := startLine; i <= endLine && i < len(lines); i++ {
-		endByte += len(lines[i])
-		// Add 1 for newline, but not after the last line of the file
-		if i < len(lines)-1 {
-			endByte++
-		}
-	}
+	// O(1) byte position lookups using precomputed offsets
+	startByte := lineOffsets.ByteOffset(startLine)
+	endByte := lineOffsets.ByteOffsetEnd(endLine)
 
 	// Adjust for the case where we want to keep one newline
 	// The range should cover all the blank lines but we'll replace with one newline
