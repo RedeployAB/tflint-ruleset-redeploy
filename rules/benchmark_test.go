@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,153 +12,20 @@ import (
 
 // Benchmark tests for rule performance
 
-// Sample Terraform configurations for benchmarks
-// Note: smallTerraformConfig is available for future benchmark expansion
-var _ = smallTerraformConfig // Prevent unused variable lint error
-
-const smallTerraformConfig = `
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 4.0"
-    }
-  }
+// readBenchmarkFixture reads a fixture file for benchmarks
+func readBenchmarkFixture(tb testing.TB, filename string) string {
+	tb.Helper()
+	path := filepath.Join("testdata", filename)
+	content, err := os.ReadFile(path)
+	if err != nil {
+		tb.Fatalf("Failed reading %s: %v", filename, err)
+	}
+	return strings.ReplaceAll(string(content), "\r\n", "\n")
 }
-
-provider "aws" {
-  region = "us-east-1"
-}
-
-variable "instance_type" {
-  description = "The type of EC2 instance"
-  type        = string
-  default     = "t3.micro"
-}
-
-resource "aws_instance" "example" {
-  ami           = "ami-12345678"
-  instance_type = var.instance_type
-
-  tags = {
-    Name = "example"
-  }
-}
-
-output "instance_id" {
-  value = aws_instance.example.id
-}
-`
-
-// Medium config with multiple resources
-const mediumTerraformConfig = `
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 4.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "us-east-1"
-}
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-  default     = "dev"
-}
-
-variable "instance_count" {
-  description = "Number of instances"
-  type        = number
-  default     = 2
-}
-
-variable "enable_monitoring" {
-  description = "Enable detailed monitoring"
-  type        = bool
-  default     = false
-}
-
-locals {
-  common_tags = {
-    Environment = var.environment
-    ManagedBy   = "terraform"
-  }
-}
-
-resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
-
-  tags = local.common_tags
-}
-
-resource "aws_subnet" "public" {
-  count      = var.instance_count
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "10.0.${count.index}.0/24"
-
-  tags = local.common_tags
-}
-
-resource "aws_security_group" "web" {
-  name   = "web-sg"
-  vpc_id = aws_vpc.main.id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = local.common_tags
-}
-
-resource "aws_instance" "web" {
-  count         = var.instance_count
-  ami           = "ami-12345678"
-  instance_type = "t3.micro"
-  subnet_id     = aws_subnet.public[count.index].id
-
-  vpc_security_group_ids = [aws_security_group.web.id]
-
-  monitoring = var.enable_monitoring
-
-  tags = merge(local.common_tags, {
-    Name = "web-${count.index}"
-  })
-}
-
-output "vpc_id" {
-  description = "The VPC ID"
-  value       = aws_vpc.main.id
-}
-
-output "instance_ids" {
-  description = "The instance IDs"
-  value       = aws_instance.web[*].id
-}
-
-output "public_ips" {
-  description = "The public IPs"
-  value       = aws_instance.web[*].public_ip
-}
-`
 
 // BenchmarkHCLParsing benchmarks raw HCL parsing performance
 func BenchmarkHCLParsing(b *testing.B) {
-	content := []byte(mediumTerraformConfig)
+	content := []byte(readBenchmarkFixture(b, "benchmark_medium.tf"))
 
 	b.Run("ParseConfig", func(b *testing.B) {
 		b.ResetTimer()
@@ -169,7 +38,7 @@ func BenchmarkHCLParsing(b *testing.B) {
 
 // BenchmarkStringSplit benchmarks string splitting which was a bottleneck
 func BenchmarkStringSplit(b *testing.B) {
-	content := mediumTerraformConfig
+	content := readBenchmarkFixture(b, "benchmark_medium.tf")
 
 	b.Run("Split", func(b *testing.B) {
 		b.ResetTimer()
@@ -190,7 +59,7 @@ func BenchmarkStringSplit(b *testing.B) {
 // BenchmarkBytePositionCalculation benchmarks the byte position calculation
 // that was repeated in multiple rules
 func BenchmarkBytePositionCalculation(b *testing.B) {
-	content := mediumTerraformConfig
+	content := readBenchmarkFixture(b, "benchmark_medium.tf")
 	lines := strings.Split(content, "\n")
 
 	b.Run("LinearScan", func(b *testing.B) {
@@ -237,7 +106,8 @@ func BenchmarkBytePositionCalculation(b *testing.B) {
 
 // BenchmarkTrimSpace benchmarks the trimspace operation used in blank line checks
 func BenchmarkTrimSpace(b *testing.B) {
-	lines := strings.Split(mediumTerraformConfig, "\n")
+	content := readBenchmarkFixture(b, "benchmark_medium.tf")
+	lines := strings.Split(content, "\n")
 
 	b.Run("TrimSpace", func(b *testing.B) {
 		b.ResetTimer()
