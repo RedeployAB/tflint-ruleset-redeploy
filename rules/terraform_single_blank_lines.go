@@ -64,7 +64,7 @@ func (r *TerraformSingleBlankLinesRule) checkBody(
 	content string,
 	runner tflint.Runner,
 ) error {
-	// Grab the file content lines
+	// Grab the file content lines (split once and reuse)
 	lines := strings.Split(content, "\n")
 
 	blankCount := 0
@@ -82,7 +82,7 @@ func (r *TerraformSingleBlankLinesRule) checkBody(
 			// Check if we just finished a sequence of multiple blank lines
 			if blankCount > 1 {
 				if err := r.emitIssueForMultipleBlankLines(
-					runner, filename, content, blankStartLine, i-1,
+					runner, filename, lines, blankStartLine, i-1,
 				); err != nil {
 					return err
 				}
@@ -95,7 +95,7 @@ func (r *TerraformSingleBlankLinesRule) checkBody(
 	// Check if file ends with multiple blank lines
 	if blankCount > 1 {
 		if err := r.emitIssueForMultipleBlankLines(
-			runner, filename, content, blankStartLine, len(lines)-1,
+			runner, filename, lines, blankStartLine, len(lines)-1,
 		); err != nil {
 			return err
 		}
@@ -107,12 +107,11 @@ func (r *TerraformSingleBlankLinesRule) checkBody(
 func (r *TerraformSingleBlankLinesRule) emitIssueForMultipleBlankLines(
 	runner tflint.Runner,
 	filename string,
-	content string,
+	lines []string,
 	startLine int,
 	endLine int,
 ) error {
 	// Calculate byte positions for the range
-	lines := strings.Split(content, "\n")
 	startByte := 0
 
 	// Calculate start byte position

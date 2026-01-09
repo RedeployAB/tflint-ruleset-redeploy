@@ -1,8 +1,6 @@
 package rules
 
 import (
-	"strings"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
@@ -62,8 +60,8 @@ func (r *TerraformVariableNullableRule) processBody(
 	runner tflint.Runner,
 ) error {
 	for _, block := range body.Blocks {
-		// Only examine blocks of type "variable"
-		if strings.ToLower(block.Type) == TypeVariable {
+		// Only examine blocks of type "variable" (block types are always lowercase in Terraform)
+		if block.Type == TypeVariable {
 			if err := r.checkVariableBlock(block, runner); err != nil {
 				return err
 			}
@@ -156,9 +154,9 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	var nullableVal *hclsyntax.Attribute
 	var typeVal *hclsyntax.Attribute
 
-	// Gather relevant attributes
+	// Gather relevant attributes (attribute names are always lowercase in Terraform)
 	for _, attr := range block.Body.Attributes {
-		switch strings.ToLower(attr.Name) {
+		switch attr.Name {
 		case "default":
 			defaultVal = attr
 		case "nullable":

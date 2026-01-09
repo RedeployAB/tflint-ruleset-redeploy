@@ -236,11 +236,10 @@ func (r *TerraformBlockFormatRule) emitIssue(runner tflint.Runner, rng hcl.Range
 }
 
 func isBlockTypeOfInterest(typ string) bool {
-	t := strings.ToLower(typ)
-	return t == TypeResource ||
-		t == TypeData ||
-		t == TypeTerraform ||
-		t == TypeProvider ||
-		t == TypeVariable ||
-		t == TypeOutput
+	// Block types in Terraform are always lowercase, so direct comparison is safe and faster
+	switch typ {
+	case TypeResource, TypeData, TypeTerraform, TypeProvider, TypeVariable, TypeOutput:
+		return true
+	}
+	return false
 }

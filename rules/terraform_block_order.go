@@ -3,7 +3,6 @@ package rules
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -87,11 +86,10 @@ func (r *TerraformBlockOrderRule) checkTopLevelBlocks(
 
 	var blocks []blockItem
 	for _, blk := range body.Blocks {
-		// Only track the known block types
-		lcType := strings.ToLower(blk.Type)
-		if idx, ok := orderMap[lcType]; ok {
+		// Only track the known block types (block types are always lowercase in Terraform)
+		if idx, ok := orderMap[blk.Type]; ok {
 			blocks = append(blocks, blockItem{
-				Type:  lcType,
+				Type:  blk.Type,
 				Index: idx,
 				Range: blk.DefRange(),
 				Start: blk.DefRange().Start.Byte,

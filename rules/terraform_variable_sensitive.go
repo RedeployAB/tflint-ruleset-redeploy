@@ -67,7 +67,8 @@ func (r *TerraformVariableSensitiveRule) processBody(
 	runner tflint.Runner,
 ) error {
 	for _, block := range body.Blocks {
-		if strings.ToLower(block.Type) == TypeVariable {
+		// Block types are always lowercase in Terraform
+		if block.Type == TypeVariable {
 			if err := r.checkVariableBlock(block, runner); err != nil {
 				return err
 			}

@@ -63,8 +63,8 @@ func (r *TerraformOutputEphemeralRule) processBody(
 	runner tflint.Runner,
 ) error {
 	for _, block := range body.Blocks {
-		// Only examine blocks of type "output"
-		if strings.ToLower(block.Type) == "output" {
+		// Only examine blocks of type "output" (block types are always lowercase in Terraform)
+		if block.Type == TypeOutput {
 			if err := r.checkOutputBlock(block, runner); err != nil {
 				return err
 			}

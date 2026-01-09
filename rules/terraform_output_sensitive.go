@@ -67,7 +67,8 @@ func (r *TerraformOutputSensitiveRule) processBody(
 	runner tflint.Runner,
 ) error {
 	for _, block := range body.Blocks {
-		if strings.ToLower(block.Type) == "output" {
+		// Block types are always lowercase in Terraform
+		if block.Type == TypeOutput {
 			if err := r.checkOutputBlock(block, runner); err != nil {
 				return err
 			}

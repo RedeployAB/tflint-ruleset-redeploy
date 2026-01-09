@@ -50,8 +50,11 @@ func (r *TerraformSourceFormatRule) Check(runner tflint.Runner) error {
 			continue
 		}
 
+		// Pre-split lines once per file to avoid repeated splitting
+		lines := strings.Split(string(file.Bytes), "\n")
+
 		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
-			if err := r.processBody(body, filename, runner); err != nil {
+			if err := r.processBody(body, filename, lines, runner); err != nil {
 				return err
 			}
 		}
@@ -60,14 +63,14 @@ func (r *TerraformSourceFormatRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
-func (r *TerraformSourceFormatRule) processBody(body *hclsyntax.Body, filename string, runner tflint.Runner) error {
+func (r *TerraformSourceFormatRule) processBody(body *hclsyntax.Body, filename string, lines []string, runner tflint.Runner) error {
 	for _, block := range body.Blocks {
 		if block.Type == "module" {
-			if err := r.checkModuleBlock(block, runner); err != nil {
+			if err := r.checkModuleBlock(block, lines, runner); err != nil {
 				return err
 			}
 		}
-		if err := r.processBody(block.Body, filename, runner); err != nil {
+		if err := r.processBody(block.Body, filename, lines, runner); err != nil {
 			return err
 		}
 	}
@@ -75,20 +78,8 @@ func (r *TerraformSourceFormatRule) processBody(body *hclsyntax.Body, filename s
 }
 
 //nolint:gocyclo
-func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, runner tflint.Runner) error {
+func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, lines []string, runner tflint.Runner) error {
 	srcRange := block.Body.Range()
-
-	files, err := runner.GetFiles()
-	if err != nil {
-		return err
-	}
-
-	f, ok := files[srcRange.Filename]
-	if !ok || f.Bytes == nil {
-		return nil
-	}
-
-	lines := strings.Split(string(f.Bytes), "\n")
 
 	startLine := srcRange.Start.Line - 1
 	endLine := srcRange.End.Line - 1

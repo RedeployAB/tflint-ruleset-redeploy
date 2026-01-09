@@ -46,8 +46,12 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) Check(runner tflint.Runner) e
 		if diags.HasErrors() {
 			continue
 		}
+
+		// Pre-split lines once per file to avoid repeated splitting
+		lines := strings.Split(string(hclFile.Bytes), "\n")
+
 		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
-			if err := r.processBody(body, filename, runner); err != nil {
+			if err := r.processBody(body, filename, lines, runner); err != nil {
 				return err
 			}
 		}
@@ -58,16 +62,17 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) Check(runner tflint.Runner) e
 func (r *TerraformNoLeadingTrailingBlankLinesRule) processBody(
 	body *hclsyntax.Body,
 	filename string,
+	lines []string,
 	runner tflint.Runner,
 ) error {
 	for _, blk := range body.Blocks {
 		if blk.Type == TypeResource || blk.Type == TypeModule {
-			if err := r.checkBlock(blk, filename, runner); err != nil {
+			if err := r.checkBlock(blk, filename, lines, runner); err != nil {
 				return err
 			}
 		}
 		// Recurse into child blocks
-		if err := r.processBody(blk.Body, filename, runner); err != nil {
+		if err := r.processBody(blk.Body, filename, lines, runner); err != nil {
 			return err
 		}
 	}
@@ -77,16 +82,9 @@ func (r *TerraformNoLeadingTrailingBlankLinesRule) processBody(
 func (r *TerraformNoLeadingTrailingBlankLinesRule) checkBlock(
 	block *hclsyntax.Block,
 	filename string,
+	lines []string,
 	runner tflint.Runner,
 ) error {
-	hclFile, err := runner.GetFile(filename)
-	if err != nil {
-		return err
-	}
-	if hclFile.Bytes == nil {
-		return nil
-	}
-	lines := strings.Split(string(hclFile.Bytes), "\n")
 	startLine := block.Body.Range().Start.Line - 1
 	endLine := block.Body.Range().End.Line - 1
 

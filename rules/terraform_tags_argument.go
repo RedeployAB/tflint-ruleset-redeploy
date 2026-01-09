@@ -109,7 +109,7 @@ func (r *TerraformTagsArgumentRule) Check(runner tflint.Runner) error {
 // processBody recursively processes blocks and checks resource blocks
 func (r *TerraformTagsArgumentRule) processBody(body *hclsyntax.Body, filename string, runner tflint.Runner) error {
 	for _, block := range body.Blocks {
-		if block.Type == "resource" {
+		if block.Type == TypeResource {
 			if err := r.checkResourceBlock(block, runner); err != nil {
 				return err
 			}

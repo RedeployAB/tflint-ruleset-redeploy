@@ -74,8 +74,8 @@ func (r *TerraformVariableArgumentOrderRule) Check(runner tflint.Runner) error {
 
 func (r *TerraformVariableArgumentOrderRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
 	for _, block := range body.Blocks {
-		// Only examine variable blocks
-		if strings.ToLower(block.Type) == TypeVariable {
+		// Only examine variable blocks (block types are always lowercase in Terraform)
+		if block.Type == TypeVariable {
 			if err := r.checkVariableBlock(block, runner); err != nil {
 				return err
 			}
@@ -110,13 +110,12 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 
 	var items []variableArgumentItem
 
-	// Gather recognized attributes
+	// Gather recognized attributes (attribute names are always lowercase in Terraform)
 	for _, attr := range block.Body.Attributes {
-		lcName := strings.ToLower(attr.Name)
-		idx, found := orderMap[lcName]
+		idx, found := orderMap[attr.Name]
 		if found {
 			items = append(items, variableArgumentItem{
-				Name:  lcName,
+				Name:  attr.Name,
 				Index: idx,
 				Range: attr.Range(),
 				Start: attr.Range().Start.Byte,
@@ -125,13 +124,12 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 		}
 	}
 
-	// Gather recognized blocks: "validation"
+	// Gather recognized blocks: "validation" (block types are always lowercase in Terraform)
 	for _, childBlock := range block.Body.Blocks {
-		lcType := strings.ToLower(childBlock.Type)
-		if lcType == TypeValidation {
+		if childBlock.Type == TypeValidation {
 			items = append(items, variableArgumentItem{
-				Name:  lcType,
-				Index: orderMap[lcType], // 6
+				Name:  childBlock.Type,
+				Index: orderMap[childBlock.Type], // 6
 				Range: childBlock.DefRange(),
 				Start: childBlock.DefRange().Start.Byte,
 				IsBlk: true,
@@ -250,13 +248,12 @@ func (r *TerraformVariableArgumentOrderRule) extractAttributeTexts(
 	attrTexts map[string]string,
 ) {
 	for _, attr := range block.Body.Attributes {
-		lcName := strings.ToLower(attr.Name)
-		// Check if this is one of our tracked attributes
+		// Check if this is one of our tracked attributes (attribute names are always lowercase in Terraform)
 		for _, item := range items {
-			if item.Name == lcName && !item.IsBlk {
+			if item.Name == attr.Name && !item.IsBlk {
 				attrRange := attr.Range()
 				text := f.TextAt(attrRange)
-				attrTexts[lcName] = string(text.Bytes)
+				attrTexts[attr.Name] = string(text.Bytes)
 				break
 			}
 		}
@@ -271,7 +268,8 @@ func (r *TerraformVariableArgumentOrderRule) extractValidationBlockTexts(
 	blockTexts map[int]string,
 ) {
 	for _, blk := range block.Body.Blocks {
-		if strings.ToLower(blk.Type) == TypeValidation {
+		// Block types are always lowercase in Terraform
+		if blk.Type == TypeValidation {
 			// Find the corresponding item by start position
 			for _, item := range items {
 				if item.IsBlk && item.Start == blk.DefRange().Start.Byte {

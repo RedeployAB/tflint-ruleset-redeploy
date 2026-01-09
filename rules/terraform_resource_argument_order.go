@@ -3,7 +3,6 @@ package rules
 import (
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -144,7 +143,8 @@ func (r *TerraformResourceArgumentOrderRule) checkArgumentOrder(block *hclsyntax
 }
 
 func isMetaArg(name string) bool {
-	switch strings.ToLower(name) {
+	// Attribute and block names are always lowercase in Terraform
+	switch name {
 	case ArgCount, ArgForEach, ArgProvider, ArgDependsOn, ArgLifecycle, "tags":
 		return true
 	}

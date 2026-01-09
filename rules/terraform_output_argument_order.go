@@ -100,13 +100,12 @@ func (r *TerraformOutputArgumentOrderRule) checkOutputBlock(
 
 	var items []outputArgumentItem
 
-	// Gather recognized attributes
+	// Gather recognized attributes (attribute names are always lowercase in Terraform)
 	for _, attr := range block.Body.Attributes {
-		lcName := strings.ToLower(attr.Name)
-		idx, found := orderMap[lcName]
-		if found && lcName != TypePrecondition { // precondition is a block, not an attribute
+		idx, found := orderMap[attr.Name]
+		if found && attr.Name != TypePrecondition { // precondition is a block, not an attribute
 			items = append(items, outputArgumentItem{
-				Name:    lcName,
+				Name:    attr.Name,
 				Index:   idx,
 				Range:   attr.Range(),
 				Start:   attr.Range().Start.Byte,
@@ -115,9 +114,9 @@ func (r *TerraformOutputArgumentOrderRule) checkOutputBlock(
 		}
 	}
 
-	// Gather precondition blocks
+	// Gather precondition blocks (block types are always lowercase in Terraform)
 	for _, blk := range block.Body.Blocks {
-		if strings.ToLower(blk.Type) == TypePrecondition {
+		if blk.Type == TypePrecondition {
 			idx := orderMap[TypePrecondition]
 			items = append(items, outputArgumentItem{
 				Name:    TypePrecondition,
@@ -215,23 +214,22 @@ func (r *TerraformOutputArgumentOrderRule) extractItemTexts(
 	attrTexts := make(map[string]string)
 	blockTexts := make(map[string]string)
 
-	// Get the text for each attribute
+	// Get the text for each attribute (attribute names are always lowercase in Terraform)
 	for _, attr := range block.Body.Attributes {
-		lcName := strings.ToLower(attr.Name)
 		// Check if this is one of our tracked attributes
 		for _, item := range items {
-			if item.Name == lcName && !item.IsBlock {
+			if item.Name == attr.Name && !item.IsBlock {
 				attrRange := attr.Range()
 				text := f.TextAt(attrRange)
-				attrTexts[lcName] = string(text.Bytes)
+				attrTexts[attr.Name] = string(text.Bytes)
 				break
 			}
 		}
 	}
 
-	// Get the text for precondition blocks
+	// Get the text for precondition blocks (block types are always lowercase in Terraform)
 	for _, blk := range block.Body.Blocks {
-		if strings.ToLower(blk.Type) == TypePrecondition {
+		if blk.Type == TypePrecondition {
 			blockRange := hcl.Range{
 				Filename: blk.DefRange().Filename,
 				Start:    blk.DefRange().Start,

@@ -153,9 +153,9 @@ func (r *TerraformMetaArgumentFormatRule) gatherMetaArgEndLines(
 ) (countForEachEndLine, providerEndLine, lifecycleStartLine, dependsOnStartLine int) {
 	countForEachEndLine, providerEndLine, lifecycleStartLine, dependsOnStartLine = -1, -1, -1, -1
 
-	// Check each attribute
+	// Check each attribute (attribute names are always lowercase in Terraform)
 	for _, attr := range block.Body.Attributes {
-		switch strings.ToLower(attr.Name) {
+		switch attr.Name {
 		case ArgCount, ArgForEach:
 			if attr.Range().End.Line > countForEachEndLine {
 				countForEachEndLine = attr.Range().End.Line
@@ -171,9 +171,9 @@ func (r *TerraformMetaArgumentFormatRule) gatherMetaArgEndLines(
 		}
 	}
 
-	// Check each child block (e.g. lifecycle)
+	// Check each child block (e.g. lifecycle) - block types are always lowercase
 	for _, child := range block.Body.Blocks {
-		if strings.ToLower(child.Type) == ArgLifecycle {
+		if child.Type == ArgLifecycle {
 			if lifecycleStartLine == -1 || child.DefRange().Start.Line < lifecycleStartLine {
 				lifecycleStartLine = child.DefRange().Start.Line
 			}
@@ -190,12 +190,12 @@ func (r *TerraformMetaArgumentFormatRule) checkBlock(
 ) error {
 	srcRange := block.Body.Range()
 
-	files, err := runner.GetFiles()
+	// Use GetFile for single file lookup instead of GetFiles()
+	hclFile, err := runner.GetFile(srcRange.Filename)
 	if err != nil {
 		return err
 	}
-	hclFile, ok := files[srcRange.Filename]
-	if !ok || hclFile.Bytes == nil {
+	if hclFile == nil || hclFile.Bytes == nil {
 		return nil
 	}
 

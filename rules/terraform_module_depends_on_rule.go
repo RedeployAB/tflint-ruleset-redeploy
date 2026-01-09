@@ -1,8 +1,6 @@
 package rules
 
 import (
-	"strings"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
@@ -61,10 +59,12 @@ func (r *TerraformModuleDependsOnRule) Check(runner tflint.Runner) error {
 
 func (r *TerraformModuleDependsOnRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
 	for _, block := range body.Blocks {
-		if strings.ToLower(block.Type) == TypeModule {
+		// Block types are always lowercase in Terraform
+		if block.Type == TypeModule {
 			// Check if it has an attribute named 'depends_on'
 			for _, attr := range block.Body.Attributes {
-				if strings.ToLower(attr.Name) == ArgDependsOn {
+				// Attribute names are also lowercase in Terraform
+				if attr.Name == ArgDependsOn {
 					rng := attr.Range()
 					if err := runner.EmitIssue(
 						r,
