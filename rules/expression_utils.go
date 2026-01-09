@@ -243,8 +243,9 @@ func EvaluateAttributeValue(attr *hclsyntax.Attribute) (cty.Value, bool, error) 
 // Helper functions for type validation
 
 // isValidTerraformType checks if a string represents a valid Terraform primitive type.
+// Type names from the HCL AST are always lowercase.
 func isValidTerraformType(typeName string) bool {
-	switch strings.ToLower(typeName) {
+	switch typeName {
 	case "bool", "string", "number", "any":
 		return true
 	default:
@@ -253,8 +254,9 @@ func isValidTerraformType(typeName string) bool {
 }
 
 // isValidTerraformTypeFunction checks if a string represents a valid Terraform type function.
+// Function names from the HCL AST are always lowercase.
 func isValidTerraformTypeFunction(funcName string) bool {
-	switch strings.ToLower(funcName) {
+	switch funcName {
 	case "list", "set", "map", "object", "tuple":
 		return true
 	default:
