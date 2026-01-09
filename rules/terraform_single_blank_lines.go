@@ -43,16 +43,14 @@ func (r *TerraformSingleBlankLinesRule) Check(runner tflint.Runner) error {
 		if hclFile == nil || hclFile.Bytes == nil {
 			continue
 		}
-		// Parse each file
-		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
+		// Validate the file can be parsed before checking
+		_, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
 		if diags.HasErrors() {
 			// Skip if parse error
 			continue
 		}
-		if _, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
-			if err := r.checkBody(filename, string(hclFile.Bytes), runner); err != nil {
-				return err
-			}
+		if err := r.checkBody(filename, string(hclFile.Bytes), runner); err != nil {
+			return err
 		}
 	}
 	return nil

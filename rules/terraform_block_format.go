@@ -95,9 +95,12 @@ func (r *TerraformBlockFormatRule) Check(runner tflint.Runner) error {
 			continue
 		}
 
+		// Pre-split lines for this file to avoid repeated splitting
+		lines := strings.Split(string(hclFile.Bytes), "\n")
+
 		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
 			// Process top-level blocks with type filtering
-			if err := r.processBody(body, runner, true); err != nil {
+			if err := r.processBody(body, runner, lines, true); err != nil {
 				return err
 			}
 		}
@@ -105,40 +108,31 @@ func (r *TerraformBlockFormatRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
-func (r *TerraformBlockFormatRule) processBody(body *hclsyntax.Body, runner tflint.Runner, isTopLevel bool) error {
+func (r *TerraformBlockFormatRule) processBody(body *hclsyntax.Body, runner tflint.Runner, lines []string, isTopLevel bool) error {
 	for _, blk := range body.Blocks {
 		// At top level, only check specific block types
 		// Inside those blocks, check ALL nested blocks
 		if !isTopLevel || isBlockTypeOfInterest(blk.Type) {
-			if err := r.checkBlock(blk, runner); err != nil {
+			if err := r.checkBlock(blk, runner, lines); err != nil {
 				return err
 			}
 		}
 		// Recursively process nested blocks - but not at top level anymore
-		if err := r.processBody(blk.Body, runner, false); err != nil {
+		if err := r.processBody(blk.Body, runner, lines, false); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tflint.Runner) error {
-	files, err := runner.GetFiles()
+func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tflint.Runner, lines []string) error {
+	// Gather items (attributes/blocks) in lexical order
+	items, err := r.collectItems(block)
 	if err != nil {
 		return err
 	}
-	hclFile, ok := files[block.Body.Range().Filename]
-	if !ok || hclFile.Bytes == nil {
-		return nil
-	}
 
-	// Gather items (attributes/blocks) in lexical order
-	items, err2 := r.collectItems(block)
-	if err2 != nil {
-		return err2
-	}
-
-	return r.checkItemsSpacing(items, block, runner)
+	return r.checkItemsSpacing(items, block, runner, lines)
 }
 
 func (r *TerraformBlockFormatRule) collectItems(block *hclsyntax.Block) ([]item, error) {
@@ -175,16 +169,8 @@ func (r *TerraformBlockFormatRule) checkItemsSpacing(
 	items []item,
 	block *hclsyntax.Block,
 	runner tflint.Runner,
+	lines []string,
 ) error {
-	files, err := runner.GetFiles()
-	if err != nil {
-		return err
-	}
-	hclFile, ok := files[block.Body.Range().Filename]
-	if !ok || hclFile.Bytes == nil {
-		return nil
-	}
-	lines := strings.Split(string(hclFile.Bytes), "\n")
 
 	// Helper functions to check spacing logic:
 	checkFirstBlockSpacing := func(linesBetween int, rng hcl.Range, hasAttributesBefore bool) error {

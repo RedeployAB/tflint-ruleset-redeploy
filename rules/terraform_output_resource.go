@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -431,20 +432,63 @@ func parseTraversalPart(part string) []hcl.Traverser {
 	return []hcl.Traverser{hcl.TraverseAttr{Name: part}}
 }
 
-// filterPrefixTraversals removes traversals that are prefixes of other traversals
+// filterPrefixTraversals removes traversals that are prefixes of other traversals.
+// This implementation uses O(n log n) sorting instead of O(n²) comparison.
 func filterPrefixTraversals(traversals []hcl.Traversal) []hcl.Traversal {
-	var result []hcl.Traversal
+	if len(traversals) <= 1 {
+		return traversals
+	}
 
-outer:
-	for i, t1 := range traversals {
-		for j, t2 := range traversals {
-			if i != j && isPrefix(t1, t2) {
-				continue outer
+	// Sort traversals by their string representation for efficient prefix checking
+	type traversalWithKey struct {
+		trav hcl.Traversal
+		key  string
+	}
+
+	sorted := make([]traversalWithKey, len(traversals))
+	for i, t := range traversals {
+		sorted[i] = traversalWithKey{trav: t, key: traversalKey(t)}
+	}
+
+	// Sort by key - this groups potential prefixes together
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].key < sorted[j].key
+	})
+
+	var result []hcl.Traversal
+	for i := 0; i < len(sorted); i++ {
+		// Check if the next traversal has this one as a prefix
+		isAPrefix := false
+		if i+1 < len(sorted) && strings.HasPrefix(sorted[i+1].key, sorted[i].key+".") {
+			// Verify it's actually a prefix (not just string prefix)
+			if isPrefix(sorted[i].trav, sorted[i+1].trav) {
+				isAPrefix = true
 			}
 		}
-		result = append(result, t1)
+		if !isAPrefix {
+			result = append(result, sorted[i].trav)
+		}
 	}
 	return result
+}
+
+// traversalKey creates a string key for a traversal for sorting purposes
+func traversalKey(trav hcl.Traversal) string {
+	var parts []string
+	for _, step := range trav {
+		switch s := step.(type) {
+		case hcl.TraverseRoot:
+			parts = append(parts, s.Name)
+		case hcl.TraverseAttr:
+			parts = append(parts, s.Name)
+		case hcl.TraverseIndex:
+			// Use a placeholder for index to maintain grouping
+			parts = append(parts, "[idx]")
+		case hcl.TraverseSplat:
+			parts = append(parts, "[*]")
+		}
+	}
+	return strings.Join(parts, ".")
 }
 
 // isPrefix checks if t1 is a prefix of t2

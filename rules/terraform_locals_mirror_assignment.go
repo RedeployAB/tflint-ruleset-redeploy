@@ -37,15 +37,22 @@ func (r *TerraformLocalsMirrorAssignmentRule) Link() string {
 }
 
 func (r *TerraformLocalsMirrorAssignmentRule) Check(runner tflint.Runner) error {
-	// Gather variable names from 'variable' blocks
-	variableNames := make(map[string]bool)
-
 	files, err := runner.GetFiles()
 	if err != nil {
 		return err
 	}
 
-	// First pass: collect all variable names
+	// Parse files once and store parsed bodies
+	type parsedFile struct {
+		filename string
+		body     *hclsyntax.Body
+	}
+	var parsedFiles []parsedFile
+
+	// Gather variable names from 'variable' blocks
+	variableNames := make(map[string]bool)
+
+	// Single pass: parse files and collect variable names
 	for filename, hclFile := range files {
 		if hclFile == nil || hclFile.Bytes == nil {
 			continue
@@ -56,23 +63,15 @@ func (r *TerraformLocalsMirrorAssignmentRule) Check(runner tflint.Runner) error 
 			continue
 		}
 		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
+			parsedFiles = append(parsedFiles, parsedFile{filename: filename, body: body})
 			r.collectVariableNames(body, variableNames)
 		}
 	}
 
-	// Second pass: check for direct assignments in locals
-	for filename, hclFile := range files {
-		if hclFile == nil || hclFile.Bytes == nil {
-			continue
-		}
-		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)
-		if diags.HasErrors() {
-			continue
-		}
-		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
-			if err := r.checkLocals(body, filename, variableNames, runner); err != nil {
-				return err
-			}
+	// Check for direct assignments in locals using already parsed files
+	for _, pf := range parsedFiles {
+		if err := r.checkLocals(pf.body, pf.filename, variableNames, runner); err != nil {
+			return err
 		}
 	}
 
