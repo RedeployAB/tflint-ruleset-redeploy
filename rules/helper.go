@@ -32,7 +32,11 @@ func NewLineOffsets(content string) *LineOffsets {
 	pos := 0
 	for i, line := range lines {
 		offsets[i] = pos
-		pos += len(line) + 1 // +1 for newline
+		pos += len(line)
+		// Only add 1 for newline if not the last line
+		if i < len(lines)-1 {
+			pos++
+		}
 	}
 	offsets[len(lines)] = pos // End of file position
 
