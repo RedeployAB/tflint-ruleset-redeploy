@@ -77,7 +77,8 @@ func (r *TerraformOutputOrderRule) processFile(body *hclsyntax.Body, filename st
 	var outputBlocks []outputBlock
 
 	for _, blk := range body.Blocks {
-		if strings.EqualFold(blk.Type, TypeOutput) && len(blk.Labels) > 0 {
+		// Block types are always lowercase in Terraform
+		if blk.Type == TypeOutput && len(blk.Labels) > 0 {
 			outName := blk.Labels[0]
 
 			// Calculate full range from start of block to end of body

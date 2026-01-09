@@ -71,7 +71,8 @@ func (r *TerraformOutputArgumentOrderRule) Check(runner tflint.Runner) error {
 
 func (r *TerraformOutputArgumentOrderRule) processBody(body *hclsyntax.Body, runner tflint.Runner) error {
 	for _, block := range body.Blocks {
-		if strings.EqualFold(block.Type, "output") {
+		// Block types are always lowercase in Terraform
+		if block.Type == TypeOutput {
 			if err := r.checkOutputBlock(block, runner); err != nil {
 				return err
 			}

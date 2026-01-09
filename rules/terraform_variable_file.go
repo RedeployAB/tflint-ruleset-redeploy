@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -79,7 +78,8 @@ func (r *TerraformVariableFileRule) processBody(
 	runner tflint.Runner,
 ) error {
 	for _, blk := range body.Blocks {
-		if strings.EqualFold(blk.Type, "variable") {
+		// Block types are always lowercase in Terraform
+		if blk.Type == TypeVariable {
 			if err := r.emitIssue(runner, blk.DefRange(), filename); err != nil {
 				return err
 			}

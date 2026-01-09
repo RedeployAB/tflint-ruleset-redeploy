@@ -73,7 +73,8 @@ func (r *TerraformOutputResourceRule) collectOutputBlocks(body *hclsyntax.Body) 
 	var outputs []*hclsyntax.Block
 
 	for _, blk := range body.Blocks {
-		if strings.EqualFold(blk.Type, "output") {
+		// Block types are always lowercase in Terraform
+		if blk.Type == TypeOutput {
 			outputs = append(outputs, blk)
 		}
 		nested := r.collectOutputBlocks(blk.Body)

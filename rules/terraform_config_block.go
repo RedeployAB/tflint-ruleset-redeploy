@@ -3,7 +3,6 @@ package rules
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -67,7 +66,8 @@ func (r *TerraformConfigBlockFileRule) processBody(
 	runner tflint.Runner,
 ) error {
 	for _, blk := range body.Blocks {
-		if strings.EqualFold(blk.Type, "terraform") {
+		// Block types are always lowercase in Terraform
+		if blk.Type == TypeTerraform {
 			// Found a terraform config block in the wrong file => error
 			if err := runner.EmitIssue(
 				r,

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -75,8 +74,8 @@ func (r *TerraformLocalsFileRule) processBody(
 	runner tflint.Runner,
 ) error {
 	for _, blk := range body.Blocks {
-		// If block.Type == "locals" => error
-		if strings.EqualFold(blk.Type, "locals") {
+		// Block types are always lowercase in Terraform
+		if blk.Type == TypeLocals {
 			if err := r.emitIssue(runner, blk.DefRange(), filename); err != nil {
 				return err
 			}

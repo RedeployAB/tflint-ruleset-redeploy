@@ -2,10 +2,8 @@ package rules
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
@@ -84,7 +82,8 @@ func (r *TerraformLocalsMirrorAssignmentRule) collectVariableNames(
 	variableNames map[string]bool,
 ) {
 	for _, block := range body.Blocks {
-		if strings.EqualFold(block.Type, TypeVariable) && len(block.Labels) > 0 {
+		// Block types are always lowercase in Terraform
+		if block.Type == TypeVariable && len(block.Labels) > 0 {
 			nameLabel := block.Labels[0] // variable "<name>"
 			variableNames[nameLabel] = true
 		}
@@ -101,7 +100,8 @@ func (r *TerraformLocalsMirrorAssignmentRule) checkLocals(
 	runner tflint.Runner,
 ) error {
 	for _, block := range body.Blocks {
-		if strings.EqualFold(block.Type, TypeLocals) {
+		// Block types are always lowercase in Terraform
+		if block.Type == TypeLocals {
 			// Each attribute in this block is a local variable
 			for attrName, attr := range block.Body.Attributes {
 				// Check if this local is assigned *directly* from var.<something>

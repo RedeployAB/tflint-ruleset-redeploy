@@ -80,7 +80,8 @@ func (r *TerraformVariableOrderRule) processFile(body *hclsyntax.Body, filename 
 	var varBlocks []variableBlock
 
 	for _, blk := range body.Blocks {
-		if strings.EqualFold(blk.Type, TypeVariable) && len(blk.Labels) > 0 {
+		// Block types are always lowercase in Terraform
+		if blk.Type == TypeVariable && len(blk.Labels) > 0 {
 			vName := blk.Labels[0]
 
 			// Check whether "default" attribute is present

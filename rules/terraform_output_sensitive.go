@@ -1,8 +1,6 @@
 package rules
 
 import (
-	"strings"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
@@ -85,13 +83,8 @@ func (r *TerraformOutputSensitiveRule) checkOutputBlock(
 	block *hclsyntax.Block,
 	runner tflint.Runner,
 ) error {
-	var sensitiveAttr *hclsyntax.Attribute
-	for _, attr := range block.Body.Attributes {
-		if strings.EqualFold(attr.Name, "sensitive") {
-			sensitiveAttr = attr
-			break
-		}
-	}
+	// Attribute names are always lowercase in Terraform
+	sensitiveAttr := block.Body.Attributes["sensitive"]
 
 	if sensitiveAttr == nil {
 		return nil // No "sensitive" => fine
