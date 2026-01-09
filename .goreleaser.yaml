@@ -50,6 +50,9 @@ changelog:
     - title: "Bug fixes"
       regexp: '^.*?(fix|refactor)(\(.+\))??!?:.+$'
       order: 200
+    - title: "Performance improvements"
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 250
     - title: "Documentation updates"
       regexp: ^.*?docs?(\(.+\))??!?:.+$
       order: 400
