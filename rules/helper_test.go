@@ -108,7 +108,11 @@ func TestLineOffsets(t *testing.T) {
 			// Check lines content
 			lines := lo.Lines()
 			for i, expected := range tc.expectedLines {
-				if i >= len(lines) || lines[i] != expected {
+				if i >= len(lines) {
+					t.Errorf("Lines()[%d] missing; want %q", i, expected)
+					continue
+				}
+				if lines[i] != expected {
 					t.Errorf("Lines()[%d] = %q; want %q", i, lines[i], expected)
 				}
 			}
