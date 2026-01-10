@@ -12,6 +12,24 @@ following order:
 
 If any of these blocks appear out of order, the rule emits an error.
 
+## Blocks not subject to ordering
+
+The following block types can appear anywhere in the file and are not subject
+to ordering constraints:
+
+- **variable** - Input variable declarations
+- **output** - Output value declarations
+- **locals** - Local value definitions
+- **module** - Module calls
+- **moved** - Resource move declarations (Terraform 1.1+)
+- **import** - Import declarations (Terraform 1.5+)
+- **removed** - Resource removal declarations (Terraform 1.7+)
+- **check** - Check blocks for assertions (Terraform 1.5+)
+
+These blocks are intentionally flexible in placement to allow for logical
+grouping. For example, `moved` blocks are typically placed alongside the
+resources they affect.
+
 ## Why is this important?
 
 Maintaining a consistent block order improves the readability and predictability
@@ -44,6 +62,36 @@ data "aws_ami" "example" {
 }
 
 resource "aws_instance" "example" {
+  ami           = data.aws_ami.example.id
+  instance_type = "t2.micro"
+}
+```
+
+You can freely intersperse `moved`, `import`, `removed`, and `check` blocks
+as needed:
+
+```hcl
+terraform {
+  required_version = ">= 1.5.0"
+}
+
+provider "aws" {}
+
+# Import block can appear here
+import {
+  to = aws_instance.imported
+  id = "i-1234567890abcdef0"
+}
+
+data "aws_ami" "example" {}
+
+# Moved block alongside related resource
+moved {
+  from = aws_instance.old_name
+  to   = aws_instance.new_name
+}
+
+resource "aws_instance" "new_name" {
   ami           = data.aws_ami.example.id
   instance_type = "t2.micro"
 }

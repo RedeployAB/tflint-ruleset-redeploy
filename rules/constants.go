@@ -27,6 +27,12 @@ const (
 	// For modules
 	TypeModule = "module"
 
+	// Lifecycle/operational block types (Terraform 1.1+)
+	TypeMoved   = "moved"
+	TypeImport  = "import"
+	TypeRemoved = "removed"
+	TypeCheck   = "check"
+
 	// Reference types
 	TypeVar   = "var"
 	TypeLocal = "local"

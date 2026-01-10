@@ -8,7 +8,7 @@ import (
 )
 
 func TestTerraformBlockOrderRule(t *testing.T) {
-	cases := []struct {
+	tests := []struct {
 		Name    string
 		Content string
 		Issues  helper.Issues
@@ -58,10 +58,106 @@ provider "aws" {}
 				},
 			},
 		},
+		{
+			Name: "OK - moved block can appear anywhere",
+			Content: `
+terraform {}
+
+moved {
+  from = aws_instance.old
+  to   = aws_instance.new
+}
+
+resource "aws_instance" "new" {}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "OK - import block can appear anywhere",
+			Content: `
+terraform {}
+
+resource "aws_instance" "example" {}
+
+import {
+  to = aws_instance.example
+  id = "i-1234567890abcdef0"
+}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "OK - removed block can appear anywhere",
+			Content: `
+terraform {}
+
+removed {
+  from = aws_instance.old
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+resource "aws_instance" "new" {}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "OK - check block can appear anywhere",
+			Content: `
+terraform {}
+
+check "health_check" {
+  data "http" "example" {
+    url = "https://example.com"
+  }
+
+  assert {
+    condition     = data.http.example.status_code == 200
+    error_message = "Health check failed"
+  }
+}
+
+resource "aws_instance" "example" {}
+`,
+			Issues: helper.Issues{},
+		},
+		{
+			Name: "OK - mixed lifecycle blocks with ordered blocks",
+			Content: `
+terraform {}
+
+provider "aws" {}
+
+moved {
+  from = aws_instance.old
+  to   = aws_instance.renamed
+}
+
+data "aws_ami" "example" {}
+
+import {
+  to = aws_instance.imported
+  id = "i-1234567890abcdef0"
+}
+
+resource "aws_instance" "renamed" {}
+resource "aws_instance" "imported" {}
+
+check "health" {
+  assert {
+    condition     = true
+    error_message = "Always passes"
+  }
+}
+`,
+			Issues: helper.Issues{},
+		},
 	}
 
 	rule := NewTerraformBlockOrderRule()
-	for _, tc := range cases {
+	for _, tc := range tests {
 		t.Run(tc.Name, func(t *testing.T) {
 			runner := helper.TestRunner(t, map[string]string{
 				"test.tf": tc.Content,
