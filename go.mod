@@ -2,7 +2,7 @@ module github.com/RedeployAB/tflint-ruleset-redeploy
 
 go 1.24.0
 
-toolchain go1.24.2
+toolchain go1.24.11
 
 require (
 	github.com/google/go-cmp v0.7.0

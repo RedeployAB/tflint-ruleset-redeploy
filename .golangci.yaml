@@ -1,12 +1,14 @@
 version: "2"
 linters:
   enable:
+    - bidichk # Detects dangerous unicode character sequences (trojan source)
     - errchkjson
     - exhaustive
     - goconst
     - gocritic
     - gocyclo
     - godox
+    - gosec # Security linter
     - revive
     - unconvert
   settings:
