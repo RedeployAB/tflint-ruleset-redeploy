@@ -62,22 +62,9 @@ func TestTerraformRequiredProvidersOrderRule(t *testing.T) {
 
 func TestTerraformRequiredProvidersOrderRule_CaseInsensitive(t *testing.T) {
 	// Test that ordering is case-insensitive
-	content := `terraform {
-  required_providers {
-    AWS = {
-      source  = "hashicorp/aws"
-      version = "~> 4.0"
-    }
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 3.0"
-    }
-  }
-}`
-
 	rule := NewTerraformRequiredProvidersOrderRule()
 	runner := helper.TestRunner(t, map[string]string{
-		"resource.tf": content,
+		"resource.tf": readFixture(t, "required_providers_order_case_insensitive.tf"),
 	})
 
 	if err := rule.Check(runner); err != nil {
@@ -90,13 +77,9 @@ func TestTerraformRequiredProvidersOrderRule_CaseInsensitive(t *testing.T) {
 
 func TestTerraformRequiredProvidersOrderRule_NoRequiredProviders(t *testing.T) {
 	// Test with terraform block but no required_providers
-	content := `terraform {
-  required_version = ">= 1.0"
-}`
-
 	rule := NewTerraformRequiredProvidersOrderRule()
 	runner := helper.TestRunner(t, map[string]string{
-		"resource.tf": content,
+		"resource.tf": readFixture(t, "required_providers_order_no_required_providers.tf"),
 	})
 
 	if err := rule.Check(runner); err != nil {
@@ -108,14 +91,9 @@ func TestTerraformRequiredProvidersOrderRule_NoRequiredProviders(t *testing.T) {
 
 func TestTerraformRequiredProvidersOrderRule_NoTerraformBlock(t *testing.T) {
 	// Test with no terraform block at all
-	content := `resource "aws_instance" "example" {
-  ami           = "ami-12345678"
-  instance_type = "t2.micro"
-}`
-
 	rule := NewTerraformRequiredProvidersOrderRule()
 	runner := helper.TestRunner(t, map[string]string{
-		"resource.tf": content,
+		"resource.tf": readFixture(t, "required_providers_order_no_terraform_block.tf"),
 	})
 
 	if err := rule.Check(runner); err != nil {
@@ -123,6 +101,72 @@ func TestTerraformRequiredProvidersOrderRule_NoTerraformBlock(t *testing.T) {
 	}
 
 	helper.AssertIssues(t, helper.Issues{}, runner.Issues)
+}
+
+func TestTerraformRequiredProvidersOrderRule_MultipleFiles(t *testing.T) {
+	// Test with terraform blocks in multiple files
+	rule := NewTerraformRequiredProvidersOrderRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"terraform.tf": readFixture(t, "required_providers_order_multiple_files_valid.tf"),
+		"main.tf":      readFixture(t, "simple_resource.tf"),
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	helper.AssertIssues(t, helper.Issues{}, runner.Issues)
+}
+
+func TestTerraformRequiredProvidersOrderRule_MultipleFilesWithIssue(t *testing.T) {
+	// Test with terraform block in one file having ordering issue
+	rule := NewTerraformRequiredProvidersOrderRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"terraform.tf": readFixture(t, "required_providers_order_multiple_files_invalid.tf"),
+		"main.tf":      readFixture(t, "simple_resource.tf"),
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(runner.Issues) != 1 {
+		t.Fatalf("Expected 1 issue, got %d", len(runner.Issues))
+	}
+	if runner.Issues[0].Rule.Name() != "terraform_required_providers_order" {
+		t.Errorf("Expected rule terraform_required_providers_order, got %s", runner.Issues[0].Rule.Name())
+	}
+}
+
+func TestTerraformRequiredProvidersOrderRule_WithComments(t *testing.T) {
+	// Test that providers with comments are handled correctly
+	rule := NewTerraformRequiredProvidersOrderRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"resource.tf": readFixture(t, "required_providers_order_with_comments_valid.tf"),
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// Should pass - providers are in alphabetical order
+	helper.AssertIssues(t, helper.Issues{}, runner.Issues)
+}
+
+func TestTerraformRequiredProvidersOrderRule_WithCommentsOutOfOrder(t *testing.T) {
+	// Test that out-of-order providers with comments are detected
+	rule := NewTerraformRequiredProvidersOrderRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"resource.tf": readFixture(t, "required_providers_order_with_comments_invalid.tf"),
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(runner.Issues) != 1 {
+		t.Fatalf("Expected 1 issue, got %d", len(runner.Issues))
+	}
 }
 
 func TestTerraformRequiredProvidersOrderRule_Autofix(t *testing.T) {

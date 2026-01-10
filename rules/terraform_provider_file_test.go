@@ -8,6 +8,11 @@ import (
 )
 
 func TestTerraformProviderFileRule(t *testing.T) {
+	awsProvider := readFixture(t, "provider_file_aws_provider.tf")
+	azurermProvider := readFixture(t, "provider_file_azurerm_provider.tf")
+	terraformWithProvider := readFixture(t, "provider_file_terraform_with_provider.tf")
+	simpleResource := readFixture(t, "simple_resource.tf")
+
 	tests := []struct {
 		Name     string
 		FileMap  map[string]string
@@ -16,36 +21,28 @@ func TestTerraformProviderFileRule(t *testing.T) {
 		{
 			Name: "Valid - provider in providers.tf",
 			FileMap: map[string]string{
-				"providers.tf": `provider "aws" {
-  region = "us-east-1"
-}`,
+				"providers.tf": awsProvider,
 			},
 			Expected: helper.Issues{},
 		},
 		{
 			Name: "Valid - provider in providers.prod.tf",
 			FileMap: map[string]string{
-				"providers.prod.tf": `provider "aws" {
-  region = "us-east-1"
-}`,
+				"providers.prod.tf": awsProvider,
 			},
 			Expected: helper.Issues{},
 		},
 		{
 			Name: "Valid - provider in providers.azure.tf",
 			FileMap: map[string]string{
-				"providers.azure.tf": `provider "azurerm" {
-  features {}
-}`,
+				"providers.azure.tf": azurermProvider,
 			},
 			Expected: helper.Issues{},
 		},
 		{
 			Name: "Invalid - provider in main.tf",
 			FileMap: map[string]string{
-				"main.tf": `provider "aws" {
-  region = "us-east-1"
-}`,
+				"main.tf": awsProvider,
 			},
 			Expected: helper.Issues{
 				{
@@ -62,13 +59,7 @@ func TestTerraformProviderFileRule(t *testing.T) {
 		{
 			Name: "Invalid - provider in terraform.tf",
 			FileMap: map[string]string{
-				"terraform.tf": `terraform {
-  required_version = ">= 1.0"
-}
-
-provider "aws" {
-  region = "us-east-1"
-}`,
+				"terraform.tf": terraformWithProvider,
 			},
 			Expected: helper.Issues{
 				{
@@ -85,22 +76,15 @@ provider "aws" {
 		{
 			Name: "Valid - no provider blocks",
 			FileMap: map[string]string{
-				"main.tf": `resource "aws_instance" "example" {
-  ami           = "ami-12345678"
-  instance_type = "t2.micro"
-}`,
+				"main.tf": simpleResource,
 			},
 			Expected: helper.Issues{},
 		},
 		{
 			Name: "Multiple providers - one valid, one invalid",
 			FileMap: map[string]string{
-				"providers.tf": `provider "aws" {
-  region = "us-east-1"
-}`,
-				"main.tf": `provider "azurerm" {
-  features {}
-}`,
+				"providers.tf": awsProvider,
+				"main.tf":      azurermProvider,
 			},
 			Expected: helper.Issues{
 				{
@@ -126,4 +110,94 @@ provider "aws" {
 			helper.AssertIssues(t, tc.Expected, runner.Issues)
 		})
 	}
+}
+
+func TestTerraformProviderFileRule_MultipleProvidersInWrongFile(t *testing.T) {
+	// Test that multiple provider blocks in wrong file are all flagged
+	rule := NewTerraformProviderFileRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"main.tf": readFixture(t, "provider_file_multiple_wrong.tf"),
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(runner.Issues) != 3 {
+		t.Fatalf("Expected 3 issues, got %d", len(runner.Issues))
+	}
+}
+
+func TestTerraformProviderFileRule_AliasedProvider(t *testing.T) {
+	// Test that aliased providers are also caught
+	rule := NewTerraformProviderFileRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"main.tf": readFixture(t, "provider_file_aliased_wrong.tf"),
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(runner.Issues) != 1 {
+		t.Fatalf("Expected 1 issue, got %d", len(runner.Issues))
+	}
+}
+
+func TestTerraformProviderFileRule_ValidAliasedProvider(t *testing.T) {
+	// Test that aliased providers in correct file pass
+	rule := NewTerraformProviderFileRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"providers.tf": readFixture(t, "provider_file_aliased_valid.tf"),
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	helper.AssertIssues(t, helper.Issues{}, runner.Issues)
+}
+
+func TestTerraformProviderFileRule_ProviderInSubdirectory(t *testing.T) {
+	// Test that providers in subdirectory wrong files are caught
+	rule := NewTerraformProviderFileRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"modules/submodule/main.tf": readFixture(t, "provider_file_simple_valid.tf"),
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(runner.Issues) != 1 {
+		t.Fatalf("Expected 1 issue, got %d", len(runner.Issues))
+	}
+}
+
+func TestTerraformProviderFileRule_ProviderInSubdirectoryValid(t *testing.T) {
+	// Test that providers in subdirectory providers.tf pass
+	rule := NewTerraformProviderFileRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"modules/submodule/providers.tf": readFixture(t, "provider_file_simple_valid.tf"),
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	helper.AssertIssues(t, helper.Issues{}, runner.Issues)
+}
+
+func TestTerraformProviderFileRule_ProviderWithComplexConfig(t *testing.T) {
+	// Test provider with complex configuration
+	rule := NewTerraformProviderFileRule()
+	runner := helper.TestRunner(t, map[string]string{
+		"providers.tf": readFixture(t, "provider_file_complex_valid.tf"),
+	})
+
+	if err := rule.Check(runner); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	helper.AssertIssues(t, helper.Issues{}, runner.Issues)
 }
