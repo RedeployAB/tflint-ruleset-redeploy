@@ -37,7 +37,6 @@ func (r *TerraformBasicModuleStructureRule) Check(runner tflint.Runner) error {
 	requiredFiles := []string{
 		"main.tf",
 		"variables.tf",
-		"locals.tf",
 		"outputs.tf",
 		"terraform.tf",
 	}
@@ -122,13 +121,8 @@ func findCommonDirectoryPrefix(files map[string]*hcl.File) string {
 
 // findCommonPrefix finds the common prefix between two string slices
 func findCommonPrefix(a, b []string) []string {
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
-	}
-
-	common := make([]string, 0, minLen)
-	for i := 0; i < minLen; i++ {
+	common := make([]string, 0, min(len(a), len(b)))
+	for i := range common[:cap(common)] {
 		if a[i] != b[i] {
 			break
 		}

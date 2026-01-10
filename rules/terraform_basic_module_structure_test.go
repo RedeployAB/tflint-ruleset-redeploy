@@ -18,27 +18,21 @@ func TestTerraformBasicModuleStructure(t *testing.T) {
 			Files: map[string]string{
 				"main.tf":      `# dummy`,
 				"variables.tf": `# dummy`,
-				"locals.tf":    `# dummy`,
 				"outputs.tf":   `# dummy`,
 				"terraform.tf": `# dummy`,
 			},
 			Issues: helper.Issues{},
 		},
 		{
-			Name: "missing locals.tf",
+			Name: "all required files exist with optional locals.tf",
 			Files: map[string]string{
 				"main.tf":      `# dummy`,
 				"variables.tf": `# dummy`,
+				"locals.tf":    `# dummy`,
 				"outputs.tf":   `# dummy`,
 				"terraform.tf": `# dummy`,
 			},
-			Issues: helper.Issues{
-				{
-					Rule:    NewTerraformBasicModuleStructureRule(),
-					Message: "Missing required file: locals.tf",
-					Range:   hcl.Range{Filename: "locals.tf"},
-				},
-			},
+			Issues: helper.Issues{},
 		},
 		{
 			Name: "missing multiple files",
@@ -50,11 +44,6 @@ func TestTerraformBasicModuleStructure(t *testing.T) {
 					Rule:    NewTerraformBasicModuleStructureRule(),
 					Message: "Missing required file: variables.tf",
 					Range:   hcl.Range{Filename: "variables.tf"},
-				},
-				{
-					Rule:    NewTerraformBasicModuleStructureRule(),
-					Message: "Missing required file: locals.tf",
-					Range:   hcl.Range{Filename: "locals.tf"},
 				},
 				{
 					Rule:    NewTerraformBasicModuleStructureRule(),
@@ -83,11 +72,6 @@ func TestTerraformBasicModuleStructure(t *testing.T) {
 				},
 				{
 					Rule:    NewTerraformBasicModuleStructureRule(),
-					Message: "Missing required file: locals.tf",
-					Range:   hcl.Range{Filename: "locals.tf"},
-				},
-				{
-					Rule:    NewTerraformBasicModuleStructureRule(),
 					Message: "Missing required file: outputs.tf",
 					Range:   hcl.Range{Filename: "outputs.tf"},
 				},
@@ -103,7 +87,6 @@ func TestTerraformBasicModuleStructure(t *testing.T) {
 			Files: map[string]string{
 				"modules/terraform-aws-monitor-ec2-metrics/main.tf":      `# dummy`,
 				"modules/terraform-aws-monitor-ec2-metrics/variables.tf": `# dummy`,
-				"modules/terraform-aws-monitor-ec2-metrics/locals.tf":    `# dummy`,
 				"modules/terraform-aws-monitor-ec2-metrics/outputs.tf":   `# dummy`,
 				"modules/terraform-aws-monitor-ec2-metrics/terraform.tf": `# dummy`,
 			},
@@ -116,11 +99,6 @@ func TestTerraformBasicModuleStructure(t *testing.T) {
 				"modules/terraform-aws-monitor-ec2-metrics/variables.tf": `# dummy`,
 			},
 			Issues: helper.Issues{
-				{
-					Rule:    NewTerraformBasicModuleStructureRule(),
-					Message: "Missing required file: locals.tf",
-					Range:   hcl.Range{Filename: "locals.tf"},
-				},
 				{
 					Rule:    NewTerraformBasicModuleStructureRule(),
 					Message: "Missing required file: outputs.tf",
@@ -155,11 +133,6 @@ func TestTerraformBasicModuleStructure(t *testing.T) {
 				},
 				{
 					Rule:    NewTerraformBasicModuleStructureRule(),
-					Message: "Missing required file: locals.tf",
-					Range:   hcl.Range{Filename: "locals.tf"},
-				},
-				{
-					Rule:    NewTerraformBasicModuleStructureRule(),
 					Message: "Missing required file: outputs.tf",
 					Range:   hcl.Range{Filename: "outputs.tf"},
 				},
@@ -170,7 +143,6 @@ func TestTerraformBasicModuleStructure(t *testing.T) {
 			Files: map[string]string{
 				"main.tf":               `# dummy`,
 				"variables.tf":          `# dummy`,
-				"locals.tf":             `# dummy`,
 				"outputs.tf":            `# dummy`,
 				"terraform.tf":          `# dummy`,
 				"subdir1/helper.tf":     `# helper in subdir1`,
@@ -195,11 +167,6 @@ func TestTerraformBasicModuleStructure(t *testing.T) {
 					Rule:    NewTerraformBasicModuleStructureRule(),
 					Message: "Missing required file: variables.tf",
 					Range:   hcl.Range{Filename: "variables.tf"},
-				},
-				{
-					Rule:    NewTerraformBasicModuleStructureRule(),
-					Message: "Missing required file: locals.tf",
-					Range:   hcl.Range{Filename: "locals.tf"},
 				},
 				{
 					Rule:    NewTerraformBasicModuleStructureRule(),
