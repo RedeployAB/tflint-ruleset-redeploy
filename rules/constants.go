@@ -13,8 +13,9 @@ const (
 	TypeOutput    = "output"
 
 	// Sub-block types
-	TypePrecondition = "precondition"
-	TypeValidation   = "validation"
+	TypeRequiredProviders = "required_providers"
+	TypePrecondition      = "precondition"
+	TypeValidation        = "validation"
 
 	// Meta argument names
 	ArgDependsOn = "depends_on"

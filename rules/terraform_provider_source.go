@@ -64,10 +64,10 @@ func (r *TerraformProviderSourceOrderRule) processBody(
 ) error {
 	for _, block := range body.Blocks {
 		// Looking for a "terraform" block
-		if block.Type == "terraform" {
+		if block.Type == TypeTerraform {
 			// Inside it, we want sub-block "required_providers"
 			for _, sub := range block.Body.Blocks {
-				if sub.Type == "required_providers" {
+				if sub.Type == TypeRequiredProviders {
 					if err := r.checkRequiredProvidersBlock(sub, runner); err != nil {
 						return err
 					}
