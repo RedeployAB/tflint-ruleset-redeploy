@@ -60,5 +60,5 @@ terraform {
 }
 ```
 
-This rule supports auto-fix. Running TFLint with the `--fix` flag will
+This rule supports autofix. Running TFLint with the `--fix` flag will
 automatically reorder the providers.
