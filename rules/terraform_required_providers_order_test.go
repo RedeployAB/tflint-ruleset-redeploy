@@ -180,6 +180,11 @@ func TestTerraformRequiredProvidersOrderRule_Autofix(t *testing.T) {
 			ContentFile:  "required_providers_order_invalid.tf",
 			ExpectedFile: "required_providers_order_invalid_expected.tf",
 		},
+		{
+			Name:         "Autofix - reorder providers with blank lines",
+			ContentFile:  "required_providers_order_invalid_with_blanks.tf",
+			ExpectedFile: "required_providers_order_invalid_with_blanks_expected.tf",
+		},
 	}
 
 	rule := NewTerraformRequiredProvidersOrderRule()
