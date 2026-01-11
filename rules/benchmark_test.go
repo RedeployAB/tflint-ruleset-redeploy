@@ -1,8 +1,6 @@
 package rules
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -12,20 +10,9 @@ import (
 
 // Benchmark tests for rule performance
 
-// readBenchmarkFixture reads a fixture file for benchmarks
-func readBenchmarkFixture(tb testing.TB, filename string) string {
-	tb.Helper()
-	path := filepath.Join("testdata", filename)
-	content, err := os.ReadFile(path)
-	if err != nil {
-		tb.Fatalf("Failed reading %s: %v", filename, err)
-	}
-	return strings.ReplaceAll(string(content), "\r\n", "\n")
-}
-
 // BenchmarkHCLParsing benchmarks raw HCL parsing performance
 func BenchmarkHCLParsing(b *testing.B) {
-	content := []byte(readBenchmarkFixture(b, "benchmark_medium.tf"))
+	content := []byte(readFixture(b, "benchmark_medium.tf"))
 
 	b.Run("ParseConfig", func(b *testing.B) {
 		b.ResetTimer()
@@ -38,7 +25,7 @@ func BenchmarkHCLParsing(b *testing.B) {
 
 // BenchmarkStringSplit benchmarks string splitting which was a bottleneck
 func BenchmarkStringSplit(b *testing.B) {
-	content := readBenchmarkFixture(b, "benchmark_medium.tf")
+	content := readFixture(b, "benchmark_medium.tf")
 
 	b.Run("Split", func(b *testing.B) {
 		b.ResetTimer()
@@ -59,7 +46,7 @@ func BenchmarkStringSplit(b *testing.B) {
 // BenchmarkBytePositionCalculation benchmarks the byte position calculation
 // that was repeated in multiple rules
 func BenchmarkBytePositionCalculation(b *testing.B) {
-	content := readBenchmarkFixture(b, "benchmark_medium.tf")
+	content := readFixture(b, "benchmark_medium.tf")
 	lines := strings.Split(content, "\n")
 
 	b.Run("LinearScan", func(b *testing.B) {
@@ -106,7 +93,7 @@ func BenchmarkBytePositionCalculation(b *testing.B) {
 
 // BenchmarkTrimSpace benchmarks the trimspace operation used in blank line checks
 func BenchmarkTrimSpace(b *testing.B) {
-	content := readBenchmarkFixture(b, "benchmark_medium.tf")
+	content := readFixture(b, "benchmark_medium.tf")
 	lines := strings.Split(content, "\n")
 
 	b.Run("TrimSpace", func(b *testing.B) {

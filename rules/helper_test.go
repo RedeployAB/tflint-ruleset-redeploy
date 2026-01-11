@@ -7,12 +7,14 @@ import (
 	"testing"
 )
 
-// Used for reading test fixtures
-func readFixture(t *testing.T, filename string) string {
+// readFixture reads a test fixture file and normalizes line endings.
+// Uses testing.TB interface to support both tests and benchmarks.
+func readFixture(tb testing.TB, filename string) string {
+	tb.Helper()
 	path := filepath.Join("testdata", filename)
 	content, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("Failed reading %s: %v", path, err)
+		tb.Fatalf("Failed reading %s: %v", path, err)
 	}
 	// Normalize line endings to Unix style (\n) for cross-platform compatibility
 	return strings.ReplaceAll(string(content), "\r\n", "\n")
