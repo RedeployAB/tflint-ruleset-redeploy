@@ -16,3 +16,5 @@ tflint-ruleset-redeploy.exe
 # Build artifacts
 dist/
 super-linter*
+coverage.out
+coverage.html
