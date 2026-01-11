@@ -1,10 +1,18 @@
 # Ignore binary
 tflint-ruleset-redeploy
 tflint-ruleset-redeploy.exe
-.aider*
-.env
-super-linter*
 
-dist/
+# Backup files
+*.bck.*
+
+# AI assistant artifacts
+.aider*
+
+# Environment and secrets
+.env
 *.key
 *.pub
+
+# Build artifacts
+dist/
+super-linter*
