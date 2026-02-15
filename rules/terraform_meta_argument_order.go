@@ -395,7 +395,9 @@ func (r *TerraformArgumentOrderRule) fixBottomMetaArgPositions(
 		return bottomOrder[bottom[i].name] < bottomOrder[bottom[j].name]
 	})
 
-	ordered := append(nonBottom, bottom...)
+	ordered := make([]metaOrderItem, 0, len(items))
+	ordered = append(ordered, nonBottom...)
+	ordered = append(ordered, bottom...)
 
 	var result strings.Builder
 	writeMetaOrderBlockOpening(&result, block)
