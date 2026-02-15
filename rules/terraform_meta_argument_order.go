@@ -82,11 +82,98 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 		return nil
 	}
 	blockLabels := strings.Join(block.Labels, " ")
+
+	// Check bottom meta-args come after all non-meta content
+	foundPositionIssue, err := r.checkBottomMetaArgPositions(block, blockLabels, runner)
+	if err != nil {
+		return err
+	}
+	if foundPositionIssue {
+		return nil
+	}
+
 	metaArgs := r.collectMetaArgumentsInLexOrder(block)
 	if len(metaArgs) == 0 {
 		return nil
 	}
 	return r.checkMetaArgSequence(metaArgs, desiredSequence, block, blockLabels, runner)
+}
+
+func (r *TerraformArgumentOrderRule) getBottomMetaArgs(blockType string) []string {
+	switch blockType {
+	case TypeResource:
+		return []string{ArgLifecycle, ArgDependsOn}
+	case TypeModule:
+		return []string{ArgDependsOn}
+	default:
+		return nil
+	}
+}
+
+func (r *TerraformArgumentOrderRule) checkBottomMetaArgPositions(block *hclsyntax.Block, blockLabels string, runner tflint.Runner) (bool, error) {
+	bottomMetaArgs := r.getBottomMetaArgs(block.Type)
+	if len(bottomMetaArgs) == 0 {
+		return false, nil
+	}
+
+	bottomSet := make(map[string]bool, len(bottomMetaArgs))
+	for _, name := range bottomMetaArgs {
+		bottomSet[name] = true
+	}
+
+	type item struct {
+		name     string
+		startPos int
+		isBottom bool
+	}
+
+	var items []item
+
+	for _, attr := range block.Body.Attributes {
+		items = append(items, item{
+			name:     attr.Name,
+			startPos: attr.Range().Start.Byte,
+			isBottom: bottomSet[attr.Name],
+		})
+	}
+	for _, childBlock := range block.Body.Blocks {
+		items = append(items, item{
+			name:     childBlock.Type,
+			startPos: childBlock.DefRange().Start.Byte,
+			isBottom: bottomSet[childBlock.Type],
+		})
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].startPos < items[j].startPos
+	})
+
+	// Find the maximum start position of any non-bottom item
+	maxNonBottomPos := -1
+	for _, it := range items {
+		if !it.isBottom && it.startPos > maxNonBottomPos {
+			maxNonBottomPos = it.startPos
+		}
+	}
+
+	if maxNonBottomPos < 0 {
+		return false, nil
+	}
+
+	// Report the first bottom meta-arg that appears before a non-bottom item
+	for _, it := range items {
+		if it.isBottom && it.startPos < maxNonBottomPos {
+			return true, runner.EmitIssue(r,
+				fmt.Sprintf(
+					"Out-of-order meta argument '%s' in %s '%s': must appear after all %s arguments and blocks",
+					it.name, block.Type, blockLabels, block.Type,
+				),
+				metaArgRange(block, it.name),
+			)
+		}
+	}
+
+	return false, nil
 }
 
 func (r *TerraformArgumentOrderRule) getDesiredSequence(blockType string) []string {
