@@ -146,3 +146,49 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 		})
 	}
 }
+
+func TestTerraformMetaArgumentOrder_Autofix(t *testing.T) {
+	tests := []struct {
+		Name         string
+		ContentFile  string
+		ExpectedFile string
+	}{
+		{
+			Name:         "Autofix - lifecycle before content",
+			ContentFile:  "meta_order_autofix_lifecycle_before_content.tf",
+			ExpectedFile: "meta_order_autofix_lifecycle_before_content_expected.tf",
+		},
+		{
+			Name:         "Autofix - depends_on before content",
+			ContentFile:  "meta_order_autofix_depends_on_before_content.tf",
+			ExpectedFile: "meta_order_autofix_depends_on_before_content_expected.tf",
+		},
+		{
+			Name:         "Autofix - both bottom meta-args before content",
+			ContentFile:  "meta_order_autofix_both_before_content.tf",
+			ExpectedFile: "meta_order_autofix_both_before_content_expected.tf",
+		},
+		{
+			Name:         "Autofix - module depends_on before source",
+			ContentFile:  "meta_order_autofix_module.tf",
+			ExpectedFile: "meta_order_autofix_module_expected.tf",
+		},
+	}
+
+	rule := NewTerraformMetaArgumentOrderRule()
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			content := readFixture(t, tc.ContentFile)
+			expected := readFixture(t, tc.ExpectedFile)
+
+			runner := helper.TestRunner(t, map[string]string{"resource.tf": content})
+
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			helper.AssertChanges(t, map[string]string{"resource.tf": expected}, runner.Changes())
+		})
+	}
+}

@@ -14,6 +14,14 @@ type TerraformArgumentOrderRule struct {
 	tflint.DefaultRule
 }
 
+// metaOrderItem represents an attribute or block within a resource/module block
+type metaOrderItem struct {
+	name     string
+	startPos int
+	isBlock  bool
+	isBottom bool
+}
+
 func NewTerraformMetaArgumentOrderRule() *TerraformArgumentOrderRule {
 	return &TerraformArgumentOrderRule{}
 }
@@ -121,25 +129,21 @@ func (r *TerraformArgumentOrderRule) checkBottomMetaArgPositions(block *hclsynta
 		bottomSet[name] = true
 	}
 
-	type item struct {
-		name     string
-		startPos int
-		isBottom bool
-	}
-
-	var items []item
+	var items []metaOrderItem
 
 	for _, attr := range block.Body.Attributes {
-		items = append(items, item{
+		items = append(items, metaOrderItem{
 			name:     attr.Name,
 			startPos: attr.Range().Start.Byte,
+			isBlock:  false,
 			isBottom: bottomSet[attr.Name],
 		})
 	}
 	for _, childBlock := range block.Body.Blocks {
-		items = append(items, item{
+		items = append(items, metaOrderItem{
 			name:     childBlock.Type,
 			startPos: childBlock.DefRange().Start.Byte,
+			isBlock:  true,
 			isBottom: bottomSet[childBlock.Type],
 		})
 	}
@@ -163,12 +167,15 @@ func (r *TerraformArgumentOrderRule) checkBottomMetaArgPositions(block *hclsynta
 	// Report the first bottom meta-arg that appears before a non-bottom item
 	for _, it := range items {
 		if it.isBottom && it.startPos < maxNonBottomPos {
-			return true, runner.EmitIssue(r,
+			return true, runner.EmitIssueWithFix(r,
 				fmt.Sprintf(
 					"Out-of-order meta argument '%s' in %s '%s': must appear after all %s arguments and blocks",
 					it.name, block.Type, blockLabels, block.Type,
 				),
 				metaArgRange(block, it.name),
+				func(f tflint.Fixer) error {
+					return r.fixBottomMetaArgPositions(f, block, items)
+				},
 			)
 		}
 	}
@@ -354,6 +361,146 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 		}
 	}
 	return nil
+}
+
+// fixBottomMetaArgPositions reorders items so bottom meta-args appear after all other content
+func (r *TerraformArgumentOrderRule) fixBottomMetaArgPositions(
+	f tflint.Fixer,
+	block *hclsyntax.Block,
+	items []metaOrderItem,
+) error {
+	if strings.HasSuffix(block.DefRange().Filename, ".json") {
+		return tflint.ErrFixNotSupported
+	}
+
+	attrTexts, blockTexts := r.extractMetaOrderItemTexts(f, block, items)
+
+	// Partition: non-bottom (preserve file order), bottom (fixed order)
+	var nonBottom, bottom []metaOrderItem
+	for _, it := range items {
+		if it.isBottom {
+			bottom = append(bottom, it)
+		} else {
+			nonBottom = append(nonBottom, it)
+		}
+	}
+
+	// Sort bottom by fixed order (lifecycle before depends_on)
+	bottomMetaArgs := r.getBottomMetaArgs(block.Type)
+	bottomOrder := make(map[string]int, len(bottomMetaArgs))
+	for i, name := range bottomMetaArgs {
+		bottomOrder[name] = i
+	}
+	sort.Slice(bottom, func(i, j int) bool {
+		return bottomOrder[bottom[i].name] < bottomOrder[bottom[j].name]
+	})
+
+	ordered := append(nonBottom, bottom...)
+
+	var result strings.Builder
+	writeMetaOrderBlockOpening(&result, block)
+	writeMetaOrderItems(&result, ordered, attrTexts, blockTexts)
+	result.WriteString("\n}")
+
+	fullBlockRange := hcl.Range{
+		Filename: block.DefRange().Filename,
+		Start:    block.DefRange().Start,
+		End:      block.Body.Range().End,
+	}
+
+	return f.ReplaceText(fullBlockRange, result.String())
+}
+
+// extractMetaOrderItemTexts extracts text for all attributes and blocks in a resource/module block
+func (r *TerraformArgumentOrderRule) extractMetaOrderItemTexts(
+	f tflint.Fixer,
+	block *hclsyntax.Block,
+	items []metaOrderItem,
+) (map[string]string, map[int]string) {
+	attrTexts := make(map[string]string)
+	blockTexts := make(map[int]string)
+
+	attrSet := make(map[string]bool)
+	blockSet := make(map[int]bool)
+	for _, it := range items {
+		if it.isBlock {
+			blockSet[it.startPos] = true
+		} else {
+			attrSet[it.name] = true
+		}
+	}
+
+	for _, attr := range block.Body.Attributes {
+		if attrSet[attr.Name] {
+			attrTexts[attr.Name] = string(f.TextAt(attr.Range()).Bytes)
+		}
+	}
+
+	for _, blk := range block.Body.Blocks {
+		startPos := blk.DefRange().Start.Byte
+		if blockSet[startPos] {
+			blockRange := hcl.Range{
+				Filename: blk.DefRange().Filename,
+				Start:    blk.DefRange().Start,
+				End:      blk.Body.Range().End,
+			}
+			blockTexts[startPos] = string(f.TextAt(blockRange).Bytes)
+		}
+	}
+
+	return attrTexts, blockTexts
+}
+
+func writeMetaOrderBlockOpening(result *strings.Builder, block *hclsyntax.Block) {
+	result.WriteString(block.Type)
+	for _, label := range block.Labels {
+		result.WriteString(` "`)
+		result.WriteString(label)
+		result.WriteString(`"`)
+	}
+	result.WriteString(" {\n")
+}
+
+func writeMetaOrderItems(
+	result *strings.Builder,
+	items []metaOrderItem,
+	attrTexts map[string]string,
+	blockTexts map[int]string,
+) {
+	for i, item := range items {
+		if i > 0 {
+			prevIsBlock := items[i-1].isBlock
+			needsBlankLine := item.isBlock || prevIsBlock || item.isBottom
+			if needsBlankLine {
+				result.WriteString("\n")
+			}
+			result.WriteString("\n")
+		}
+
+		if item.isBlock {
+			writeMetaOrderBlock(result, blockTexts[item.startPos])
+		} else {
+			writeMetaOrderAttribute(result, attrTexts[item.name])
+		}
+	}
+}
+
+func writeMetaOrderAttribute(result *strings.Builder, text string) {
+	result.WriteString("  ")
+	result.WriteString(text)
+}
+
+func writeMetaOrderBlock(result *strings.Builder, text string) {
+	lines := strings.Split(text, "\n")
+	for j, line := range lines {
+		if j > 0 {
+			result.WriteString("\n")
+		}
+		if line != "" {
+			result.WriteString("  ")
+			result.WriteString(line)
+		}
+	}
 }
 
 func metaArgRange(block *hclsyntax.Block, argName string) hcl.Range {
