@@ -49,12 +49,12 @@ func (r *TerraformResourceNameRule) Check(runner tflint.Runner) error {
 		resourceType := block.Labels[0]
 		resourceName := block.Labels[1]
 
-		splitted := strings.SplitN(resourceType, "_", 2)
-		if len(splitted) < 2 {
+		parts := strings.SplitN(resourceType, "_", 2)
+		if len(parts) < 2 {
 			continue
 		}
 
-		typeWithoutProvider := splitted[1]
+		typeWithoutProvider := parts[1]
 		if strings.Contains(resourceName, typeWithoutProvider) {
 			if err := runner.EmitIssue(
 				r,
