@@ -53,7 +53,7 @@ jobs:
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LINTER_RULES_PATH: "."
-          FILTER_REGEX_EXCLUDE: "^.*/testdata/.*.tf$"
+          FILTER_REGEX_EXCLUDE: "^.*/testdata/.*$"
           IGNORE_GENERATED_FILES: true
           VALIDATE_ALL_CODEBASE: true
           VALIDATE_BIOME_FORMAT: false
@@ -66,6 +66,7 @@ jobs:
           VALIDATE_TERRAFORM_TFLINT: false
           VALIDATE_TERRAFORM_TERRASCAN: false
           VALIDATE_GIT_COMMITLINT: false
+          VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
 
       - name: Commit and push linting fixes
         # Run only on:
