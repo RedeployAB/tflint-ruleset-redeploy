@@ -1,0 +1,25 @@
+{
+    "issues": [
+        {
+            "rule": {
+                "name": "terraform_meta_argument_order",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_meta_argument_order.md"
+            },
+            "message": "Out-of-order meta argument 'lifecycle' in resource 'azurerm_container_app main': must appear after all resource arguments and blocks",
+            "range": {
+                "filename": "main.tf",
+                "start": {
+                    "line": 7,
+                    "column": 3
+                },
+                "end": {
+                    "line": 7,
+                    "column": 12
+                }
+            },
+            "callers": []
+        }
+    ],
+    "errors": []
+}

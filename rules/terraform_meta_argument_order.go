@@ -18,6 +18,7 @@ type TerraformArgumentOrderRule struct {
 type metaOrderItem struct {
 	name     string
 	startPos int
+	endByte  int // byte position after this item ends
 	isBlock  bool
 	isBottom bool
 }
@@ -135,6 +136,7 @@ func (r *TerraformArgumentOrderRule) checkBottomMetaArgPositions(block *hclsynta
 		items = append(items, metaOrderItem{
 			name:     attr.Name,
 			startPos: attr.Range().Start.Byte,
+			endByte:  attr.Range().End.Byte,
 			isBlock:  false,
 			isBottom: bottomSet[attr.Name],
 		})
@@ -143,6 +145,7 @@ func (r *TerraformArgumentOrderRule) checkBottomMetaArgPositions(block *hclsynta
 		items = append(items, metaOrderItem{
 			name:     childBlock.Type,
 			startPos: childBlock.DefRange().Start.Byte,
+			endByte:  childBlock.Body.Range().End.Byte,
 			isBlock:  true,
 			isBottom: bottomSet[childBlock.Type],
 		})
@@ -363,6 +366,51 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 	return nil
 }
 
+// extractCommentPrefixes scans the text gaps between consecutive items for comment lines.
+// Returns a map keyed by item startPos containing the comment text (with trailing newline).
+func (r *TerraformArgumentOrderRule) extractCommentPrefixes(
+	f tflint.Fixer,
+	block *hclsyntax.Block,
+	items []metaOrderItem,
+) map[int]string {
+	comments := make(map[int]string)
+
+	for i, it := range items {
+		var gapStart int
+		if i == 0 {
+			gapStart = block.OpenBraceRange.End.Byte
+		} else {
+			gapStart = items[i-1].endByte
+		}
+		gapEnd := it.startPos
+
+		if gapEnd <= gapStart {
+			continue
+		}
+
+		gapRange := hcl.Range{
+			Filename: block.DefRange().Filename,
+			Start:    hcl.Pos{Byte: gapStart},
+			End:      hcl.Pos{Byte: gapEnd},
+		}
+		gapText := string(f.TextAt(gapRange).Bytes)
+
+		var commentLines []string
+		for _, line := range strings.Split(gapText, "\n") {
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "//") {
+				commentLines = append(commentLines, trimmed)
+			}
+		}
+
+		if len(commentLines) > 0 {
+			comments[it.startPos] = strings.Join(commentLines, "\n") + "\n"
+		}
+	}
+
+	return comments
+}
+
 // fixBottomMetaArgPositions reorders items so bottom meta-args appear after all other content
 func (r *TerraformArgumentOrderRule) fixBottomMetaArgPositions(
 	f tflint.Fixer,
@@ -374,6 +422,7 @@ func (r *TerraformArgumentOrderRule) fixBottomMetaArgPositions(
 	}
 
 	attrTexts, blockTexts := r.extractMetaOrderItemTexts(f, block, items)
+	commentPrefixes := r.extractCommentPrefixes(f, block, items)
 
 	// Partition: non-bottom (preserve file order), bottom (fixed order)
 	var nonBottom, bottom []metaOrderItem
@@ -401,7 +450,7 @@ func (r *TerraformArgumentOrderRule) fixBottomMetaArgPositions(
 
 	var result strings.Builder
 	writeMetaOrderBlockOpening(&result, block)
-	writeMetaOrderItems(&result, ordered, attrTexts, blockTexts)
+	writeMetaOrderItems(&result, ordered, attrTexts, blockTexts, commentPrefixes)
 	result.WriteString("\n}")
 
 	fullBlockRange := hcl.Range{
@@ -468,6 +517,7 @@ func writeMetaOrderItems(
 	items []metaOrderItem,
 	attrTexts map[string]string,
 	blockTexts map[int]string,
+	commentPrefixes map[int]string,
 ) {
 	for i, item := range items {
 		if i > 0 {
@@ -477,6 +527,14 @@ func writeMetaOrderItems(
 				result.WriteString("\n")
 			}
 			result.WriteString("\n")
+		}
+
+		if comment, ok := commentPrefixes[item.startPos]; ok {
+			for _, line := range strings.Split(strings.TrimRight(comment, "\n"), "\n") {
+				result.WriteString("  ")
+				result.WriteString(line)
+				result.WriteString("\n")
+			}
 		}
 
 		if item.isBlock {

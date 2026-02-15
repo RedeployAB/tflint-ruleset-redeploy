@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -90,6 +91,139 @@ func TestIntegration(t *testing.T) {
 				t.Fatal(diff)
 			}
 		})
+	}
+}
+
+func TestIntegrationAutofix(t *testing.T) {
+	cases := []struct {
+		Name         string
+		Dir          string
+		InputFile    string
+		ExpectedFile string
+	}{
+		{
+			Name:         "autofix preserves comments before blocks",
+			Dir:          "autofix-meta-order-comments",
+			InputFile:    "main.tf",
+			ExpectedFile: "expected.tf",
+		},
+	}
+
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current working directory: %v", err)
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			srcDir := filepath.Join(dir, tc.Dir)
+			tmpDir := copyFixtureDir(t, srcDir, tc.ExpectedFile)
+
+			t.Cleanup(func() {
+				if chdirErr := os.Chdir(dir); chdirErr != nil {
+					t.Fatal(chdirErr)
+				}
+			})
+			if chdirErr := os.Chdir(tmpDir); chdirErr != nil {
+				t.Fatal(chdirErr)
+			}
+
+			stdout := runTflint(t, "--fix", "--force", "--format", "json")
+			assertJSONMatch(t, stdout, filepath.Join(srcDir, "result.json"))
+			assertFileMatch(t, filepath.Join(tmpDir, tc.InputFile), filepath.Join(srcDir, tc.ExpectedFile))
+		})
+	}
+}
+
+// copyFixtureDir copies all files (except expectedFile and result.json) from srcDir to a temp dir.
+func copyFixtureDir(t *testing.T, srcDir, expectedFile string) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		t.Fatalf("reading dir %s: %v", srcDir, err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || entry.Name() == expectedFile || entry.Name() == "result.json" {
+			continue
+		}
+		data, readErr := os.ReadFile(filepath.Join(srcDir, entry.Name()))
+		if readErr != nil {
+			t.Fatalf("reading %s: %v", entry.Name(), readErr)
+		}
+		if writeErr := os.WriteFile(filepath.Join(tmpDir, entry.Name()), data, 0o644); writeErr != nil {
+			t.Fatalf("writing %s: %v", entry.Name(), writeErr)
+		}
+	}
+	return tmpDir
+}
+
+func runTflint(t *testing.T, args ...string) []byte {
+	t.Helper()
+	cmd := exec.Command("tflint", args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("%s, stdout=%s stderr=%s", err, stdout.String(), stderr.String())
+	}
+	return stdout.Bytes()
+}
+
+func assertJSONMatch(t *testing.T, stdout []byte, resultPath string) {
+	t.Helper()
+	resultJSON, err := os.ReadFile(resultPath)
+	if err != nil {
+		t.Fatalf("reading %s: %v", resultPath, err)
+	}
+	var expected, got interface{}
+	if err := json.Unmarshal(resultJSON, &expected); err != nil {
+		t.Fatalf("unmarshaling %s: %v", resultPath, err)
+	}
+	if err := json.Unmarshal(stdout, &got); err != nil {
+		t.Fatalf("unmarshaling stdout: %v", err)
+	}
+	// Strip fixable/fixed fields that vary between tflint versions.
+	stripIssueFields(got)
+	stripIssueFields(expected)
+	if diff := cmp.Diff(got, expected); diff != "" {
+		t.Fatalf("JSON output mismatch (-got +want):\n%s", diff)
+	}
+}
+
+// stripIssueFields removes version-dependent fields (fixable, fixed) from tflint JSON output.
+func stripIssueFields(v interface{}) {
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		return
+	}
+	issues, ok := m["issues"].([]interface{})
+	if !ok {
+		return
+	}
+	for _, issue := range issues {
+		if im, ok := issue.(map[string]interface{}); ok {
+			delete(im, "fixable")
+			delete(im, "fixed")
+		}
+	}
+}
+
+func assertFileMatch(t *testing.T, gotPath, expectedPath string) {
+	t.Helper()
+	got, err := os.ReadFile(gotPath)
+	if err != nil {
+		t.Fatalf("reading %s: %v", gotPath, err)
+	}
+	expected, err := os.ReadFile(expectedPath)
+	if err != nil {
+		t.Fatalf("reading %s: %v", expectedPath, err)
+	}
+	// Normalize line endings for Windows compatibility.
+	gotStr := strings.ReplaceAll(string(got), "\r\n", "\n")
+	expectedStr := strings.ReplaceAll(string(expected), "\r\n", "\n")
+	if diff := cmp.Diff(gotStr, expectedStr); diff != "" {
+		t.Fatalf("fixed file does not match expected (-got +want):\n%s", diff)
 	}
 }
 

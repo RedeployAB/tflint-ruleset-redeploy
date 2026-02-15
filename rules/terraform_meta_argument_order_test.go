@@ -173,6 +173,11 @@ func TestTerraformMetaArgumentOrder_Autofix(t *testing.T) {
 			ContentFile:  "meta_order_autofix_module.tf",
 			ExpectedFile: "meta_order_autofix_module_expected.tf",
 		},
+		{
+			Name:         "Autofix - comments before blocks are preserved",
+			ContentFile:  "meta_order_autofix_comments_preserved.tf",
+			ExpectedFile: "meta_order_autofix_comments_preserved_expected.tf",
+		},
 	}
 
 	rule := NewTerraformMetaArgumentOrderRule()
