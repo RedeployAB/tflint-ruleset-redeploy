@@ -5,10 +5,10 @@
 This rule validates the order in which meta-arguments appear within resource and
 module blocks. It checks three things:
 
-1. **Top meta-arguments** (`provider`, `count`, `for_each`) must appear before
-   all regular arguments and blocks.
-2. **Bottom meta-arguments** (`lifecycle`, `depends_on`) must appear after all
-   regular arguments and blocks.
+1. **Top meta-arguments** (`provider`, `count`, `for_each`) must appear
+  before all regular arguments and blocks.
+2. **Bottom meta-arguments** (`lifecycle`, `depends_on`) must appear
+  after all regular arguments and blocks.
 3. Meta-arguments must follow the expected relative order among themselves.
 
 For **resource** blocks, the expected order is:
