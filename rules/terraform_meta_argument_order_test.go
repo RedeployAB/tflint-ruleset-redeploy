@@ -128,6 +128,76 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:    "top meta-arg for_each after content",
+			Content: readFixture(t, "meta_order_invalid_top_meta_after_content.tf"),
+			Expected: helper.Issues{
+				{
+					Rule:    NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'for_each' in resource 'azurerm_role_assignment blob_contributor': must appear before all resource arguments and blocks",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 6, Column: 3},
+						End:      hcl.Pos{Line: 6, Column: 34},
+					},
+				},
+			},
+		},
+		{
+			Name:    "top meta-arg provider after content",
+			Content: readFixture(t, "meta_order_invalid_top_provider_after_content.tf"),
+			Expected: helper.Issues{
+				{
+					Rule:    NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'provider' in resource 'aws_instance example': must appear before all resource arguments and blocks",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 5, Column: 3},
+						End:      hcl.Pos{Line: 5, Column: 22},
+					},
+				},
+			},
+		},
+		{
+			Name:    "top meta-arg count after content (module)",
+			Content: readFixture(t, "meta_order_invalid_top_count_after_content_module.tf"),
+			Expected: helper.Issues{
+				{
+					Rule:    NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'count' in module 'example': must appear before all module arguments and blocks",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 5, Column: 3},
+						End:      hcl.Pos{Line: 5, Column: 12},
+					},
+				},
+			},
+		},
+		{
+			Name:     "valid resource with top content and bottom meta-args",
+			Content:  readFixture(t, "meta_order_valid_top_and_bottom.tf"),
+			Expected: helper.Issues{},
+		},
+		{
+			Name:     "valid resource with only top meta-args",
+			Content:  readFixture(t, "meta_order_valid_top_only.tf"),
+			Expected: helper.Issues{},
+		},
+		{
+			Name:    "both top and bottom violations (top reported first)",
+			Content: readFixture(t, "meta_order_invalid_top_and_bottom_violations.tf"),
+			Expected: helper.Issues{
+				{
+					Rule:    NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'for_each' in resource 'aws_instance example': must appear before all resource arguments and blocks",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 7, Column: 3},
+						End:      hcl.Pos{Line: 7, Column: 27},
+					},
+				},
+			},
+		},
 	}
 
 	rule := NewTerraformMetaArgumentOrderRule()
@@ -177,6 +247,26 @@ func TestTerraformMetaArgumentOrder_Autofix(t *testing.T) {
 			Name:         "Autofix - comments before blocks are preserved",
 			ContentFile:  "meta_order_autofix_comments_preserved.tf",
 			ExpectedFile: "meta_order_autofix_comments_preserved_expected.tf",
+		},
+		{
+			Name:         "Autofix - move for_each to top of resource",
+			ContentFile:  "meta_order_autofix_top_for_each.tf",
+			ExpectedFile: "meta_order_autofix_top_for_each_expected.tf",
+		},
+		{
+			Name:         "Autofix - move provider to top of resource",
+			ContentFile:  "meta_order_autofix_top_provider.tf",
+			ExpectedFile: "meta_order_autofix_top_provider_expected.tf",
+		},
+		{
+			Name:         "Autofix - move count to top of module",
+			ContentFile:  "meta_order_autofix_top_count_module.tf",
+			ExpectedFile: "meta_order_autofix_top_count_module_expected.tf",
+		},
+		{
+			Name:         "Autofix - comments preserved when moving top meta-args",
+			ContentFile:  "meta_order_autofix_top_comments_preserved.tf",
+			ExpectedFile: "meta_order_autofix_top_comments_preserved_expected.tf",
 		},
 	}
 

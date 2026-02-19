@@ -3,19 +3,27 @@
 ## What does this rule do?
 
 This rule validates the order in which meta-arguments appear within resource and
-module blocks.
+module blocks. It checks three things:
+
+1. **Top meta-arguments** (`provider`, `count`, `for_each`) must appear before
+   all regular arguments and blocks.
+2. **Bottom meta-arguments** (`lifecycle`, `depends_on`) must appear after all
+   regular arguments and blocks.
+3. Meta-arguments must follow the expected relative order among themselves.
 
 For **resource** blocks, the expected order is:
 
 1. `provider`
 2. `count` or `for_each`
-3. `lifecycle`
-4. `depends_on`
+3. _(regular arguments and blocks)_
+4. `lifecycle`
+5. `depends_on`
 
 For **module** blocks, the expected order is:
 
 1. `count` or `for_each`
-2. `depends_on`
+2. _(regular arguments and blocks, including `source`)_
+3. `depends_on`
 
 If meta-arguments appear out of this order, the rule emits an error.
 
@@ -33,7 +41,31 @@ expected sequence.
 
 **For resource blocks:**
 
-**Incorrect:**
+**Incorrect** (top meta-arg after content):
+
+```hcl
+resource "azurerm_role_assignment" "blob_contributor" {
+  scope                = each.value.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_databricks_access_connector.this.identity[0].principal_id
+
+  for_each = var.storage_accounts
+}
+```
+
+**Correct:**
+
+```hcl
+resource "azurerm_role_assignment" "blob_contributor" {
+  for_each = var.storage_accounts
+
+  scope                = each.value.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_databricks_access_connector.this.identity[0].principal_id
+}
+```
+
+**Incorrect** (bottom meta-arg before content):
 
 ```hcl
 resource "aws_instance" "example" {
@@ -73,8 +105,9 @@ module "example" {
 
 ```hcl
 module "example" {
+  count = var.module_count
+
   source = "./module"
-  count  = var.module_count
 
   depends_on = [aws_vpc.example]
 }
