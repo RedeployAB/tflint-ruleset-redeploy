@@ -128,7 +128,7 @@ jobs:
           gh pr comment "$PR_URL" --body "$BODY"
 
       - name: Report Claude failure
-        if: steps.claude.outputs.structured_output == ''
+        if: always() && steps.claude.outcome != 'success'
         run: |
           gh pr edit "$PR_URL" --add-label "needs-review"
           gh pr comment "$PR_URL" --body "$BODY"
@@ -214,7 +214,8 @@ jobs:
 
       - name: Ensure PR is labeled for review
         if: always() && steps.app-token.outcome == 'success'
-        run: gh pr edit "$PR_NUMBER" --add-label "needs-review" || true
+        continue-on-error: true
+        run: gh pr edit "$PR_NUMBER" --add-label "needs-review"
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
