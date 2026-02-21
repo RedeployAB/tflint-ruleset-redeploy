@@ -36,20 +36,24 @@ jobs:
       contents: write # Required for gh pr merge (modifies repository contents)
       pull-requests: write # Required for gh pr review --approve and gh pr merge
     steps:
-      # NOTE: This approval uses GITHUB_TOKEN (github-actions[bot]), which does
-      # not count toward "required approving reviews" in branch protection.
-      # This works because the repo requires status checks, not review approvals.
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.INTERN_APP_ID }}
+          private-key: ${{ secrets.INTERN_APP_PRIVATE_KEY }}
+
       - name: Approve PR
         run: gh pr review "$PR_URL" --approve
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
 
       - name: Enable auto-merge
         run: gh pr merge "$PR_URL" --auto --squash
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
 
   claude-review-minor:
     name: Claude review minor
@@ -61,6 +65,13 @@ jobs:
       pull-requests: write # Required for gh pr review, gh pr comment, and gh pr merge
       issues: write # Required for gh pr edit --add-label (only when flagging for review)
     steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.INTERN_APP_ID }}
+          private-key: ${{ secrets.INTERN_APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -72,7 +83,7 @@ jobs:
         with:
           allowed_bots: "dependabot[bot]"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
           # yamllint disable rule:line-length
           claude_args: |
             --model claude-sonnet-4-6
@@ -107,7 +118,7 @@ jobs:
           gh pr merge "$PR_URL" --auto --squash
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REASONING: ${{ fromJSON(steps.claude.outputs.structured_output).reasoning }}
 
       - name: Flag for review
@@ -116,7 +127,7 @@ jobs:
           && fromJSON(steps.claude.outputs.structured_output).safe_to_merge == false
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REASONING: ${{ fromJSON(steps.claude.outputs.structured_output).reasoning }}
           CONCERNS: ${{ join(fromJSON(steps.claude.outputs.structured_output).concerns, ', ') }}
         run: |
@@ -135,7 +146,7 @@ jobs:
           gh pr comment "$PR_URL" --body "$BODY"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           # yamllint disable rule:line-length
           BODY: >-
             **Claude review did not produce structured output.**
@@ -149,7 +160,7 @@ jobs:
     if: needs.classify.outputs.is-major == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required for gh CLI operations that use GITHUB_TOKEN
+      contents: write # Required for checkout and Claude to push commits to the PR branch
       pull-requests: write # Required for gh pr comment and gh pr edit
       issues: write # Required for gh pr edit --add-label
     steps:
