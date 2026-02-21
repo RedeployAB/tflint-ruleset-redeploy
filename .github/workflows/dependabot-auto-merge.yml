@@ -139,20 +139,15 @@ jobs:
           **Concerns:** ${CONCERNS}"
           gh pr comment "$PR_URL" --body "$BODY"
 
-      - name: Report Claude failure
-        if: always() && steps.claude.outcome != 'success'
-        run: |
-          gh pr edit "$PR_URL" --add-label "needs-review"
-          gh pr comment "$PR_URL" --body "$BODY"
+      - name: Flag empty output for review
+        if: >-
+          steps.claude.outcome == 'success'
+          && steps.claude.outputs.structured_output == ''
+        continue-on-error: true
+        run: gh pr edit "$PR_URL" --add-label "needs-review"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          # yamllint disable rule:line-length
-          BODY: >-
-            **Claude review did not produce structured output.**
-            Please review this PR manually.
-            See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
-          # yamllint enable rule:line-length
 
   claude-upgrade-major:
     name: Claude upgrade major
@@ -160,8 +155,8 @@ jobs:
     if: needs.classify.outputs.is-major == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required for checkout and Claude to push commits to the PR branch
-      pull-requests: write # Required for gh pr comment and gh pr edit
+      contents: write # Required for Claude to push commits to the PR branch
+      pull-requests: write # Required for claude-code-action to interact with the PR
       issues: write # Required for gh pr edit --add-label
     steps:
       - name: Generate app token
@@ -233,15 +228,3 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
 
-      - name: Notify on failure
-        if: failure()
-        run: gh pr comment "$PR_NUMBER" --body "$BODY"
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # yamllint disable rule:line-length
-          BODY: >-
-            **The automated major upgrade workflow failed.**
-            Please review this PR manually.
-            See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
-          # yamllint enable rule:line-length
