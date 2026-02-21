@@ -22,6 +22,8 @@ jobs:
       is-patch: ${{ steps.metadata.outputs.update-type == 'version-update:semver-patch' }}
       is-minor: ${{ steps.metadata.outputs.update-type == 'version-update:semver-minor' }}
       is-major: ${{ steps.metadata.outputs.update-type == 'version-update:semver-major' }}
+      # yamllint disable-line rule:line-length
+      is-unclassified: ${{ steps.metadata.outputs.update-type != 'version-update:semver-patch' && steps.metadata.outputs.update-type != 'version-update:semver-minor' && steps.metadata.outputs.update-type != 'version-update:semver-major' }}
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
@@ -87,8 +89,8 @@ jobs:
           # yamllint disable rule:line-length
           claude_args: |
             --model claude-sonnet-4-6
-            --max-turns 6
-            --allowedTools 'Read,Glob,Grep,Bash(curl:*),Bash(gh pr diff:*)'
+            --max-turns 15
+            --allowedTools 'Read,Glob,Grep,WebSearch,WebFetch,Bash(curl:*),Bash(gh:*)'
             --json-schema '{"type":"object","properties":{"safe_to_merge":{"type":"boolean"},"reasoning":{"type":"string"},"concerns":{"type":"array","items":{"type":"string"}}},"required":["safe_to_merge","reasoning","concerns"]}'
           # yamllint enable rule:line-length
           prompt: |
@@ -190,7 +192,8 @@ jobs:
           # yamllint disable rule:line-length
           claude_args: |
             --model claude-opus-4-6
-            --max-turns 20
+            --max-turns 30
+            --allowedTools 'WebSearch,WebFetch,Bash(go:*),Bash(make:*),Bash(curl:*),Bash(gh:*)'
             --disallowedTools 'Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git reset --hard:*),Bash(git clean -f:*),Bash(gh pr close:*),Bash(gh pr merge:*),Bash(gh repo delete:*),Bash(gh secret:*),Bash(gh workflow:*)'
           # yamllint enable rule:line-length
           prompt: |
@@ -223,6 +226,28 @@ jobs:
       - name: Ensure PR is labeled for review
         if: always() && steps.app-token.outcome == 'success'
         continue-on-error: true
+        run: gh pr edit "$PR_NUMBER" --add-label "needs-review"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+  flag-unclassified:
+    name: Flag unclassified update
+    needs: classify
+    if: needs.classify.outputs.is-unclassified == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write # Required for gh pr edit --add-label
+      issues: write # Required for gh pr edit --add-label
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.INTERN_APP_ID }}
+          private-key: ${{ secrets.INTERN_APP_PRIVATE_KEY }}
+
+      - name: Label for manual review
         run: gh pr edit "$PR_NUMBER" --add-label "needs-review"
         env:
           PR_NUMBER: ${{ github.event.pull_request.number }}
