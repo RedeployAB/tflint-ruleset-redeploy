@@ -1,0 +1,234 @@
+---
+name: Dependabot auto-merge
+
+on: # yamllint disable-line rule:truthy
+  pull_request:
+    types: [opened]
+
+concurrency:
+  group: dependabot-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  classify:
+    name: Classify update
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read # Required for dependabot/fetch-metadata to read PR details
+    outputs:
+      is-patch: ${{ steps.metadata.outputs.update-type == 'version-update:semver-patch' }}
+      is-minor: ${{ steps.metadata.outputs.update-type == 'version-update:semver-minor' }}
+      is-major: ${{ steps.metadata.outputs.update-type == 'version-update:semver-major' }}
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+
+  auto-merge-patch:
+    name: Auto-merge patch
+    needs: classify
+    if: needs.classify.outputs.is-patch == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for gh pr merge (modifies repository contents)
+      pull-requests: write # Required for gh pr review --approve and gh pr merge
+    steps:
+      # NOTE: This approval uses GITHUB_TOKEN (github-actions[bot]), which does
+      # not count toward "required approving reviews" in branch protection.
+      # This works because the repo requires status checks, not review approvals.
+      - name: Approve PR
+        run: gh pr review "$PR_URL" --approve
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge
+        run: gh pr merge "$PR_URL" --auto --squash
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  claude-review-minor:
+    name: Claude review minor
+    needs: classify
+    if: needs.classify.outputs.is-minor == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for gh pr merge (modifies repository contents)
+      pull-requests: write # Required for gh pr review, gh pr comment, and gh pr merge
+      issues: write # Required for gh pr edit --add-label (only when flagging for review)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Review with Claude
+        id: claude
+        uses: anthropics/claude-code-action@edd85d61533cbba7b57ed0ca4af1750b1fdfd3c4 # v1
+        with:
+          allowed_bots: "dependabot[bot]"
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # yamllint disable rule:line-length
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 6
+            --allowedTools 'Read,Glob,Grep,Bash(curl:*),Bash(gh pr diff:*)'
+            --json-schema '{"type":"object","properties":{"safe_to_merge":{"type":"boolean"},"reasoning":{"type":"string"},"concerns":{"type":"array","items":{"type":"string"}}},"required":["safe_to_merge","reasoning","concerns"]}'
+          # yamllint enable rule:line-length
+          prompt: |
+            You are reviewing a Dependabot minor version bump PR.
+
+            1. Read the PR diff: gh pr diff ${{ github.event.pull_request.number }}
+            2. Identify the dependency and version change
+            3. Try to fetch release notes or changelog via curl from the dependency's GitHub repo
+            4. Assess whether this update is safe to auto-merge
+
+            Mark safe_to_merge as true if:
+            - The changes are additive (new features, no removals)
+            - No breaking changes are mentioned in release notes
+            - The diff only contains go.sum/go.mod or action version bumps
+
+            Mark safe_to_merge as false if:
+            - Release notes mention breaking changes or deprecations
+            - The update pulls in surprising transitive dependency changes
+            - You cannot determine the impact with confidence
+
+      - name: Approve and merge
+        if: >-
+          steps.claude.outputs.structured_output != ''
+          && fromJSON(steps.claude.outputs.structured_output).safe_to_merge == true
+        run: |
+          gh pr review "$PR_URL" --approve --body "Auto-approved by Claude: $REASONING"
+          gh pr merge "$PR_URL" --auto --squash
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REASONING: ${{ fromJSON(steps.claude.outputs.structured_output).reasoning }}
+
+      - name: Flag for review
+        if: >-
+          steps.claude.outputs.structured_output != ''
+          && fromJSON(steps.claude.outputs.structured_output).safe_to_merge == false
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REASONING: ${{ fromJSON(steps.claude.outputs.structured_output).reasoning }}
+          CONCERNS: ${{ join(fromJSON(steps.claude.outputs.structured_output).concerns, ', ') }}
+        run: |
+          gh pr edit "$PR_URL" --add-label "needs-review"
+          BODY="**Claude flagged this minor update for human review.**
+
+          **Reasoning:** ${REASONING}
+
+          **Concerns:** ${CONCERNS}"
+          gh pr comment "$PR_URL" --body "$BODY"
+
+      - name: Report Claude failure
+        if: always() && steps.claude.outcome != 'success'
+        run: |
+          gh pr edit "$PR_URL" --add-label "needs-review"
+          gh pr comment "$PR_URL" --body "$BODY"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # yamllint disable rule:line-length
+          BODY: >-
+            **Claude review did not produce structured output.**
+            Please review this PR manually.
+            See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+          # yamllint enable rule:line-length
+
+  claude-upgrade-major:
+    name: Claude upgrade major
+    needs: classify
+    if: needs.classify.outputs.is-major == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required for gh CLI operations that use GITHUB_TOKEN
+      pull-requests: write # Required for gh pr comment and gh pr edit
+      issues: write # Required for gh pr edit --add-label
+    steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.INTERN_APP_ID }}
+          private-key: ${{ secrets.INTERN_APP_PRIVATE_KEY }}
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ steps.app-token.outputs.token }}
+          # persist-credentials is intentionally left enabled (default: true)
+          # so Claude can push commits to the PR branch via the app token.
+          # No artifact upload step exists, so credential exfiltration risk is mitigated.
+          # zizmor: ignore[artipacked]
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "go.mod"
+
+      - name: Upgrade with Claude
+        uses: anthropics/claude-code-action@edd85d61533cbba7b57ed0ca4af1750b1fdfd3c4 # v1
+        with:
+          allowed_bots: "dependabot[bot]"
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # yamllint disable rule:line-length
+          claude_args: |
+            --model claude-opus-4-6
+            --max-turns 20
+            --disallowedTools 'Bash(git push --force:*),Bash(git push -f:*),Bash(git push --force-with-lease:*),Bash(git reset --hard:*),Bash(git clean -f:*),Bash(gh pr close:*),Bash(gh pr merge:*),Bash(gh repo delete:*),Bash(gh secret:*),Bash(gh workflow:*)'
+          # yamllint enable rule:line-length
+          prompt: |
+            You are handling a Dependabot major version bump PR for this Go-based TFLint plugin.
+
+            ## Steps
+
+            1. **Read the diff**: `gh pr diff ${{ github.event.pull_request.number }}`
+            2. **Identify the dependency** and old -> new version
+            3. **Fetch release notes / changelog** via curl:
+              - Try the GitHub releases API: `curl -s https://api.github.com/repos/OWNER/REPO/releases`
+              - Try raw CHANGELOG.md: `curl -s https://raw.githubusercontent.com/OWNER/REPO/main/CHANGELOG.md`
+            4. **Identify breaking changes** and required migration steps
+            5. **Make code changes** if needed to adapt to the new API
+            6. **Verify**: run `make test` and `make build` -- fix any failures
+            7. **Commit** your changes (if any) with message prefixed `[dependabot skip]` and push
+            8. **Add label**: `gh pr edit ${{ github.event.pull_request.number }} --add-label "needs-review"`
+            9. **Comment** on the PR with a detailed summary:
+              - What changed in the dependency
+              - Breaking changes found
+              - Code changes you made (if any)
+              - Test results
+
+            ## Important
+
+            - Prefix commits with `[dependabot skip]` to prevent Dependabot from rebasing over your changes
+            - Do NOT approve or merge the PR -- a human will review
+            - If you cannot resolve build failures, document what you tried in the PR comment
+
+      - name: Ensure PR is labeled for review
+        if: always() && steps.app-token.outcome == 'success'
+        continue-on-error: true
+        run: gh pr edit "$PR_NUMBER" --add-label "needs-review"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Notify on failure
+        if: failure()
+        run: gh pr comment "$PR_NUMBER" --body "$BODY"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # yamllint disable rule:line-length
+          BODY: >-
+            **The automated major upgrade workflow failed.**
+            Please review this PR manually.
+            See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+          # yamllint enable rule:line-length
