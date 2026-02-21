@@ -33,9 +33,12 @@ jobs:
     if: needs.classify.outputs.is-patch == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required for gh pr merge
-      pull-requests: write # Required for gh pr review --approve
+      contents: write # Required for gh pr merge (modifies repository contents)
+      pull-requests: write # Required for gh pr review --approve and gh pr merge
     steps:
+      # NOTE: This approval uses GITHUB_TOKEN (github-actions[bot]), which does
+      # not count toward "required approving reviews" in branch protection.
+      # This works because the repo requires status checks, not review approvals.
       - name: Approve PR
         run: gh pr review "$PR_URL" --approve
         env:
@@ -54,9 +57,9 @@ jobs:
     if: needs.classify.outputs.is-minor == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required for gh pr merge
-      pull-requests: write # Required for gh pr review and gh pr comment
-      issues: write # Required for gh pr edit --add-label
+      contents: write # Required for gh pr merge (modifies repository contents)
+      pull-requests: write # Required for gh pr review, gh pr comment, and gh pr merge
+      issues: write # Required for gh pr edit --add-label (only when flagging for review)
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -67,25 +70,22 @@ jobs:
         id: claude
         uses: anthropics/claude-code-action@edd85d61533cbba7b57ed0ca4af1750b1fdfd3c4 # v1
         with:
-          model: claude-sonnet-4-6
-          max_turns: 6
           allowed_bots: "dependabot[bot]"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          allowed_tools: "Read,Glob,Grep,Bash(curl:*),Bash(gh pr diff:*)"
-          direct_prompt: |
+          # yamllint disable rule:line-length
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns 6
+            --allowedTools 'Read,Glob,Grep,Bash(curl:*),Bash(gh pr diff:*)'
+            --json-schema '{"type":"object","properties":{"safe_to_merge":{"type":"boolean"},"reasoning":{"type":"string"},"concerns":{"type":"array","items":{"type":"string"}}},"required":["safe_to_merge","reasoning","concerns"]}'
+          # yamllint enable rule:line-length
+          prompt: |
             You are reviewing a Dependabot minor version bump PR.
 
             1. Read the PR diff: gh pr diff ${{ github.event.pull_request.number }}
             2. Identify the dependency and version change
             3. Try to fetch release notes or changelog via curl from the dependency's GitHub repo
             4. Assess whether this update is safe to auto-merge
-
-            Respond with ONLY a JSON object matching this schema (no markdown fences):
-            {
-              "safe_to_merge": boolean,
-              "reasoning": "string explaining your assessment",
-              "concerns": ["array of specific concerns, empty if none"]
-            }
 
             Mark safe_to_merge as true if:
             - The changes are additive (new features, no removals)
@@ -97,53 +97,50 @@ jobs:
             - The update pulls in surprising transitive dependency changes
             - You cannot determine the impact with confidence
 
-      - name: Parse Claude verdict
-        id: verdict
-        env:
-          CLAUDE_RESULT: ${{ steps.claude.outputs.result }}
-        run: |
-          # Extract JSON from Claude's response (handle potential markdown fences)
-          JSON=$(echo "$CLAUDE_RESULT" | sed -n '/^{/,/^}/p' | head -1 || echo "$CLAUDE_RESULT")
-          SAFE=$(echo "$JSON" | jq -r '.safe_to_merge // false')
-          REASONING=$(echo "$JSON" | jq -r '.reasoning // "Could not parse response"')
-          CONCERNS=$(echo "$JSON" | jq -r '(.concerns // []) | join("; ")')
-          {
-            echo "safe=$SAFE"
-            echo "reasoning<<EOF"
-            echo "$REASONING"
-            echo "EOF"
-            echo "concerns<<EOF"
-            echo "$CONCERNS"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
       - name: Approve and merge
-        if: steps.verdict.outputs.safe == 'true'
+        if: >-
+          steps.claude.outputs.structured_output != ''
+          && fromJSON(steps.claude.outputs.structured_output).safe_to_merge == true
         run: |
           gh pr review "$PR_URL" --approve --body "Auto-approved by Claude: $REASONING"
           gh pr merge "$PR_URL" --auto --squash
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REASONING: ${{ steps.verdict.outputs.reasoning }}
+          REASONING: ${{ fromJSON(steps.claude.outputs.structured_output).reasoning }}
 
       - name: Flag for review
-        if: steps.verdict.outputs.safe != 'true'
-        run: |
-          gh pr edit "$PR_URL" --add-label "needs-review"
-          gh pr comment "$PR_URL" --body "$(cat <<EOF
-          **Claude flagged this minor update for human review.**
-
-          **Reasoning:** $REASONING
-
-          **Concerns:** $CONCERNS
-          EOF
-          )"
+        if: >-
+          steps.claude.outputs.structured_output != ''
+          && fromJSON(steps.claude.outputs.structured_output).safe_to_merge == false
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REASONING: ${{ steps.verdict.outputs.reasoning }}
-          CONCERNS: ${{ steps.verdict.outputs.concerns }}
+          REASONING: ${{ fromJSON(steps.claude.outputs.structured_output).reasoning }}
+          CONCERNS: ${{ join(fromJSON(steps.claude.outputs.structured_output).concerns, ', ') }}
+        run: |
+          gh pr edit "$PR_URL" --add-label "needs-review"
+          BODY="**Claude flagged this minor update for human review.**
+
+          **Reasoning:** ${REASONING}
+
+          **Concerns:** ${CONCERNS}"
+          gh pr comment "$PR_URL" --body "$BODY"
+
+      - name: Report Claude failure
+        if: steps.claude.outputs.structured_output == ''
+        run: |
+          gh pr edit "$PR_URL" --add-label "needs-review"
+          gh pr comment "$PR_URL" --body "$BODY"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # yamllint disable rule:line-length
+          BODY: >-
+            **Claude review did not produce structured output.**
+            Please review this PR manually.
+            See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+          # yamllint enable rule:line-length
 
   claude-upgrade-major:
     name: Claude upgrade major
@@ -151,7 +148,7 @@ jobs:
     if: needs.classify.outputs.is-major == 'true'
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required for pushing commits via app token
+      contents: write # Required for gh CLI operations that use GITHUB_TOKEN
       pull-requests: write # Required for gh pr comment and gh pr edit
       issues: write # Required for gh pr edit --add-label
     steps:
@@ -168,7 +165,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.app-token.outputs.token }}
           # persist-credentials is intentionally left enabled (default: true)
-          # so Claude can push commits to the PR branch via the app token
+          # so Claude can push commits to the PR branch via the app token.
+          # No artifact upload step exists, so credential exfiltration risk is mitigated.
           # zizmor: ignore[artipacked]
 
       - name: Set up Go
@@ -179,24 +177,27 @@ jobs:
       - name: Upgrade with Claude
         uses: anthropics/claude-code-action@edd85d61533cbba7b57ed0ca4af1750b1fdfd3c4 # v1
         with:
-          model: claude-opus-4-6
-          max_turns: 20
           allowed_bots: "dependabot[bot]"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          allowed_tools: "Read,Write,Edit,Glob,Grep,Bash(curl:*),Bash(go:*),Bash(make:*),Bash(git:*),Bash(gh:*)"
-          direct_prompt: |
+          # yamllint disable rule:line-length
+          claude_args: |
+            --model claude-opus-4-6
+            --max-turns 20
+            --allowedTools 'Read,Write,Edit,Glob,Grep,Bash(curl:*),Bash(go:*),Bash(make:*),Bash(git:*),Bash(gh pr diff:*),Bash(gh pr edit:*),Bash(gh pr comment:*)'
+          # yamllint enable rule:line-length
+          prompt: |
             You are handling a Dependabot major version bump PR for this Go-based TFLint plugin.
 
             ## Steps
 
             1. **Read the diff**: `gh pr diff ${{ github.event.pull_request.number }}`
-            2. **Identify the dependency** and old → new version
+            2. **Identify the dependency** and old -> new version
             3. **Fetch release notes / changelog** via curl:
               - Try the GitHub releases API: `curl -s https://api.github.com/repos/OWNER/REPO/releases`
               - Try raw CHANGELOG.md: `curl -s https://raw.githubusercontent.com/OWNER/REPO/main/CHANGELOG.md`
             4. **Identify breaking changes** and required migration steps
             5. **Make code changes** if needed to adapt to the new API
-            6. **Verify**: run `make test` and `make build` — fix any failures
+            6. **Verify**: run `make test` and `make build` -- fix any failures
             7. **Commit** your changes (if any) with message prefixed `[dependabot skip]` and push
             8. **Add label**: `gh pr edit ${{ github.event.pull_request.number }} --add-label "needs-review"`
             9. **Comment** on the PR with a detailed summary:
@@ -208,5 +209,25 @@ jobs:
             ## Important
 
             - Prefix commits with `[dependabot skip]` to prevent Dependabot from rebasing over your changes
-            - Do NOT approve or merge the PR — a human will review
+            - Do NOT approve or merge the PR -- a human will review
             - If you cannot resolve build failures, document what you tried in the PR comment
+
+      - name: Ensure PR is labeled for review
+        if: always() && steps.app-token.outcome == 'success'
+        run: gh pr edit "$PR_NUMBER" --add-label "needs-review" || true
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+
+      - name: Notify on failure
+        if: failure()
+        run: gh pr comment "$PR_NUMBER" --body "$BODY"
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # yamllint disable rule:line-length
+          BODY: >-
+            **The automated major upgrade workflow failed.**
+            Please review this PR manually.
+            See [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.
+          # yamllint enable rule:line-length
