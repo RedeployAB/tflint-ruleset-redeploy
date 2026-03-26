@@ -9,7 +9,7 @@ requirements, and installation details, see the [README.md](README.md).
 This is a Go project implementing a custom TFLint ruleset for the Redeploy
 Terraform style guide. Ensure you have the following prerequisites:
 
-- Go v1.24+
+- Go v1.26+
 - TFLint v0.46+
 - golangci-lint v2.1.5+
 
