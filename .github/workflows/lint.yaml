@@ -67,6 +67,10 @@ jobs:
           VALIDATE_TERRAFORM_TERRASCAN: false
           VALIDATE_GIT_COMMITLINT: false
           VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
+          # super-linter v8.5.0 bundles Go 1.25 which cannot build
+          # golangci-lint for Go 1.26 targets. Re-enable once
+          # super-linter ships with Go 1.26+.
+          VALIDATE_PRE_COMMIT: false
 
       - name: Commit and push linting fixes
         # Run only on:
