@@ -81,7 +81,7 @@ jobs:
 
       - name: Review with Claude
         id: claude
-        uses: anthropics/claude-code-action@ef50f123a3a9be95b60040d042717517407c7256 # v1
+        uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa # v1
         with:
           allowed_bots: "dependabot[bot]"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -184,7 +184,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Upgrade with Claude
-        uses: anthropics/claude-code-action@ef50f123a3a9be95b60040d042717517407c7256 # v1
+        uses: anthropics/claude-code-action@fefa07e9c665b7320f08c3b525980457f22f58aa # v1
         with:
           allowed_bots: "dependabot[bot]"
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
