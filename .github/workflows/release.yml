@@ -23,7 +23,7 @@ jobs:
       attestations: write # Required to generate build provenance attestations
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: false
