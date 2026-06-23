@@ -11,13 +11,16 @@ linters:
     - gocyclo
     - godox
     - gosec # Security linter
+    - intrange # Prefers Go 1.22 integer range over classic index loops
     - misspell # Catches common misspellings in comments and strings
     - nolintlint # Flags malformed or unused //nolint directives
+    - perfsprint # Prefers cheaper alternatives to fmt.Sprintf/Errorf
     - predeclared # Flags shadowing of predeclared identifiers
     - revive
     - testifylint # Enforces testify assertion best practices
     - unconvert
     - usestdlibvars # Prefers stdlib constants over magic strings
+    - wastedassign # Flags assignments whose value is never used
   settings:
     errcheck:
       check-blank: true

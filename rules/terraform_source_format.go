@@ -140,7 +140,7 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, lin
 						func(f tflint.Fixer) error {
 							// Calculate byte position for the blank line
 							bytePos := 0
-							for i := 0; i < nextLineIdx; i++ {
+							for i := range nextLineIdx {
 								bytePos += len(lines[i]) + 1 // +1 for newline
 							}
 
@@ -184,7 +184,7 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, lin
 				func(f tflint.Fixer) error {
 					// Calculate byte position for the blank line
 					bytePos := 0
-					for i := 0; i < nextLineIdx; i++ {
+					for i := range nextLineIdx {
 						bytePos += len(lines[i]) + 1 // +1 for newline
 					}
 
@@ -234,7 +234,7 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, lin
 				func(f tflint.Fixer) error {
 					// Calculate byte position for insertion
 					bytePos := 0
-					for i := 0; i < nextLineIdx-1; i++ {
+					for i := range nextLineIdx - 1 {
 						bytePos += len(lines[i]) + 1 // +1 for newline
 					}
 					// Add the length of the previous line (line with source/version)

@@ -236,15 +236,13 @@ func (r *TerraformVariableOrderRule) emitIssueWithFix(
 				prevName := blocksWithContent[i-1].Name
 				currName := vb.Name
 
-				// Check both orderings since they might have been reordered
-				spacing := ""
+				// Check both orderings since they might have been reordered.
+				// Default to double newline if they weren't originally adjacent.
+				spacing := "\n\n"
 				if s, ok := spacingMap[prevName+"|||"+currName]; ok {
 					spacing = s
 				} else if s, ok := spacingMap[currName+"|||"+prevName]; ok {
 					spacing = s
-				} else {
-					// Default to double newline if they weren't originally adjacent
-					spacing = "\n\n"
 				}
 
 				fixedContent.WriteString(spacing)
