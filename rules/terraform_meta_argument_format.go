@@ -220,8 +220,8 @@ func (r *TerraformMetaArgumentFormatRule) checkBlock(
 
 	// Blank line before bottom meta-arguments
 	for argName, argStartLine := range map[string]int{
-		"lifecycle":  lifecycleStartLine,
-		"depends_on": dependsOnStartLine,
+		ArgLifecycle: lifecycleStartLine,
+		ArgDependsOn: dependsOnStartLine,
 	} {
 		if argStartLine >= 0 {
 			if err := r.checkBlankLineBeforeBottomMetaArgs(

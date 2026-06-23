@@ -99,13 +99,13 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 
 	// Define the expected order
 	orderMap := map[string]int{
-		"description": 0,
-		"type":        1,
-		"default":     2,
-		"ephemeral":   3,
-		"sensitive":   4,
-		"nullable":    5,
-		"validation":  6,
+		ArgDescription: 0,
+		ArgType:        1,
+		ArgDefault:     2,
+		ArgEphemeral:   3,
+		ArgSensitive:   4,
+		ArgNullable:    5,
+		TypeValidation: 6,
 	}
 
 	var items []variableArgumentItem

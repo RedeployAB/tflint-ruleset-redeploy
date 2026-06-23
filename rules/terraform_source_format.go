@@ -9,7 +9,6 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
 
-//nolint:gocyclo
 type TerraformSourceFormatRule struct {
 	tflint.DefaultRule
 }

@@ -44,7 +44,7 @@ func (r *TerraformConfigBlockFileRule) Check(runner tflint.Runner) error {
 			continue
 		}
 		// If file is named exactly "terraform.tf", skip checks (allowed).
-		if filepath.Base(filename) == "terraform.tf" {
+		if filepath.Base(filename) == FileTerraform {
 			continue
 		}
 		syntaxFile, diags := hclsyntax.ParseConfig(hclFile.Bytes, filename, hcl.InitialPos)

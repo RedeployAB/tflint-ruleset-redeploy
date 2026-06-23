@@ -85,7 +85,7 @@ func (r *TerraformVariableOrderRule) processFile(body *hclsyntax.Body, filename 
 			vName := blk.Labels[0]
 
 			// Check whether "default" attribute is present
-			_, hasDefault := blk.Body.Attributes["default"]
+			_, hasDefault := blk.Body.Attributes[ArgDefault]
 
 			// Calculate full range from start of block to end of body
 			fullRange := hcl.Range{
