@@ -488,7 +488,7 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 		return -1
 	}
 
-	for i := 0; i < len(desiredSequence); i++ {
+	for i := range desiredSequence {
 		want := desiredSequence[i]
 
 		// If we are dealing with "count|for_each"

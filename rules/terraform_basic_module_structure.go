@@ -1,7 +1,6 @@
 package rules
 
 import (
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -67,7 +66,7 @@ func (r *TerraformBasicModuleStructureRule) Check(runner tflint.Runner) error {
 		if !foundFiles[required] {
 			if err := runner.EmitIssue(
 				r,
-				fmt.Sprintf("Missing required file: %s", required),
+				"Missing required file: "+required,
 				hcl.Range{Filename: required},
 			); err != nil {
 				return err

@@ -16,7 +16,7 @@ func BenchmarkHCLParsing(b *testing.B) {
 
 	b.Run("ParseConfig", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			//nolint:errcheck // Benchmark intentionally ignores errors
 			hclsyntax.ParseConfig(content, "main.tf", hcl.InitialPos)
 		}
@@ -29,14 +29,14 @@ func BenchmarkStringSplit(b *testing.B) {
 
 	b.Run("Split", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = strings.Split(content, "\n")
 		}
 	})
 
 	b.Run("SplitAndCount", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			lines := strings.Split(content, "\n")
 			_ = len(lines)
 		}
@@ -52,7 +52,7 @@ func BenchmarkBytePositionCalculation(b *testing.B) {
 	b.Run("LinearScan", func(b *testing.B) {
 		targetLine := 50
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			bytePos := 0
 			for j := 0; j < targetLine && j < len(lines); j++ {
 				bytePos += len(lines[j]) + 1
@@ -73,7 +73,7 @@ func BenchmarkBytePositionCalculation(b *testing.B) {
 
 		targetLine := 50
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			if targetLine < len(offsets) {
 				_ = offsets[targetLine]
 			}
@@ -85,7 +85,7 @@ func BenchmarkBytePositionCalculation(b *testing.B) {
 		lineOffsets := NewLineOffsets(content)
 		targetLine := 50
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = lineOffsets.ByteOffset(targetLine)
 		}
 	})
@@ -98,7 +98,7 @@ func BenchmarkTrimSpace(b *testing.B) {
 
 	b.Run("TrimSpace", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for _, line := range lines {
 				_ = strings.TrimSpace(line)
 			}
@@ -107,7 +107,7 @@ func BenchmarkTrimSpace(b *testing.B) {
 
 	b.Run("TrimSpaceWithBlankCheck", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for _, line := range lines {
 				trimmed := strings.TrimSpace(line)
 				_ = trimmed == ""
@@ -152,7 +152,7 @@ func BenchmarkMapLookup(b *testing.B) {
 
 	b.Run("MapLookup", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for _, name := range testNames {
 				_ = orderMap[name]
 			}
@@ -161,7 +161,7 @@ func BenchmarkMapLookup(b *testing.B) {
 
 	b.Run("SwitchLookup", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for _, name := range testNames {
 				_ = lookupSwitch(name)
 			}
@@ -175,7 +175,7 @@ func BenchmarkBlockTypeCheck(b *testing.B) {
 
 	b.Run("ToLowerAndCompare", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for _, t := range types {
 				_ = strings.ToLower(t) == "resource"
 			}
@@ -184,7 +184,7 @@ func BenchmarkBlockTypeCheck(b *testing.B) {
 
 	b.Run("EqualFold", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for _, t := range types {
 				_ = strings.EqualFold(t, "resource")
 			}
@@ -193,7 +193,7 @@ func BenchmarkBlockTypeCheck(b *testing.B) {
 
 	b.Run("DirectCompare", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			for _, t := range types {
 				_ = t == "resource" || t == "Resource" || t == "RESOURCE"
 			}
@@ -212,7 +212,7 @@ func BenchmarkTraversalKey(b *testing.B) {
 
 	b.Run("StringsJoin", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = traversalKey(trav)
 		}
 	})
@@ -239,7 +239,7 @@ func BenchmarkTraversalKey(b *testing.B) {
 		}
 
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_ = traversalKeyBuilder(trav)
 		}
 	})

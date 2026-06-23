@@ -457,7 +457,7 @@ func filterPrefixTraversals(traversals []hcl.Traversal) []hcl.Traversal {
 	})
 
 	var result []hcl.Traversal
-	for i := 0; i < len(sorted); i++ {
+	for i := range sorted {
 		// Check if the next traversal has this one as a prefix
 		isAPrefix := false
 		if i+1 < len(sorted) && strings.HasPrefix(sorted[i+1].key, sorted[i].key+".") {

@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -13,7 +14,7 @@ import (
 // Returns the boolean value, whether it's a literal (not a complex expression), and any error.
 func EvaluateBoolLiteral(expr hcl.Expression) (value bool, isLiteral bool, err error) {
 	if expr == nil {
-		return false, false, fmt.Errorf("expression is nil")
+		return false, false, errors.New("expression is nil")
 	}
 
 	// Check if it's a literal value expression
@@ -21,7 +22,7 @@ func EvaluateBoolLiteral(expr hcl.Expression) (value bool, isLiteral bool, err e
 		if litExpr.Val.Type() == cty.Bool {
 			return litExpr.Val.True(), true, nil
 		}
-		return false, false, fmt.Errorf("expression is not a boolean literal")
+		return false, false, errors.New("expression is not a boolean literal")
 	}
 
 	// Try to evaluate as a static expression
@@ -34,17 +35,17 @@ func EvaluateBoolLiteral(expr hcl.Expression) (value bool, isLiteral bool, err e
 		if val.IsKnown() && !val.IsNull() {
 			return val.True(), false, nil
 		}
-		return false, false, fmt.Errorf("boolean value is unknown or null")
+		return false, false, errors.New("boolean value is unknown or null")
 	}
 
-	return false, false, fmt.Errorf("expression does not evaluate to a boolean")
+	return false, false, errors.New("expression does not evaluate to a boolean")
 }
 
 // EvaluateStringLiteral safely evaluates an expression as a string literal.
 // Returns the string value, whether it's a literal (not a complex expression), and any error.
 func EvaluateStringLiteral(expr hcl.Expression) (value string, isLiteral bool, err error) {
 	if expr == nil {
-		return "", false, fmt.Errorf("expression is nil")
+		return "", false, errors.New("expression is nil")
 	}
 
 	// Check if it's a literal value expression
@@ -52,7 +53,7 @@ func EvaluateStringLiteral(expr hcl.Expression) (value string, isLiteral bool, e
 		if litExpr.Val.Type() == cty.String {
 			return litExpr.Val.AsString(), true, nil
 		}
-		return "", false, fmt.Errorf("expression is not a string literal")
+		return "", false, errors.New("expression is not a string literal")
 	}
 
 	// Check if it's a template expression with only literals
@@ -75,17 +76,17 @@ func EvaluateStringLiteral(expr hcl.Expression) (value string, isLiteral bool, e
 		if val.IsKnown() && !val.IsNull() {
 			return val.AsString(), false, nil
 		}
-		return "", false, fmt.Errorf("string value is unknown or null")
+		return "", false, errors.New("string value is unknown or null")
 	}
 
-	return "", false, fmt.Errorf("expression does not evaluate to a string")
+	return "", false, errors.New("expression does not evaluate to a string")
 }
 
 // EvaluateTypeExpr checks if an expression represents a Terraform type.
 // Returns the type name, whether it's a valid type expression, and any error.
 func EvaluateTypeExpr(expr hcl.Expression) (typeName string, isType bool, err error) {
 	if expr == nil {
-		return "", false, fmt.Errorf("expression is nil")
+		return "", false, errors.New("expression is nil")
 	}
 
 	// Check if it's a scope traversal (e.g., bool, string, number)
@@ -117,13 +118,13 @@ func EvaluateTypeExpr(expr hcl.Expression) (typeName string, isType bool, err er
 		// This would need to be handled by the caller if needed
 	}
 
-	return "", false, fmt.Errorf("expression is not a valid type expression")
+	return "", false, errors.New("expression is not a valid type expression")
 }
 
 // IsNullLiteral checks if an expression is the literal 'null'.
 func IsNullLiteral(expr hcl.Expression) (bool, error) {
 	if expr == nil {
-		return false, fmt.Errorf("expression is nil")
+		return false, errors.New("expression is nil")
 	}
 
 	// Check if it's a literal value expression
@@ -144,7 +145,7 @@ func IsNullLiteral(expr hcl.Expression) (bool, error) {
 // Returns the number value, whether it's a literal, and any error.
 func EvaluateNumberLiteral(expr hcl.Expression) (value cty.Value, isLiteral bool, err error) {
 	if expr == nil {
-		return cty.NilVal, false, fmt.Errorf("expression is nil")
+		return cty.NilVal, false, errors.New("expression is nil")
 	}
 
 	// Check if it's a literal value expression
@@ -152,7 +153,7 @@ func EvaluateNumberLiteral(expr hcl.Expression) (value cty.Value, isLiteral bool
 		if litExpr.Val.Type() == cty.Number {
 			return litExpr.Val, true, nil
 		}
-		return cty.NilVal, false, fmt.Errorf("expression is not a number literal")
+		return cty.NilVal, false, errors.New("expression is not a number literal")
 	}
 
 	// Check if it's a unary expression (e.g., negative numbers like -10)
@@ -180,10 +181,10 @@ func EvaluateNumberLiteral(expr hcl.Expression) (value cty.Value, isLiteral bool
 		if val.IsKnown() && !val.IsNull() {
 			return val, false, nil
 		}
-		return cty.NilVal, false, fmt.Errorf("number value is unknown or null")
+		return cty.NilVal, false, errors.New("number value is unknown or null")
 	}
 
-	return cty.NilVal, false, fmt.Errorf("expression does not evaluate to a number")
+	return cty.NilVal, false, errors.New("expression does not evaluate to a number")
 }
 
 // IsLiteralExpression checks if an expression is a literal (not computed).
@@ -212,7 +213,7 @@ func IsLiteralExpression(expr hcl.Expression) bool {
 // GetExpressionType returns the cty.Type of an expression if it can be determined statically.
 func GetExpressionType(expr hcl.Expression) (cty.Type, error) {
 	if expr == nil {
-		return cty.NilType, fmt.Errorf("expression is nil")
+		return cty.NilType, errors.New("expression is nil")
 	}
 
 	// Try to evaluate the expression to get its type
@@ -228,7 +229,7 @@ func GetExpressionType(expr hcl.Expression) (cty.Type, error) {
 // and returns the result with type information.
 func EvaluateAttributeValue(attr *hclsyntax.Attribute) (cty.Value, bool, error) {
 	if attr == nil {
-		return cty.NilVal, false, fmt.Errorf("attribute is nil")
+		return cty.NilVal, false, errors.New("attribute is nil")
 	}
 
 	isLiteral := IsLiteralExpression(attr.Expr)
@@ -268,30 +269,32 @@ func isValidTerraformTypeFunction(funcName string) bool {
 func buildTypeString(funcExpr *hclsyntax.FunctionCallExpr) string {
 	// This is a simplified version - in practice, this would need more sophisticated handling
 	// of nested type expressions
-	result := funcExpr.Name + "("
+	var sb strings.Builder
+	sb.WriteString(funcExpr.Name)
+	sb.WriteString("(")
 
 	for i, arg := range funcExpr.Args {
 		if i > 0 {
-			result += ", "
+			sb.WriteString(", ")
 		}
 
 		// Recursively handle nested type expressions
 		if argFunc, ok := arg.(*hclsyntax.FunctionCallExpr); ok {
-			result += buildTypeString(argFunc)
+			sb.WriteString(buildTypeString(argFunc))
 		} else if scopeExpr, ok := arg.(*hclsyntax.ScopeTraversalExpr); ok {
 			if len(scopeExpr.Traversal) == 1 {
 				if root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot); ok {
-					result += root.Name
+					sb.WriteString(root.Name)
 				}
 			}
 		} else {
 			// Fallback for other expression types
-			result += "unknown"
+			sb.WriteString("unknown")
 		}
 	}
 
-	result += ")"
-	return result
+	sb.WriteString(")")
+	return sb.String()
 }
 
 // Legacy compatibility functions - these maintain backward compatibility
