@@ -43,6 +43,9 @@ fmt:
 vet:
 	go vet ./...
 
+vulncheck:
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
 # Utility targets
 clean:
 	rm -f tflint-ruleset-redeploy tflint-ruleset-redeploy.exe
@@ -59,6 +62,7 @@ help:
 	@echo "  lint       - Run golangci-lint"
 	@echo "  fmt        - Format code"
 	@echo "  vet        - Run go vet"
+	@echo "  vulncheck  - Scan for known vulnerabilities (govulncheck)"
 	@echo "  clean      - Remove build artifacts"
 
-.PHONY: build install test coverage benchmarks e2e lint fmt vet clean help
+.PHONY: build install test coverage benchmarks e2e lint fmt vet vulncheck clean help
