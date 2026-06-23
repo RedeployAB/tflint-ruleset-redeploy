@@ -190,12 +190,12 @@ func (r *TerraformTagsArgumentRule) checkItemsAfterTags(
 	for i := tagsIndex + 1; i < len(items); i++ {
 		switch items[i].Type {
 		case typeAttr:
-			if items[i].Name != "depends_on" {
+			if items[i].Name != ArgDependsOn {
 				return r.emitIssue(runner, items[i].Range,
 					fmt.Sprintf("Argument '%s' must not come after 'tags'", items[i].Name))
 			}
 		case typeBlock:
-			if items[i].Name != "lifecycle" {
+			if items[i].Name != ArgLifecycle {
 				return r.emitIssue(runner, items[i].Range,
 					fmt.Sprintf("Block '%s' must not come after 'tags'", items[i].Name))
 			}
@@ -216,7 +216,7 @@ func (r *TerraformTagsArgumentRule) checkBlankLineAfterTags(
 		nextItem = &items[tagsIndex+1]
 	}
 
-	if nextItem != nil && (nextItem.Name == "depends_on" || nextItem.Name == "lifecycle") {
+	if nextItem != nil && (nextItem.Name == ArgDependsOn || nextItem.Name == ArgLifecycle) {
 		linesBetween := nextItem.Range.Start.Line - tagsLine - 1
 		if linesBetween != 1 {
 			return r.emitIssue(runner, nextItem.Range,

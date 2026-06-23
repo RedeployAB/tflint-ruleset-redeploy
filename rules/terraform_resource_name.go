@@ -36,8 +36,8 @@ func (r *TerraformResourceNameRule) Check(runner tflint.Runner) error {
 	content, err := runner.GetModuleContent(&hclext.BodySchema{
 		Blocks: []hclext.BlockSchema{
 			{
-				Type:       "resource",
-				LabelNames: []string{"type", "name"},
+				Type:       TypeResource,
+				LabelNames: []string{ArgType, ArgName},
 			},
 		},
 	}, nil)

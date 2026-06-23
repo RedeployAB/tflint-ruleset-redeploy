@@ -35,10 +35,10 @@ func (r *TerraformBasicModuleStructureRule) Link() string {
 
 func (r *TerraformBasicModuleStructureRule) Check(runner tflint.Runner) error {
 	requiredFiles := []string{
-		"main.tf",
-		"variables.tf",
-		"outputs.tf",
-		"terraform.tf",
+		FileMain,
+		FileVariables,
+		FileOutputs,
+		FileTerraform,
 	}
 
 	files, err := runner.GetFiles()

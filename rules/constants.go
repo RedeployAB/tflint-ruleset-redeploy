@@ -24,6 +24,21 @@ const (
 	ArgForEach   = "for_each"
 	ArgProvider  = "provider"
 
+	// Common block/output/variable argument and label names
+	ArgDescription = "description"
+	ArgType        = "type"
+	ArgDefault     = "default"
+	ArgEphemeral   = "ephemeral"
+	ArgSensitive   = "sensitive"
+	ArgNullable    = "nullable"
+	ArgName        = "name"
+
+	// Conventional module file names
+	FileMain      = "main.tf"
+	FileVariables = "variables.tf"
+	FileOutputs   = "outputs.tf"
+	FileTerraform = "terraform.tf"
+
 	// For modules
 	TypeModule = "module"
 
@@ -39,6 +54,8 @@ const (
 
 	// Common string constants
 	StringFalse = "false"
+	StringTrue  = "true"
+	StringNull  = "null"
 
 	// Type constants
 	TypeBool   = "bool"

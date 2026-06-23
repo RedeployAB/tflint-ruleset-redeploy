@@ -157,11 +157,11 @@ func (r *TerraformVariableNullableRule) checkVariableBlock(
 	// Gather relevant attributes (attribute names are always lowercase in Terraform)
 	for _, attr := range block.Body.Attributes {
 		switch attr.Name {
-		case "default":
+		case ArgDefault:
 			defaultVal = attr
-		case "nullable":
+		case ArgNullable:
 			nullableVal = attr
-		case "type":
+		case ArgType:
 			typeVal = attr
 		}
 	}

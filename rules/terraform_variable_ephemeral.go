@@ -80,7 +80,7 @@ func (r *TerraformVariableEphemeralRule) checkVariableBlock(
 	runner tflint.Runner,
 ) error {
 	// Attribute names are always lowercase in Terraform
-	ephemeralAttr := block.Body.Attributes["ephemeral"]
+	ephemeralAttr := block.Body.Attributes[ArgEphemeral]
 	if ephemeralAttr == nil {
 		return nil // ephemeral not defined => no problem
 	}

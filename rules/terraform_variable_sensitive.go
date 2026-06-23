@@ -84,7 +84,7 @@ func (r *TerraformVariableSensitiveRule) checkVariableBlock(
 	runner tflint.Runner,
 ) error {
 	// Attribute names are always lowercase in Terraform
-	sensitiveAttr := block.Body.Attributes["sensitive"]
+	sensitiveAttr := block.Body.Attributes[ArgSensitive]
 
 	if sensitiveAttr == nil {
 		return nil // No "sensitive" => fine

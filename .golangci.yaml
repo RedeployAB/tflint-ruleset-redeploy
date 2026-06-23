@@ -3,14 +3,21 @@ linters:
   enable:
     - bidichk # Detects dangerous unicode character sequences (trojan source)
     - errchkjson
+    - errorlint # Enforces correct error wrapping/comparison (errors.Is/As, %w)
     - exhaustive
+    - fatcontext # Detects nested contexts in loops
     - goconst
     - gocritic
     - gocyclo
     - godox
     - gosec # Security linter
+    - misspell # Catches common misspellings in comments and strings
+    - nolintlint # Flags malformed or unused //nolint directives
+    - predeclared # Flags shadowing of predeclared identifiers
     - revive
+    - testifylint # Enforces testify assertion best practices
     - unconvert
+    - usestdlibvars # Prefers stdlib constants over magic strings
   settings:
     errcheck:
       check-blank: true

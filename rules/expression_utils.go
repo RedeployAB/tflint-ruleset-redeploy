@@ -301,9 +301,9 @@ func buildTypeString(funcExpr *hclsyntax.FunctionCallExpr) string {
 func EvaluateBoolLiteralFromRawText(rawText string) (bool, bool, error) {
 	trimmed := strings.ToLower(strings.TrimSpace(rawText))
 	switch trimmed {
-	case "true":
+	case StringTrue:
 		return true, true, nil
-	case "false":
+	case StringFalse:
 		return false, true, nil
 	default:
 		return false, false, fmt.Errorf("text %q is not a boolean literal", rawText)
@@ -329,5 +329,5 @@ func EvaluateStringLiteralFromRawText(rawText string) (string, bool, error) {
 
 // IsNullLiteralFromRawText checks if raw text represents null (legacy compatibility).
 func IsNullLiteralFromRawText(rawText string) bool {
-	return strings.ToLower(strings.TrimSpace(rawText)) == "null"
+	return strings.ToLower(strings.TrimSpace(rawText)) == StringNull
 }
