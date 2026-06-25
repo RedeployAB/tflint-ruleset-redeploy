@@ -26,5 +26,6 @@ resource "azurerm_subnet" "from_length" {
 
   lifecycle {
     prevent_destroy = false
+    ignore_changes  = all
   }
 }

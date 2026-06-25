@@ -266,6 +266,28 @@
         },
         {
             "rule": {
+                "name": "terraform_ignore_changes_all",
+                "severity": "warning",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_ignore_changes_all.md"
+            },
+            "message": "Avoid 'ignore_changes = all'; list the specific attributes to ignore instead",
+            "range": {
+                "filename": "main.tf",
+                "start": {
+                    "line": 29,
+                    "column": 5
+                },
+                "end": {
+                    "line": 29,
+                    "column": 26
+                }
+            },
+            "callers": [],
+            "fixable": false,
+            "fixed": false
+        },
+        {
+            "rule": {
                 "name": "terraform_required_providers_order",
                 "severity": "error",
                 "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_required_providers_order.md"
