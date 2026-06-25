@@ -56,6 +56,7 @@ func main() {
 				rules.NewTerraformSingleTernaryPerLineRule(),
 				rules.NewTerraformProviderAliasOrderRule(),
 				rules.NewTerraformPreferForEachRule(),
+				rules.NewTerraformLifecycleRedundantDefaultRule(),
 			},
 		},
 	})

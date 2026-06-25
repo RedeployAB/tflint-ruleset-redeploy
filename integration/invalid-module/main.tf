@@ -23,4 +23,8 @@ module "dummy" {
 
 resource "azurerm_subnet" "from_length" {
   count = length(["a", "b"])
+
+  lifecycle {
+    prevent_destroy = false
+  }
 }
