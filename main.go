@@ -53,6 +53,7 @@ func main() {
 				rules.NewTerraformOutputResourceRule(),
 				rules.NewTerraformRequiredProvidersOrderRule(),
 				rules.NewTerraformProviderFileRule(),
+				rules.NewTerraformSingleTernaryPerLineRule(),
 			},
 		},
 	})
