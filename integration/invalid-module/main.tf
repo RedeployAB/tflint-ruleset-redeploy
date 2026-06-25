@@ -2,6 +2,11 @@ provider "azurerm" {
   features {}
 }
 
+provider "azurerm" {
+  features {}
+  alias = "secondary"
+}
+
 resource "azurerm_resource_group" "example" {
 
   tags = var.tags
