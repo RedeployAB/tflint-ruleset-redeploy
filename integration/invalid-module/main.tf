@@ -20,3 +20,7 @@ module "dummy" {
   source     = "./dummy_module"
   depends_on = [azurerm_resource_group.example]
 }
+
+resource "azurerm_subnet" "from_length" {
+  count = length(["a", "b"])
+}

@@ -222,6 +222,28 @@
         },
         {
             "rule": {
+                "name": "terraform_prefer_for_each",
+                "severity": "warning",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_prefer_for_each.md"
+            },
+            "message": "Use 'for_each' instead of 'count' to create multiple instances",
+            "range": {
+                "filename": "main.tf",
+                "start": {
+                    "line": 25,
+                    "column": 11
+                },
+                "end": {
+                    "line": 25,
+                    "column": 29
+                }
+            },
+            "callers": [],
+            "fixable": false,
+            "fixed": false
+        },
+        {
+            "rule": {
                 "name": "terraform_required_providers_order",
                 "severity": "error",
                 "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_required_providers_order.md"

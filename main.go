@@ -55,6 +55,7 @@ func main() {
 				rules.NewTerraformProviderFileRule(),
 				rules.NewTerraformSingleTernaryPerLineRule(),
 				rules.NewTerraformProviderAliasOrderRule(),
+				rules.NewTerraformPreferForEachRule(),
 			},
 		},
 	})
