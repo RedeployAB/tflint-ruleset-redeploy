@@ -2,6 +2,28 @@
     "issues": [
         {
             "rule": {
+                "name": "terraform_single_ternary_per_line",
+                "severity": "warning",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_single_ternary_per_line.md"
+            },
+            "message": "Line contains 2 ternary operations; use local values to keep at most one ternary per line",
+            "range": {
+                "filename": "locals.tf",
+                "start": {
+                    "line": 4,
+                    "column": 15
+                },
+                "end": {
+                    "line": 4,
+                    "column": 72
+                }
+            },
+            "callers": [],
+            "fixable": false,
+            "fixed": false
+        },
+        {
+            "rule": {
                 "name": "terraform_provider_file",
                 "severity": "error",
                 "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_provider_file.md"
@@ -24,6 +46,72 @@
         },
         {
             "rule": {
+                "name": "terraform_provider_file",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_provider_file.md"
+            },
+            "message": "\"provider\" block must be placed in \"providers.tf\" or \"providers.<area>.tf\", not \"main.tf\"",
+            "range": {
+                "filename": "main.tf",
+                "start": {
+                    "line": 5,
+                    "column": 1
+                },
+                "end": {
+                    "line": 5,
+                    "column": 19
+                }
+            },
+            "callers": [],
+            "fixable": false,
+            "fixed": false
+        },
+        {
+            "rule": {
+                "name": "terraform_resource_argument_order",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_resource_argument_order.md"
+            },
+            "message": "Argument 'alias' must not come after a nested block",
+            "range": {
+                "filename": "main.tf",
+                "start": {
+                    "line": 7,
+                    "column": 3
+                },
+                "end": {
+                    "line": 7,
+                    "column": 22
+                }
+            },
+            "callers": [],
+            "fixable": false,
+            "fixed": false
+        },
+        {
+            "rule": {
+                "name": "terraform_provider_alias_order",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_provider_alias_order.md"
+            },
+            "message": "Provider 'azurerm': 'alias' must be the first argument in the provider block",
+            "range": {
+                "filename": "main.tf",
+                "start": {
+                    "line": 7,
+                    "column": 3
+                },
+                "end": {
+                    "line": 7,
+                    "column": 8
+                }
+            },
+            "callers": [],
+            "fixable": false,
+            "fixed": false
+        },
+        {
+            "rule": {
                 "name": "terraform_no_leading_trailing_blank_lines",
                 "severity": "error",
                 "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_no_leading_trailing_blank_lines.md"
@@ -32,11 +120,11 @@
             "range": {
                 "filename": "main.tf",
                 "start": {
-                    "line": 6,
+                    "line": 11,
                     "column": 1
                 },
                 "end": {
-                    "line": 7,
+                    "line": 12,
                     "column": 1
                 }
             },
@@ -54,11 +142,11 @@
             "range": {
                 "filename": "main.tf",
                 "start": {
-                    "line": 9,
+                    "line": 14,
                     "column": 3
                 },
                 "end": {
-                    "line": 9,
+                    "line": 14,
                     "column": 26
                 }
             },
@@ -76,11 +164,11 @@
             "range": {
                 "filename": "main.tf",
                 "start": {
-                    "line": 16,
+                    "line": 21,
                     "column": 1
                 },
                 "end": {
-                    "line": 16,
+                    "line": 21,
                     "column": 1
                 }
             },
@@ -98,11 +186,11 @@
             "range": {
                 "filename": "main.tf",
                 "start": {
-                    "line": 16,
+                    "line": 21,
                     "column": 1
                 },
                 "end": {
-                    "line": 16,
+                    "line": 21,
                     "column": 1
                 }
             },
@@ -120,12 +208,78 @@
             "range": {
                 "filename": "main.tf",
                 "start": {
-                    "line": 16,
+                    "line": 21,
                     "column": 3
                 },
                 "end": {
-                    "line": 16,
+                    "line": 21,
                     "column": 48
+                }
+            },
+            "callers": [],
+            "fixable": false,
+            "fixed": false
+        },
+        {
+            "rule": {
+                "name": "terraform_prefer_for_each",
+                "severity": "warning",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_prefer_for_each.md"
+            },
+            "message": "Use 'for_each' instead of 'count' to create multiple instances",
+            "range": {
+                "filename": "main.tf",
+                "start": {
+                    "line": 25,
+                    "column": 11
+                },
+                "end": {
+                    "line": 25,
+                    "column": 29
+                }
+            },
+            "callers": [],
+            "fixable": false,
+            "fixed": false
+        },
+        {
+            "rule": {
+                "name": "terraform_redundant_default",
+                "severity": "error",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_redundant_default.md"
+            },
+            "message": "prevent_destroy should not be set to false (omit instead)",
+            "range": {
+                "filename": "main.tf",
+                "start": {
+                    "line": 28,
+                    "column": 5
+                },
+                "end": {
+                    "line": 28,
+                    "column": 28
+                }
+            },
+            "callers": [],
+            "fixable": true,
+            "fixed": false
+        },
+        {
+            "rule": {
+                "name": "terraform_ignore_changes_all",
+                "severity": "warning",
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_ignore_changes_all.md"
+            },
+            "message": "Avoid 'ignore_changes = all'; list the specific attributes to ignore instead",
+            "range": {
+                "filename": "main.tf",
+                "start": {
+                    "line": 29,
+                    "column": 5
+                },
+                "end": {
+                    "line": 29,
+                    "column": 26
                 }
             },
             "callers": [],

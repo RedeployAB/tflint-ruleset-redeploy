@@ -24,6 +24,11 @@ const (
 	ArgForEach   = "for_each"
 	ArgProvider  = "provider"
 
+	// lifecycle block argument names
+	ArgPreventDestroy      = "prevent_destroy"
+	ArgCreateBeforeDestroy = "create_before_destroy"
+	ArgIgnoreChanges       = "ignore_changes"
+
 	// Common block/output/variable argument and label names
 	ArgDescription = "description"
 	ArgType        = "type"
