@@ -1,8 +1,7 @@
 # Redeploy TFLint Ruleset
 
-An opinionated [TFLint](https://github.com/terraform-linters/tflint) ruleset for
-Terraform style and conventions: block and argument order, file layout, and
-naming.
+A [TFLint](https://github.com/terraform-linters/tflint) ruleset that enforces an
+opinionated style and structure for Terraform modules.
 
 The rules don't overlap with the official TFLint rulesets, so you can run this
 plugin next to the bundled `terraform` ruleset. The
