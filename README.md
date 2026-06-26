@@ -106,8 +106,6 @@ Run the built plugin:
 $ cat << EOS > .tflint.hcl
 plugin "redeploy" {
   enabled = true
-  version = "0.4.2"
-  source  = "github.com/RedeployAB/tflint-ruleset-redeploy"
 }
 EOS
 $ tflint
