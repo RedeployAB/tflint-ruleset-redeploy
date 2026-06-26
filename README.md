@@ -1,10 +1,13 @@
 # Redeploy TFLint Ruleset
 
-This repository contains a custom ruleset for TFLint implementing the Redeploy
-Terraform
-[style guide](https://redeploy.atlassian.net/wiki/spaces/ALZ/pages/508002343/Style+guide).
+An opinionated [TFLint](https://github.com/terraform-linters/tflint) ruleset that
+enforces Terraform style and convention best practices: block and argument
+ordering, file structure, naming, and idiomatic declarations.
 
-It is currently a work in progress, rules will be added as they are developed.
+These rules are complementary to the official TFLint rulesets — they do not
+duplicate them — and are designed to run alongside the bundled `terraform`
+ruleset. See the [rule documentation](docs/rules/README.md) for the complete
+list of rules, their severity, and what each one enforces.
 
 ## Requirements
 
@@ -19,7 +22,7 @@ You can install the plugin with `tflint --init`. Declare a config in
 ```hcl
 plugin "redeploy" {
   enabled = true
-  version = "0.2.0"
+  version = "0.4.2"
   source  = "github.com/RedeployAB/tflint-ruleset-redeploy"
 
   signing_key = <<-KEY
@@ -79,10 +82,6 @@ plugin "redeploy" {
 }
 ```
 
-> Note: You will need to authenticate with GitHub to download the plugin. You
-> can do this by setting the `GITHUB_TOKEN` environment variable to a GitHub
-> personal access token with the `read:packages` scope.
-
 ## Rules
 
 For a complete list of implemented rules with descriptions and severity levels,
@@ -108,7 +107,7 @@ You can run the built plugin like the following:
 $ cat << EOS > .tflint.hcl
 plugin "redeploy" {
   enabled = true
-  version = "0.2.0"
+  version = "0.4.2"
   source  = "github.com/RedeployAB/tflint-ruleset-redeploy"
 }
 EOS
