@@ -1,6 +1,8 @@
 package rules
 
 import (
+	"math/big"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
@@ -103,8 +105,9 @@ func createsMultipleInstances(expr hclsyntax.Expression) bool {
 		if val.Type() != cty.Number || val.IsNull() {
 			return false
 		}
-		f, _ := val.AsBigFloat().Float64()
-		return f >= 2
+		// Compare with arbitrary precision; cty numbers are big.Float-backed,
+		// so converting to float64 could misclassify values near the threshold.
+		return val.AsBigFloat().Cmp(big.NewFloat(2)) >= 0
 	default:
 		return false
 	}
