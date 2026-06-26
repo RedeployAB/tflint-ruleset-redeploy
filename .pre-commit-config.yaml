@@ -20,6 +20,8 @@ repos:
     rev: v0.34.0
     hooks:
       - id: markdownlint
+        # CLAUDE.md is a one-line pointer to AGENTS.md, not prose to lint.
+        exclude: "^CLAUDE\\.md$"
   - repo: https://github.com/golangci/golangci-lint
     rev: v2.11.4
     hooks:

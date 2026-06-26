@@ -2,7 +2,7 @@
 
 ## What does this rule do?
 
-This rule enforces proper formatting within module blocks—specifically for the
+This rule enforces proper formatting within module blocks, specifically for the
 `source` (and optionally `version`) attributes. It ensures that there is proper
 spacing (no unexpected empty lines) after these attributes before the block
 ends.
