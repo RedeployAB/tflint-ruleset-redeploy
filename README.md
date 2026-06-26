@@ -21,7 +21,7 @@ You can install the plugin with `tflint --init`. Declare a config in
 ```hcl
 plugin "redeploy" {
   enabled = true
-  version = "0.4.2"
+  version = "0.5.0"
   source  = "github.com/RedeployAB/tflint-ruleset-redeploy"
 
   signing_key = <<-KEY
