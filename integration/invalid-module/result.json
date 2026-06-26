@@ -244,9 +244,9 @@
         },
         {
             "rule": {
-                "name": "terraform_lifecycle_redundant_default",
+                "name": "terraform_redundant_default",
                 "severity": "error",
-                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_lifecycle_redundant_default.md"
+                "link": "https://github.com/RedeployAB/tflint-ruleset-redeploy/blob/main/docs/rules/terraform_redundant_default.md"
             },
             "message": "prevent_destroy should not be set to false (omit instead)",
             "range": {
