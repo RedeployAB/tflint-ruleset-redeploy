@@ -88,3 +88,36 @@ create_before_destroy = false
 		})
 	}
 }
+
+func TestTerraformRedundantDefaultRule_Autofix(t *testing.T) {
+	tests := []struct {
+		Name     string
+		Content  string
+		Expected string
+	}{
+		{
+			Name:     "Autofix removes redundant false defaults across contexts",
+			Content:  readFixture(t, "redundant_default_autofix.tf"),
+			Expected: readFixture(t, "redundant_default_autofix_expected.tf"),
+		},
+	}
+
+	rule := NewTerraformRedundantDefaultRule()
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{
+				"resource.tf": tc.Content,
+			})
+			if err := rule.Check(runner); err != nil {
+				t.Fatalf("Unexpected error: %s", err)
+			}
+			if len(runner.Issues) == 0 {
+				t.Fatal("Expected issues to be found, but none were found")
+			}
+			helper.AssertChanges(t, map[string]string{
+				"resource.tf": tc.Expected,
+			}, runner.Changes())
+		})
+	}
+}
