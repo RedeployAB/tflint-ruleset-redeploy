@@ -1,13 +1,13 @@
 # Redeploy TFLint Ruleset
 
-An opinionated [TFLint](https://github.com/terraform-linters/tflint) ruleset that
-enforces Terraform style and convention best practices: block and argument
-ordering, file structure, naming, and idiomatic declarations.
+An opinionated [TFLint](https://github.com/terraform-linters/tflint) ruleset for
+Terraform style and conventions: block and argument order, file layout, and
+naming.
 
-These rules are complementary to the official TFLint rulesets — they do not
-duplicate them — and are designed to run alongside the bundled `terraform`
-ruleset. See the [rule documentation](docs/rules/README.md) for the complete
-list of rules, their severity, and what each one enforces.
+The rules don't overlap with the official TFLint rulesets, so you can run this
+plugin next to the bundled `terraform` ruleset. The
+[rule documentation](docs/rules/README.md) lists every rule, its severity, and
+what it checks.
 
 ## Requirements
 
@@ -95,13 +95,13 @@ Clone the repository locally and run the following command:
 make
 ```
 
-You can easily install the built plugin with the following:
+Install the built plugin:
 
 ```shell
 make install
 ```
 
-You can run the built plugin like the following:
+Run the built plugin:
 
 ```shell
 $ cat << EOS > .tflint.hcl

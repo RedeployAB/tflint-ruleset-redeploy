@@ -8,8 +8,8 @@ a list of specific attributes.
 ## Why is this important?
 
 `ignore_changes = all` tells Terraform to ignore drift on every attribute of a
-resource after creation. This silently masks configuration changes — including
-ones you did not intend to ignore — and makes the resource's real state opaque
+resource after creation. This silently masks configuration changes, including
+ones you did not intend to ignore, and makes the resource's real state opaque
 in plans. Listing the specific attributes to ignore keeps the intent explicit
 and lets Terraform still reconcile everything else.
 
