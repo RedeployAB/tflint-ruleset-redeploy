@@ -51,6 +51,30 @@ func TestTerraformPreferForEachRule(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name:    "count that resolves to a value >= 2",
+			Content: readFixture(t, "prefer_for_each_evaluate.tf"),
+			Expected: helper.Issues{
+				{
+					Rule:    NewTerraformPreferForEachRule(),
+					Message: "Use 'for_each' instead of 'count' to create multiple instances",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 15, Column: 11},
+						End:      hcl.Pos{Line: 15, Column: 29},
+					},
+				},
+				{
+					Rule:    NewTerraformPreferForEachRule(),
+					Message: "Use 'for_each' instead of 'count' to create multiple instances",
+					Range: hcl.Range{
+						Filename: "resource.tf",
+						Start:    hcl.Pos{Line: 20, Column: 11},
+						End:      hcl.Pos{Line: 20, Column: 16},
+					},
+				},
+			},
+		},
 	}
 
 	rule := NewTerraformPreferForEachRule()

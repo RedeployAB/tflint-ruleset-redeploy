@@ -6,17 +6,21 @@ This rule discourages using the `count` meta-argument to create multiple
 near-identical instances, recommending `for_each` instead.
 
 To avoid false positives, it only flags a `count` expression that
-**unambiguously** creates more than one instance:
+**unambiguously** creates more than one instance. This happens in two ways:
 
-- a numeric literal greater than or equal to `2` (for example `count = 3`), or
-- a `length(...)` call (for example `count = length(var.subnets)`), including
-  when it appears in a ternary result branch
-  (`count = var.create ? length(var.subnets) : 0`).
+- The expression is structurally a multi-instance pattern — a numeric literal
+  greater than or equal to `2` (for example `count = 3`) or a `length(...)` call
+  (for example `count = length(var.subnets)`), including when either appears in a
+  ternary result branch (`count = var.create ? length(var.subnets) : 0`).
+- The expression **evaluates** to a known number greater than or equal to `2`
+  using Terraform's evaluation context — variable defaults, locals, and
+  `.tfvars`. For example, `count = var.instance_count` is flagged when
+  `instance_count` defaults to `3`.
 
 It deliberately does **not** flag conditional `0`/`1` toggles
-(`count = var.create ? 1 : 0`), a literal `0` or `1`, or bare references
-(`count = var.instance_count`), since those do not necessarily create multiple
-instances.
+(`count = var.create ? 1 : 0`) or a literal `0` or `1`. Expressions whose value
+cannot be determined statically — such as a required variable with no default,
+or a count derived from a resource attribute — are left alone.
 
 ## Why is this important?
 

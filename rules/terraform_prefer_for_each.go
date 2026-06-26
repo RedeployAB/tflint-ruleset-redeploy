@@ -73,7 +73,7 @@ func (r *TerraformPreferForEachRule) checkBlocks(body *hclsyntax.Body, runner tf
 		if !ok {
 			continue
 		}
-		if !createsMultipleInstances(countAttr.Expr) {
+		if !createsMultipleInstances(countAttr.Expr) && !evaluatesToMultiple(runner, countAttr.Expr) {
 			continue
 		}
 		if err := runner.EmitIssue(
@@ -111,4 +111,21 @@ func createsMultipleInstances(expr hclsyntax.Expression) bool {
 	default:
 		return false
 	}
+}
+
+// evaluatesToMultiple reports whether the count expression resolves to a known
+// integer >= 2 using Terraform's evaluation context (variable defaults, locals,
+// and .tfvars). Unknown, null, sensitive, or otherwise unevaluable values never
+// invoke the callback, so this does not introduce false positives.
+func evaluatesToMultiple(runner tflint.Runner, expr hclsyntax.Expression) bool {
+	multiple := false
+	if err := runner.EvaluateExpr(expr, func(count int) error {
+		if count >= 2 {
+			multiple = true
+		}
+		return nil
+	}, nil); err != nil {
+		return false
+	}
+	return multiple
 }
