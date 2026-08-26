@@ -1,29 +1,29 @@
 ---
 repos:
   - repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.6.0-2
+    rev: v3.13.1-1
     hooks:
       - id: shfmt
   - repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.9.0
+    rev: v0.11.0
     hooks:
       - id: shellcheck
   - repo: https://github.com/editorconfig-checker/editorconfig-checker
-    rev: v3.1.2
+    rev: v3.11.1
     hooks:
       - id: editorconfig-checker
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.35.1
+    rev: v1.38.0
     hooks:
       - id: yamllint
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.34.0
+    rev: v0.49.1
     hooks:
       - id: markdownlint
         # CLAUDE.md is a one-line pointer to AGENTS.md, not prose to lint.
         exclude: "^CLAUDE\\.md$"
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.11.4
+    rev: v2.13.1
     hooks:
       - id: golangci-lint
         args: ["./..."]
