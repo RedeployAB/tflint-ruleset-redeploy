@@ -31,7 +31,7 @@ jobs:
       - name: Run linter
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a
         with:
-          version: v2.12.2
+          version: v2.13.1
 
   super-linter:
     name: Lint codebase
@@ -67,7 +67,7 @@ jobs:
           VALIDATE_TERRAFORM_TERRASCAN: false
           VALIDATE_GIT_COMMITLINT: false
           VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
-          # super-linter v8.5.0 bundles Go 1.25 which cannot build
-          # golangci-lint for Go 1.26 targets. Re-enable once
-          # super-linter ships with Go 1.26+.
+          # super-linter v8.7.0 bundles a Go toolchain older than this
+          # module's target, so it cannot build golangci-lint for Go 1.27
+          # targets. Re-enable once super-linter ships with Go 1.27+.
           VALIDATE_PRE_COMMIT: false
