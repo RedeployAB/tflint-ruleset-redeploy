@@ -11,7 +11,7 @@ what it checks.
 ## Requirements
 
 - TFLint v0.46+
-- Go v1.26
+- Go v1.27
 
 ## Installation
 
