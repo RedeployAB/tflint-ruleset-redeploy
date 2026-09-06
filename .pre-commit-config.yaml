@@ -23,7 +23,7 @@ repos:
         # CLAUDE.md is a one-line pointer to AGENTS.md, not prose to lint.
         exclude: "^CLAUDE\\.md$"
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.13.1
+    rev: v2.13.2
     hooks:
       - id: golangci-lint
         args: ["./..."]
