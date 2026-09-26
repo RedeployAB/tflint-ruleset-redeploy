@@ -40,11 +40,18 @@ lint:
 fmt:
 	go fmt ./...
 
+# Autofix before fixing lint findings by hand: modernize first, then
+# golangci-lint's own fixes, then wrap long lines to the revive limit.
+fix:
+	go tool modernize -fix ./...
+	golangci-lint run --fix ./...
+	go tool golines -m 120 -w .
+
 vet:
 	go vet ./...
 
 vulncheck:
-	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	go tool govulncheck ./...
 
 # Utility targets
 clean:
@@ -61,8 +68,9 @@ help:
 	@echo "  e2e        - Run end-to-end tests"
 	@echo "  lint       - Run golangci-lint"
 	@echo "  fmt        - Format code"
+	@echo "  fix        - Apply autofixes (modernize, golangci-lint, golines)"
 	@echo "  vet        - Run go vet"
 	@echo "  vulncheck  - Scan for known vulnerabilities (govulncheck)"
 	@echo "  clean      - Remove build artifacts"
 
-.PHONY: build install test coverage benchmarks e2e lint fmt vet vulncheck clean help
+.PHONY: build install test coverage benchmarks e2e lint fmt fix vet vulncheck clean help

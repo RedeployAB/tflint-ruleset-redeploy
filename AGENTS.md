@@ -80,6 +80,16 @@ golangci-lint run
 The project has a `.golangci.yaml` configuration file that defines the linting
 rules. Ensure your code passes all linting checks.
 
+**Autofix first.** Before fixing any lint finding by hand, run:
+
+```bash
+make fix
+```
+
+It applies `modernize`, `golangci-lint --fix` and `golines` in that order. The
+tools are pinned in `go.mod` with the `tool` directive and run via `go tool`,
+so never install or `go run` them at `@latest`.
+
 ## Pre-commit Checklist
 
 Before marking any task as complete, ensure:
@@ -117,6 +127,9 @@ make test
 
 # Run integration tests (plugin will be built and installed automatically)
 make e2e
+
+# Apply autofixes (run before fixing lint findings by hand)
+make fix
 
 # Run linter
 golangci-lint run
