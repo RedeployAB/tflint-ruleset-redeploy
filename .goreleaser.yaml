@@ -30,7 +30,7 @@ changelog:
   # Patterns match the raw commit message; only user-facing types get in.
   filters:
     exclude:
-      - '^(chore|ci|docs|environment|infra|refactor|style|test)(\(.+\))?!?:'
+      - '^(chore|ci|docs|refactor|style|test)(\(.+\))?!?:'
       - "merge conflict"
       - Merge pull request
       - Merge remote-tracking branch
