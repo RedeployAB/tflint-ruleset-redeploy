@@ -535,7 +535,7 @@ func (*TerraformArgumentOrderRule) extractCommentPrefixes(
 		gapText := string(f.TextAt(gapRange).Bytes)
 
 		var commentLines []string
-		for _, line := range strings.Split(gapText, "\n") {
+		for line := range strings.SplitSeq(gapText, "\n") {
 			trimmed := strings.TrimSpace(line)
 			if strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, "//") {
 				commentLines = append(commentLines, trimmed)
@@ -663,7 +663,7 @@ func writeMetaOrderItems(
 		}
 
 		if comment, ok := commentPrefixes[item.startPos]; ok {
-			for _, line := range strings.Split(strings.TrimRight(comment, "\n"), "\n") {
+			for line := range strings.SplitSeq(strings.TrimRight(comment, "\n"), "\n") {
 				result.WriteString("  ")
 				result.WriteString(line)
 				result.WriteString("\n")

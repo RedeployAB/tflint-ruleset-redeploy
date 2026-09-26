@@ -124,10 +124,7 @@ func (r *TerraformSingleBlankLinesRule) emitIssueForMultipleBlankLines(
 
 	// Adjust for the case where we want to keep one newline
 	// The range should cover all the blank lines but we'll replace with one newline
-	endLinePlus := endLine + 1
-	if endLinePlus > len(lines) {
-		endLinePlus = len(lines)
-	}
+	endLinePlus := min(endLine+1, len(lines))
 
 	issueRange := hcl.Range{
 		Filename: filename,
