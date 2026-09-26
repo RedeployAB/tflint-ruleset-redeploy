@@ -27,37 +27,31 @@ archives:
 changelog:
   sort: asc
   use: github
+  # Patterns match the raw commit message; only user-facing types get in.
   filters:
     exclude:
-      - "^test:"
-      - "^test\\("
+      - '^(chore|ci|docs|refactor|style|test)(\(.+\))?!?:'
       - "merge conflict"
       - Merge pull request
       - Merge remote-tracking branch
       - Merge branch
       - go mod tidy
   groups:
-    - title: Dependency updates
-      regexp: '^.*?(.+)\(deps\)!?:.+$'
-      order: 300
     - title: "New Features"
-      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      regexp: '^feat(\(.+\))?!?:.+$'
       order: 100
-    - title: "Security updates"
-      regexp: '^.*?sec(\(.+\))??!?:.+$'
-      order: 150
     - title: "Bug fixes"
-      regexp: '^.*?(fix|refactor)(\(.+\))??!?:.+$'
+      regexp: '^fix(\(.+\))?!?:.+$'
       order: 200
     - title: "Performance improvements"
-      regexp: '^.*?perf(\(.+\))??!?:.+$'
-      order: 250
-    - title: "Documentation updates"
-      regexp: ^.*?docs?(\(.+\))??!?:.+$
+      regexp: '^perf(\(.+\))?!?:.+$'
+      order: 300
+    - title: "Dependency updates"
+      regexp: '^deps(\(.+\))?!?:.+$'
       order: 400
-    - title: "Build process updates"
-      regexp: ^.*?(build|ci)(\(.+\))??!?:.+$
-      order: 400
+    - title: "Build updates"
+      regexp: '^build(\(.+\))?!?:.+$'
+      order: 500
     - title: Other work
       order: 9999
 checksum:
