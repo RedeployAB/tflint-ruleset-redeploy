@@ -30,7 +30,7 @@ changelog:
   # Patterns match the raw commit message; only user-facing types get in.
   filters:
     exclude:
-      - '^(chore|ci|docs|refactor|style|test)(\(.+\))?!?:'
+      - '^(chore|ci|docs|environment|infra|refactor|style|test)(\(.+\))?!?:'
       - "merge conflict"
       - Merge pull request
       - Merge remote-tracking branch
@@ -52,6 +52,10 @@ changelog:
     - title: "Build updates"
       regexp: '^build(\(.+\))?!?:.+$'
       order: 500
+    - title: "Reverts"
+      regexp: '^revert(\(.+\))?!?:.+$'
+      order: 600
+    # Catch-all for subjects that predate the conventional commit checks
     - title: Other work
       order: 9999
 checksum:
