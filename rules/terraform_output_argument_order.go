@@ -191,7 +191,11 @@ func (r *TerraformOutputArgumentOrderRule) sortItemsByExpectedOrder(items []outp
 	orderedItems := make([]outputArgumentItem, len(items))
 	copy(orderedItems, items)
 	sort.Slice(orderedItems, func(i, j int) bool {
-		return orderedItems[i].Index < orderedItems[j].Index
+		if orderedItems[i].Index != orderedItems[j].Index {
+			return orderedItems[i].Index < orderedItems[j].Index
+		}
+		// Keep repeated blocks such as precondition in source order
+		return orderedItems[i].Start < orderedItems[j].Start
 	})
 	return orderedItems
 }
@@ -211,9 +215,10 @@ func (r *TerraformOutputArgumentOrderRule) extractItemTexts(
 	f tflint.Fixer,
 	block *hclsyntax.Block,
 	items []outputArgumentItem,
-) (map[string]string, map[string]string) {
+) (map[string]string, map[int]string) {
 	attrTexts := make(map[string]string)
-	blockTexts := make(map[string]string)
+	// Blocks are keyed by start byte, since an output can hold several precondition blocks
+	blockTexts := make(map[int]string)
 
 	// Get the text for each attribute (attribute names are always lowercase in Terraform)
 	for _, attr := range block.Body.Attributes {
@@ -237,7 +242,7 @@ func (r *TerraformOutputArgumentOrderRule) extractItemTexts(
 				End:      blk.Body.Range().End,
 			}
 			text := f.TextAt(blockRange)
-			blockTexts[TypePrecondition] = string(text.Bytes)
+			blockTexts[blk.DefRange().Start.Byte] = string(text.Bytes)
 		}
 	}
 
@@ -249,7 +254,8 @@ func (r *TerraformOutputArgumentOrderRule) applyReorderedContent(
 	f tflint.Fixer,
 	block *hclsyntax.Block,
 	orderedItems []outputArgumentItem,
-	attrTexts, blockTexts map[string]string,
+	attrTexts map[string]string,
+	blockTexts map[int]string,
 ) error {
 	var result strings.Builder
 
@@ -286,7 +292,8 @@ func (r *TerraformOutputArgumentOrderRule) writeBlockOpening(result *strings.Bui
 func (r *TerraformOutputArgumentOrderRule) writeOrderedItems(
 	result *strings.Builder,
 	orderedItems []outputArgumentItem,
-	attrTexts, blockTexts map[string]string,
+	attrTexts map[string]string,
+	blockTexts map[int]string,
 ) {
 	for i, orderedItem := range orderedItems {
 		if i > 0 {
@@ -298,7 +305,7 @@ func (r *TerraformOutputArgumentOrderRule) writeOrderedItems(
 		}
 
 		if orderedItem.IsBlock {
-			r.writeBlock(result, orderedItem.Name, blockTexts[orderedItem.Name])
+			r.writeBlock(result, orderedItem.Name, blockTexts[orderedItem.Start])
 		} else {
 			r.writeAttribute(result, orderedItem.Name, attrTexts[orderedItem.Name])
 		}

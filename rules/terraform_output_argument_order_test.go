@@ -178,6 +178,11 @@ func TestTerraformOutputArgumentOrderRule_Autofix(t *testing.T) {
 			ExpectedFile: "output_arg_order_autofix_with_precondition_expected.tf",
 		},
 		{
+			Name:         "Autofix - multiple precondition blocks",
+			ContentFile:  "output_arg_order_autofix_multiple_preconditions.tf",
+			ExpectedFile: "output_arg_order_autofix_multiple_preconditions_expected.tf",
+		},
+		{
 			Name:         "Autofix - with depends_on",
 			ContentFile:  "output_arg_order_autofix_with_depends.tf",
 			ExpectedFile: "output_arg_order_autofix_with_depends_expected.tf",
