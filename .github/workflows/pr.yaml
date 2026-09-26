@@ -21,18 +21,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          # Keep in sync with type-enum in commitlint.config.js.
           types: |
+            build
             chore
             ci
+            deps
             docs
+            environment
             feat
             fix
+            infra
+            perf
             refactor
             revert
             style
             test
-            deps
-            infra
           subjectPattern: ^(?![A-Z]).+$
           subjectPatternError: |
             The subject "{subject}" found in the pull request title "{title}"
