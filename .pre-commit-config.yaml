@@ -1,7 +1,7 @@
 ---
 repos:
   - repo: https://github.com/scop/pre-commit-shfmt
-    rev: v3.13.1-1
+    rev: v3.14.1-1
     hooks:
       - id: shfmt
   - repo: https://github.com/koalaman/shellcheck-precommit
@@ -23,7 +23,7 @@ repos:
         # CLAUDE.md is a one-line pointer to AGENTS.md, not prose to lint.
         exclude: "^CLAUDE\\.md$"
   - repo: https://github.com/golangci/golangci-lint
-    rev: v2.13.2
+    rev: v2.14.0
     hooks:
       - id: golangci-lint
         args: ["./..."]
