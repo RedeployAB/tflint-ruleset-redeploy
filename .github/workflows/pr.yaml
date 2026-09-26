@@ -28,10 +28,8 @@ jobs:
             ci
             deps
             docs
-            environment
             feat
             fix
-            infra
             perf
             refactor
             revert
