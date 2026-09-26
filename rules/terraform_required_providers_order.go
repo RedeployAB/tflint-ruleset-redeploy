@@ -1,8 +1,9 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -22,15 +23,15 @@ func NewTerraformRequiredProvidersOrderRule() *TerraformRequiredProvidersOrderRu
 	return &TerraformRequiredProvidersOrderRule{}
 }
 
-func (r *TerraformRequiredProvidersOrderRule) Name() string {
+func (*TerraformRequiredProvidersOrderRule) Name() string {
 	return "terraform_required_providers_order"
 }
 
-func (r *TerraformRequiredProvidersOrderRule) Enabled() bool {
+func (*TerraformRequiredProvidersOrderRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformRequiredProvidersOrderRule) Severity() tflint.Severity {
+func (*TerraformRequiredProvidersOrderRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -103,8 +104,8 @@ func (r *TerraformRequiredProvidersOrderRule) checkRequiredProvidersOrder(
 	}
 
 	// Sort by position in file to get actual order
-	sort.Slice(providers, func(i, j int) bool {
-		return providers[i].Start < providers[j].Start
+	slices.SortFunc(providers, func(a, b providerItem) int {
+		return cmp.Compare(a.Start, b.Start)
 	})
 
 	// Create expected order (alphabetical by name, case-insensitive)
@@ -133,7 +134,7 @@ func (r *TerraformRequiredProvidersOrderRule) checkRequiredProvidersOrder(
 	return nil
 }
 
-func (r *TerraformRequiredProvidersOrderRule) collectProviders(
+func (*TerraformRequiredProvidersOrderRule) collectProviders(
 	block *hclsyntax.Block,
 ) []providerItem {
 	providers := make([]providerItem, 0, len(block.Body.Attributes))
@@ -147,15 +148,15 @@ func (r *TerraformRequiredProvidersOrderRule) collectProviders(
 	return providers
 }
 
-func (r *TerraformRequiredProvidersOrderRule) buildExpectedOrder(
+func (*TerraformRequiredProvidersOrderRule) buildExpectedOrder(
 	providers []providerItem,
 ) []string {
 	expectedOrder := make([]string, len(providers))
 	for i, p := range providers {
 		expectedOrder[i] = p.Name
 	}
-	sort.Slice(expectedOrder, func(i, j int) bool {
-		return strings.ToLower(expectedOrder[i]) < strings.ToLower(expectedOrder[j])
+	slices.SortFunc(expectedOrder, func(a, b string) int {
+		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
 	})
 	return expectedOrder
 }
@@ -191,7 +192,7 @@ func (r *TerraformRequiredProvidersOrderRule) fixProviderOrder(
 	return f.ReplaceText(fullRange, result.String())
 }
 
-func (r *TerraformRequiredProvidersOrderRule) extractProviderTexts(
+func (*TerraformRequiredProvidersOrderRule) extractProviderTexts(
 	f tflint.Fixer,
 	providers []providerItem,
 ) map[string]string {
@@ -203,7 +204,7 @@ func (r *TerraformRequiredProvidersOrderRule) extractProviderTexts(
 	return providerTexts
 }
 
-func (r *TerraformRequiredProvidersOrderRule) buildSpacingMap(
+func (*TerraformRequiredProvidersOrderRule) buildSpacingMap(
 	f tflint.Fixer,
 	providers []providerItem,
 ) map[string]string {
@@ -221,7 +222,7 @@ func (r *TerraformRequiredProvidersOrderRule) buildSpacingMap(
 	return spacingMap
 }
 
-func (r *TerraformRequiredProvidersOrderRule) findSpacing(
+func (*TerraformRequiredProvidersOrderRule) findSpacing(
 	spacingMap map[string]string,
 	prevName, currName string,
 ) string {

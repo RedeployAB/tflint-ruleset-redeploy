@@ -21,15 +21,15 @@ func NewTerraformLocalsFileRule() *TerraformLocalsFileRule {
 	return &TerraformLocalsFileRule{}
 }
 
-func (r *TerraformLocalsFileRule) Name() string {
+func (*TerraformLocalsFileRule) Name() string {
 	return "terraform_locals_file"
 }
 
-func (r *TerraformLocalsFileRule) Enabled() bool {
+func (*TerraformLocalsFileRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformLocalsFileRule) Severity() tflint.Severity {
+func (*TerraformLocalsFileRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -93,6 +93,9 @@ func (r *TerraformLocalsFileRule) emitIssue(
 	rng hcl.Range,
 	filename string,
 ) error {
-	msg := fmt.Sprintf(`"locals" block must be placed in "locals.tf" or "locals.<area>.tf", not %q`, filepath.Base(filename))
+	msg := fmt.Sprintf(
+		`"locals" block must be placed in "locals.tf" or "locals.<area>.tf", not %q`,
+		filepath.Base(filename),
+	)
 	return runner.EmitIssue(r, msg, rng)
 }

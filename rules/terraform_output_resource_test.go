@@ -36,8 +36,9 @@ output "out_bad" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputResourceRule(),
-					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Rule: NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, " +
+						"rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 5, Column: 2},
@@ -57,8 +58,9 @@ output "caller" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputResourceRule(),
-					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Rule: NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, " +
+						"rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 5, Column: 2},
@@ -104,8 +106,9 @@ output "bad_ephemeral" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputResourceRule(),
-					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Rule: NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, " +
+						"rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 5, Column: 2},
@@ -153,8 +156,9 @@ output "bad_index" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputResourceRule(),
-					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Rule: NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, " +
+						"rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 7, Column: 2},
@@ -176,8 +180,9 @@ output "bad_splat" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputResourceRule(),
-					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Rule: NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, " +
+						"rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 7, Column: 2},
@@ -214,8 +219,9 @@ output "bad_with_function" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputResourceRule(),
-					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Rule: NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, " +
+						"rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 7, Column: 2},
@@ -266,8 +272,9 @@ output "bad_for_expression" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputResourceRule(),
-					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Rule: NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, " +
+						"rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 8, Column: 2},
@@ -302,8 +309,9 @@ output "bad_instance_map" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputResourceRule(),
-					Message: "Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+					Rule: NewTerraformOutputResourceRule(),
+					Message: "Output is referencing the entire resource or data, " +
+						"rather than a specific attribute. This can cause schema issues.",
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 7, Column: 2},

@@ -17,15 +17,15 @@ func NewTerraformIgnoreChangesAllRule() *TerraformIgnoreChangesAllRule {
 	return &TerraformIgnoreChangesAllRule{}
 }
 
-func (r *TerraformIgnoreChangesAllRule) Name() string {
+func (*TerraformIgnoreChangesAllRule) Name() string {
 	return "terraform_ignore_changes_all"
 }
 
-func (r *TerraformIgnoreChangesAllRule) Enabled() bool {
+func (*TerraformIgnoreChangesAllRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformIgnoreChangesAllRule) Severity() tflint.Severity {
+func (*TerraformIgnoreChangesAllRule) Severity() tflint.Severity {
 	return tflint.WARNING
 }
 
@@ -59,11 +59,12 @@ func (r *TerraformIgnoreChangesAllRule) processBody(body *hclsyntax.Body, runner
 	for _, block := range body.Blocks {
 		if block.Type == ArgLifecycle {
 			if attr, ok := block.Body.Attributes[ArgIgnoreChanges]; ok && isAllKeyword(attr.Expr) {
-				if err := runner.EmitIssue(
+				err := runner.EmitIssue(
 					r,
 					"Avoid 'ignore_changes = all'; list the specific attributes to ignore instead",
 					attr.Range(),
-				); err != nil {
+				)
+				if err != nil {
 					return err
 				}
 			}

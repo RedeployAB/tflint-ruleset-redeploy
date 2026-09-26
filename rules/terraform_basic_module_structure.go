@@ -16,15 +16,15 @@ func NewTerraformBasicModuleStructureRule() *TerraformBasicModuleStructureRule {
 	return &TerraformBasicModuleStructureRule{}
 }
 
-func (r *TerraformBasicModuleStructureRule) Name() string {
+func (*TerraformBasicModuleStructureRule) Name() string {
 	return "terraform_basic_module_structure"
 }
 
-func (r *TerraformBasicModuleStructureRule) Enabled() bool {
+func (*TerraformBasicModuleStructureRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformBasicModuleStructureRule) Severity() tflint.Severity {
+func (*TerraformBasicModuleStructureRule) Severity() tflint.Severity {
 	return tflint.WARNING
 }
 
@@ -64,11 +64,12 @@ func (r *TerraformBasicModuleStructureRule) Check(runner tflint.Runner) error {
 
 	for _, required := range requiredFiles {
 		if !foundFiles[required] {
-			if err := runner.EmitIssue(
+			err := runner.EmitIssue(
 				r,
 				"Missing required file: "+required,
 				hcl.Range{Filename: required},
-			); err != nil {
+			)
+			if err != nil {
 				return err
 			}
 		}

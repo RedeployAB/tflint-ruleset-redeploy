@@ -70,14 +70,10 @@ func TestEvaluateBoolLiteral(t *testing.T) {
 			value, isLiteral, err := EvaluateBoolLiteral(attr.Expr)
 
 			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got none")
-				}
+				assertEvalError(t, err)
 				return
 			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if !assertNoEvalError(t, err) {
 				return
 			}
 
@@ -161,14 +157,10 @@ func TestEvaluateStringLiteral(t *testing.T) {
 			value, isLiteral, err := EvaluateStringLiteral(attr.Expr)
 
 			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got none")
-				}
+				assertEvalError(t, err)
 				return
 			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if !assertNoEvalError(t, err) {
 				return
 			}
 
@@ -276,14 +268,10 @@ func TestEvaluateTypeExpr(t *testing.T) {
 			typeName, isType, err := EvaluateTypeExpr(attr.Expr)
 
 			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got none")
-				}
+				assertEvalError(t, err)
 				return
 			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if !assertNoEvalError(t, err) {
 				return
 			}
 
@@ -353,14 +341,10 @@ func TestIsNullLiteral(t *testing.T) {
 			isNull, err := IsNullLiteral(attr.Expr)
 
 			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got none")
-				}
+				assertEvalError(t, err)
 				return
 			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if !assertNoEvalError(t, err) {
 				return
 			}
 
@@ -440,25 +424,15 @@ func TestEvaluateNumberLiteral(t *testing.T) {
 			value, isLiteral, err := EvaluateNumberLiteral(attr.Expr)
 
 			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got none")
-				}
+				assertEvalError(t, err)
+				return
+			}
+			if !assertNoEvalError(t, err) {
 				return
 			}
 
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if !assertNumberValue(t, value, tc.expected) {
 				return
-			}
-
-			if value.Type() != cty.Number {
-				t.Errorf("Expected number type, got %s", value.Type().FriendlyName())
-				return
-			}
-
-			intValue, _ := value.AsBigFloat().Int64()
-			if intValue != tc.expected {
-				t.Errorf("Expected value %d, got %d", tc.expected, intValue)
 			}
 
 			if isLiteral != tc.expectLit {
@@ -560,14 +534,10 @@ func TestGetExpressionType(t *testing.T) {
 			exprType, err := GetExpressionType(attr.Expr)
 
 			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got none")
-				}
+				assertEvalError(t, err)
 				return
 			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if !assertNoEvalError(t, err) {
 				return
 			}
 
@@ -583,7 +553,7 @@ func TestEvaluateAttributeValue(t *testing.T) {
 		name        string
 		source      string
 		attrName    string
-		expectedVal interface{}
+		expectedVal any
 		expectLit   bool
 		expectError bool
 	}{
@@ -623,39 +593,15 @@ func TestEvaluateAttributeValue(t *testing.T) {
 			value, isLiteral, err := EvaluateAttributeValue(attr)
 
 			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got none")
-				}
+				assertEvalError(t, err)
 				return
 			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if !assertNoEvalError(t, err) {
 				return
 			}
 
 			// Check the value based on its type
-			switch v := tc.expectedVal.(type) {
-			case bool:
-				if value.Type() != cty.Bool || value.True() != v {
-					t.Errorf("Expected boolean value %v, got %v", v, value)
-				}
-			case string:
-				if value.Type() != cty.String || value.AsString() != v {
-					t.Errorf("Expected string value %q, got %v", v, value)
-				}
-			case int:
-				if value.Type() != cty.Number {
-					t.Errorf("Expected number type, got %s", value.Type().FriendlyName())
-				} else {
-					intVal, _ := value.AsBigFloat().Int64()
-					if intVal != int64(v) {
-						t.Errorf("Expected number value %d, got %d", v, intVal)
-					}
-				}
-			default:
-				t.Errorf("Unexpected type %T", v)
-			}
+			assertCtyValue(t, value, tc.expectedVal)
 
 			if isLiteral != tc.expectLit {
 				t.Errorf("Expected isLiteral %v, got %v", tc.expectLit, isLiteral)
@@ -730,14 +676,10 @@ func TestEvaluateBoolLiteralFromRawText(t *testing.T) {
 			value, isLiteral, err := EvaluateBoolLiteralFromRawText(tc.input)
 
 			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got none")
-				}
+				assertEvalError(t, err)
 				return
 			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if !assertNoEvalError(t, err) {
 				return
 			}
 
@@ -816,14 +758,10 @@ func TestEvaluateStringLiteralFromRawText(t *testing.T) {
 			value, isLiteral, err := EvaluateStringLiteralFromRawText(tc.input)
 
 			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got none")
-				}
+				assertEvalError(t, err)
 				return
 			}
-
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
+			if !assertNoEvalError(t, err) {
 				return
 			}
 
@@ -947,6 +885,72 @@ func TestIsLiteralExpression_NilExpression(t *testing.T) {
 	result := IsLiteralExpression(nil)
 	if result {
 		t.Error("Expected false for nil expression, but got true")
+	}
+}
+
+// assertEvalError asserts that an evaluation returned an error.
+func assertEvalError(t *testing.T, err error) {
+	t.Helper()
+	if err == nil {
+		t.Error("Expected error, but got none")
+	}
+}
+
+// assertNoEvalError asserts that an evaluation succeeded. It returns true
+// when the caller should go on to check the evaluated value.
+func assertNoEvalError(t *testing.T, err error) bool {
+	t.Helper()
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+		return false
+	}
+	return true
+}
+
+// assertNumberValue asserts that value is a number equal to expected. It
+// returns false when value is not a number at all.
+func assertNumberValue(t *testing.T, value cty.Value, expected int64) bool {
+	t.Helper()
+	if value.Type() != cty.Number {
+		t.Errorf("Expected number type, got %s", value.Type().FriendlyName())
+		return false
+	}
+	intValue, _ := value.AsBigFloat().Int64()
+	if intValue != expected {
+		t.Errorf("Expected value %d, got %d", expected, intValue)
+	}
+	return true
+}
+
+// assertCtyValue asserts that value matches expected, a Go bool, string or int.
+func assertCtyValue(t *testing.T, value cty.Value, expected any) {
+	t.Helper()
+	switch v := expected.(type) {
+	case bool:
+		if value.Type() != cty.Bool || value.True() != v {
+			t.Errorf("Expected boolean value %v, got %v", v, value)
+		}
+	case string:
+		if value.Type() != cty.String || value.AsString() != v {
+			t.Errorf("Expected string value %q, got %v", v, value)
+		}
+	case int:
+		assertCtyInt(t, value, v)
+	default:
+		t.Errorf("Unexpected type %T", v)
+	}
+}
+
+// assertCtyInt asserts that value is a number equal to expected.
+func assertCtyInt(t *testing.T, value cty.Value, expected int) {
+	t.Helper()
+	if value.Type() != cty.Number {
+		t.Errorf("Expected number type, got %s", value.Type().FriendlyName())
+		return
+	}
+	intVal, _ := value.AsBigFloat().Int64()
+	if intVal != int64(expected) {
+		t.Errorf("Expected number value %d, got %d", expected, intVal)
 	}
 }
 

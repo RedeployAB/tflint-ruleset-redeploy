@@ -16,15 +16,15 @@ func NewTerraformResourceNameRule() *TerraformResourceNameRule {
 	return &TerraformResourceNameRule{}
 }
 
-func (r *TerraformResourceNameRule) Name() string {
+func (*TerraformResourceNameRule) Name() string {
 	return "terraform_resource_name"
 }
 
-func (r *TerraformResourceNameRule) Enabled() bool {
+func (*TerraformResourceNameRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformResourceNameRule) Severity() tflint.Severity {
+func (*TerraformResourceNameRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -56,11 +56,12 @@ func (r *TerraformResourceNameRule) Check(runner tflint.Runner) error {
 
 		typeWithoutProvider := parts[1]
 		if strings.Contains(resourceName, typeWithoutProvider) {
-			if err := runner.EmitIssue(
+			err := runner.EmitIssue(
 				r,
 				fmt.Sprintf("Resource name repeats resource type '%s'", typeWithoutProvider),
 				block.DefRange,
-			); err != nil {
+			)
+			if err != nil {
 				return err
 			}
 		}

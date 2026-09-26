@@ -1,8 +1,9 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -20,15 +21,15 @@ func NewTerraformProviderSourceOrderRule() *TerraformProviderSourceOrderRule {
 	return &TerraformProviderSourceOrderRule{}
 }
 
-func (r *TerraformProviderSourceOrderRule) Name() string {
+func (*TerraformProviderSourceOrderRule) Name() string {
 	return "terraform_provider_source_order"
 }
 
-func (r *TerraformProviderSourceOrderRule) Enabled() bool {
+func (*TerraformProviderSourceOrderRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformProviderSourceOrderRule) Severity() tflint.Severity {
+func (*TerraformProviderSourceOrderRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -65,17 +66,29 @@ func (r *TerraformProviderSourceOrderRule) processBody(
 	for _, block := range body.Blocks {
 		// Looking for a "terraform" block
 		if block.Type == TypeTerraform {
-			// Inside it, we want sub-block "required_providers"
-			for _, sub := range block.Body.Blocks {
-				if sub.Type == TypeRequiredProviders {
-					if err := r.checkRequiredProvidersBlock(sub, runner); err != nil {
-						return err
-					}
-				}
+			if err := r.checkTerraformBlock(block, runner); err != nil {
+				return err
 			}
 		}
 		// Recurse
 		if err := r.processBody(block.Body, runner); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkTerraformBlock checks every "required_providers" sub-block of a
+// "terraform" block.
+func (r *TerraformProviderSourceOrderRule) checkTerraformBlock(
+	block *hclsyntax.Block,
+	runner tflint.Runner,
+) error {
+	for _, sub := range block.Body.Blocks {
+		if sub.Type != TypeRequiredProviders {
+			continue
+		}
+		if err := r.checkRequiredProvidersBlock(sub, runner); err != nil {
 			return err
 		}
 	}
@@ -126,8 +139,8 @@ func (r *TerraformProviderSourceOrderRule) checkProviderObject(
 		})
 	}
 	// Sort items by their Index (position in file)
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Index < items[j].Index
+	slices.SortFunc(items, func(a, b item) int {
+		return cmp.Compare(a.Index, b.Index)
 	})
 
 	var sourcePos, versionPos *item

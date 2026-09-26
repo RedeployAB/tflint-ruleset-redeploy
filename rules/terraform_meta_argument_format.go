@@ -18,15 +18,15 @@ func NewTerraformMetaArgumentFormatRule() *TerraformMetaArgumentFormatRule {
 	return &TerraformMetaArgumentFormatRule{}
 }
 
-func (r *TerraformMetaArgumentFormatRule) Name() string {
+func (*TerraformMetaArgumentFormatRule) Name() string {
 	return "terraform_meta_argument_format"
 }
 
-func (r *TerraformMetaArgumentFormatRule) Enabled() bool {
+func (*TerraformMetaArgumentFormatRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformMetaArgumentFormatRule) Severity() tflint.Severity {
+func (*TerraformMetaArgumentFormatRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -145,42 +145,56 @@ func (r *TerraformMetaArgumentFormatRule) processBody(body *hclsyntax.Body, runn
 	return nil
 }
 
+// metaArgLines records the line positions of the meta-arguments in a block.
+// A value of -1 means the meta-argument is absent.
+type metaArgLines struct {
+	countForEachEnd int
+	providerEnd     int
+	lifecycleStart  int
+	dependsOnStart  int
+}
+
 // gatherMetaArgEndLines uses the block's attributes/child blocks to compute where
 // each meta argument ends (last line). Called in checkBlock() just before we do
 // the blank-line checks.
-func (r *TerraformMetaArgumentFormatRule) gatherMetaArgEndLines(
-	block *hclsyntax.Block,
-) (countForEachEndLine, providerEndLine, lifecycleStartLine, dependsOnStartLine int) {
-	countForEachEndLine, providerEndLine, lifecycleStartLine, dependsOnStartLine = -1, -1, -1, -1
+func (*TerraformMetaArgumentFormatRule) gatherMetaArgEndLines(block *hclsyntax.Block) metaArgLines {
+	result := metaArgLines{
+		countForEachEnd: -1,
+		providerEnd:     -1,
+		lifecycleStart:  -1,
+		dependsOnStart:  -1,
+	}
 
 	// Check each attribute (attribute names are always lowercase in Terraform)
 	for _, attr := range block.Body.Attributes {
+		rng := attr.Range()
 		switch attr.Name {
 		case ArgCount, ArgForEach:
-			if attr.Range().End.Line > countForEachEndLine {
-				countForEachEndLine = attr.Range().End.Line
-			}
+			result.countForEachEnd = max(result.countForEachEnd, rng.End.Line)
 		case ArgProvider:
-			if attr.Range().End.Line > providerEndLine {
-				providerEndLine = attr.Range().End.Line
-			}
+			result.providerEnd = max(result.providerEnd, rng.End.Line)
 		case ArgDependsOn:
-			if dependsOnStartLine == -1 || attr.Range().Start.Line < dependsOnStartLine {
-				dependsOnStartLine = attr.Range().Start.Line
-			}
+			result.dependsOnStart = minPresentLine(result.dependsOnStart, rng.Start.Line)
 		}
 	}
 
 	// Check each child block (e.g. lifecycle) - block types are always lowercase
 	for _, child := range block.Body.Blocks {
 		if child.Type == ArgLifecycle {
-			if lifecycleStartLine == -1 || child.DefRange().Start.Line < lifecycleStartLine {
-				lifecycleStartLine = child.DefRange().Start.Line
-			}
+			result.lifecycleStart = minPresentLine(result.lifecycleStart, child.DefRange().Start.Line)
 		}
 	}
 
-	return
+	return result
+}
+
+// minPresentLine returns the smaller of current and candidate, treating a
+// current value of -1 as "not yet set".
+func minPresentLine(current, candidate int) int {
+	if current == -1 || candidate < current {
+		return candidate
+	}
+	return current
 }
 
 // checkBlock checks blank lines after top and before bottom meta-arguments
@@ -202,35 +216,35 @@ func (r *TerraformMetaArgumentFormatRule) checkBlock(
 	lines := strings.Split(string(hclFile.Bytes), "\n")
 
 	startLine := srcRange.Start.Line - 1
-	endLine := srcRange.End.Line - 1
-	if endLine >= len(lines) {
-		endLine = len(lines) - 1
-	}
+	endLine := min(srcRange.End.Line-1, len(lines)-1)
 
-	countForEachEndLine, providerEndLine, lifecycleStartLine, dependsOnStartLine :=
-		r.gatherMetaArgEndLines(block)
+	metaLines := r.gatherMetaArgEndLines(block)
 
 	// Blank line after top meta-arguments
-	topEndLine := Max(countForEachEndLine, providerEndLine)
+	topEndLine := Max(metaLines.countForEachEnd, metaLines.providerEnd)
 	if topEndLine >= 0 {
-		if err := r.checkBlankLineAfterTopMetaArgs(lines, topEndLine, endLine, srcRange, runner); err != nil {
+		err = r.checkBlankLineAfterTopMetaArgs(lines, topEndLine, endLine, srcRange, runner)
+		if err != nil {
 			return err
 		}
 	}
 
 	// Blank line before bottom meta-arguments
-	for argName, argStartLine := range map[string]int{
-		ArgLifecycle: lifecycleStartLine,
-		ArgDependsOn: dependsOnStartLine,
-	} {
-		if argStartLine >= 0 {
-			if err := r.checkBlankLineBeforeBottomMetaArgs(
-				lines, argName, argStartLine, startLine, srcRange, runner,
-			); err != nil {
-				return err
-			}
+	bottomArgs := []struct {
+		name      string
+		startLine int
+	}{
+		{name: ArgLifecycle, startLine: metaLines.lifecycleStart},
+		{name: ArgDependsOn, startLine: metaLines.dependsOnStart},
+	}
+	for _, arg := range bottomArgs {
+		if arg.startLine < 0 {
+			continue
+		}
+		err = r.checkBlankLineBeforeBottomMetaArgs(lines, arg.name, arg.startLine, startLine, srcRange, runner)
+		if err != nil {
+			return err
 		}
 	}
-	// Done
 	return nil
 }

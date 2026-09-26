@@ -1,7 +1,8 @@
 package rules
 
 import (
-	"sort"
+	"cmp"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -35,7 +36,7 @@ type item struct {
 //   - 0 if there are no blank lines
 //   - 1 if there is exactly one group of contiguous blank lines
 //   - 2 or more if multiple separate groups of blank lines appear
-func (r *TerraformBlockFormatRule) countActualBlankLines(
+func (*TerraformBlockFormatRule) countActualBlankLines(
 	lines []string,
 	fromLine, toLine int,
 ) int {
@@ -64,15 +65,15 @@ func NewTerraformBlockFormatRule() *TerraformBlockFormatRule {
 	return &TerraformBlockFormatRule{}
 }
 
-func (r *TerraformBlockFormatRule) Name() string {
+func (*TerraformBlockFormatRule) Name() string {
 	return "terraform_block_format"
 }
 
-func (r *TerraformBlockFormatRule) Enabled() bool {
+func (*TerraformBlockFormatRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformBlockFormatRule) Severity() tflint.Severity {
+func (*TerraformBlockFormatRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -100,7 +101,7 @@ func (r *TerraformBlockFormatRule) Check(runner tflint.Runner) error {
 
 		if body, ok := syntaxFile.Body.(*hclsyntax.Body); ok {
 			// Process top-level blocks with type filtering
-			if err := r.processBody(body, runner, lines, true); err != nil {
+			if err := r.processTopLevelBody(body, runner, lines); err != nil {
 				return err
 			}
 		}
@@ -108,17 +109,38 @@ func (r *TerraformBlockFormatRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
-func (r *TerraformBlockFormatRule) processBody(body *hclsyntax.Body, runner tflint.Runner, lines []string, isTopLevel bool) error {
+// processTopLevelBody checks the top-level blocks of interest and
+// recursively ALL nested blocks inside every top-level block.
+func (r *TerraformBlockFormatRule) processTopLevelBody(
+	body *hclsyntax.Body,
+	runner tflint.Runner,
+	lines []string,
+) error {
 	for _, blk := range body.Blocks {
 		// At top level, only check specific block types
-		// Inside those blocks, check ALL nested blocks
-		if !isTopLevel || isBlockTypeOfInterest(blk.Type) {
+		if isBlockTypeOfInterest(blk.Type) {
 			if err := r.checkBlock(blk, runner, lines); err != nil {
 				return err
 			}
 		}
-		// Recursively process nested blocks - but not at top level anymore
-		if err := r.processBody(blk.Body, runner, lines, false); err != nil {
+		if err := r.processNestedBody(blk.Body, runner, lines); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// processNestedBody checks ALL blocks in a nested body, recursively.
+func (r *TerraformBlockFormatRule) processNestedBody(
+	body *hclsyntax.Body,
+	runner tflint.Runner,
+	lines []string,
+) error {
+	for _, blk := range body.Blocks {
+		if err := r.checkBlock(blk, runner, lines); err != nil {
+			return err
+		}
+		if err := r.processNestedBody(blk.Body, runner, lines); err != nil {
 			return err
 		}
 	}
@@ -135,7 +157,7 @@ func (r *TerraformBlockFormatRule) checkBlock(block *hclsyntax.Block, runner tfl
 	return r.checkItemsSpacing(items, block, runner, lines)
 }
 
-func (r *TerraformBlockFormatRule) collectItems(block *hclsyntax.Block) ([]item, error) {
+func (*TerraformBlockFormatRule) collectItems(block *hclsyntax.Block) ([]item, error) {
 	var items []item
 
 	for _, attr := range block.Body.Attributes {
@@ -158,8 +180,8 @@ func (r *TerraformBlockFormatRule) collectItems(block *hclsyntax.Block) ([]item,
 		})
 	}
 
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].StartLine < items[j].StartLine
+	slices.SortFunc(items, func(a, b item) int {
+		return cmp.Compare(a.StartLine, b.StartLine)
 	})
 
 	return items, nil
@@ -171,32 +193,6 @@ func (r *TerraformBlockFormatRule) checkItemsSpacing(
 	runner tflint.Runner,
 	lines []string,
 ) error {
-
-	// Helper functions to check spacing logic:
-	checkFirstBlockSpacing := func(linesBetween int, rng hcl.Range, hasAttributesBefore bool) error {
-		if !hasAttributesBefore {
-			// No attributes before this block => expect 0 blank lines
-			if linesBetween != 0 {
-				return r.emitIssue(runner, rng,
-					"Block should appear immediately after opening brace when it's the first item (no blank lines)")
-			}
-		} else {
-			// Has attributes before this block => expect exactly 1 blank line
-			if linesBetween != 1 {
-				return r.emitIssue(runner, rng, "Expected exactly one blank line before this block")
-			}
-		}
-		return nil
-	}
-
-	checkSubsequentBlockSpacing := func(linesBetween int, rng hcl.Range) error {
-		// Always expect exactly 1 blank line for subsequent blocks
-		if linesBetween != 1 {
-			return r.emitIssue(runner, rng, "Expected exactly one blank line before this block")
-		}
-		return nil
-	}
-
 	// Use DefRange().Start.Line for the line with the 'resource'/'data'/'provider' etc.
 	previousEndLine := block.DefRange().Start.Line
 	firstBlock := true
@@ -215,20 +211,30 @@ func (r *TerraformBlockFormatRule) checkItemsSpacing(
 			previousEndLine, // fromLine (inclusive)
 			it.StartLine,    // toLine   (exclusive)
 		)
-		if firstBlock {
-			if err2 := checkFirstBlockSpacing(linesBetween, it.Range, hasSeenAttributes); err2 != nil {
-				return err2
-			}
-			firstBlock = false
-		} else {
-			if err2 := checkSubsequentBlockSpacing(linesBetween, it.Range); err2 != nil {
-				return err2
+		expectedBlankLines := 1
+		if firstBlock && !hasSeenAttributes {
+			// No attributes before the first block => expect 0 blank lines
+			expectedBlankLines = 0
+		}
+		if linesBetween != expectedBlankLines {
+			if err := r.emitIssue(runner, it.Range, blockSpacingMessage(expectedBlankLines)); err != nil {
+				return err
 			}
 		}
+		firstBlock = false
 		previousEndLine = it.EndLine
 	}
 
 	return nil
+}
+
+// blockSpacingMessage returns the issue message for a nested block that is
+// not preceded by the expected number of blank lines.
+func blockSpacingMessage(expectedBlankLines int) string {
+	if expectedBlankLines == 0 {
+		return "Block should appear immediately after opening brace when it's the first item (no blank lines)"
+	}
+	return "Expected exactly one blank line before this block"
 }
 
 func (r *TerraformBlockFormatRule) emitIssue(runner tflint.Runner, rng hcl.Range, msg string) error {

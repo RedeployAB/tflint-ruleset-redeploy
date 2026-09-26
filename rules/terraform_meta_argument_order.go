@@ -1,8 +1,9 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -28,15 +29,15 @@ func NewTerraformMetaArgumentOrderRule() *TerraformArgumentOrderRule {
 	return &TerraformArgumentOrderRule{}
 }
 
-func (r *TerraformArgumentOrderRule) Name() string {
+func (*TerraformArgumentOrderRule) Name() string {
 	return "terraform_meta_argument_order"
 }
 
-func (r *TerraformArgumentOrderRule) Enabled() bool {
+func (*TerraformArgumentOrderRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformArgumentOrderRule) Severity() tflint.Severity {
+func (*TerraformArgumentOrderRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -118,7 +119,7 @@ func (r *TerraformArgumentOrderRule) checkBlock(block *hclsyntax.Block, runner t
 	return r.checkMetaArgSequence(metaArgs, desiredSequence, block, blockLabels, runner)
 }
 
-func (r *TerraformArgumentOrderRule) getBottomMetaArgs(blockType string) []string {
+func (*TerraformArgumentOrderRule) getBottomMetaArgs(blockType string) []string {
 	switch blockType {
 	case TypeResource:
 		return []string{ArgLifecycle, ArgDependsOn}
@@ -129,57 +130,23 @@ func (r *TerraformArgumentOrderRule) getBottomMetaArgs(blockType string) []strin
 	}
 }
 
-func (r *TerraformArgumentOrderRule) checkTopMetaArgPositions(block *hclsyntax.Block, blockLabels string, runner tflint.Runner) (bool, error) {
-	topMetaArgs := r.getTopMetaArgs(block.Type)
-	if len(topMetaArgs) == 0 {
+func (r *TerraformArgumentOrderRule) checkTopMetaArgPositions(
+	block *hclsyntax.Block,
+	blockLabels string,
+	runner tflint.Runner,
+) (bool, error) {
+	if len(r.getTopMetaArgs(block.Type)) == 0 {
 		return false, nil
 	}
 
-	topSet := make(map[string]bool, len(topMetaArgs))
-	for _, name := range topMetaArgs {
-		topSet[name] = true
-	}
-
-	bottomMetaArgs := r.getBottomMetaArgs(block.Type)
-	bottomSet := make(map[string]bool, len(bottomMetaArgs))
-	for _, name := range bottomMetaArgs {
-		bottomSet[name] = true
-	}
-
-	var items []metaOrderItem
-
-	for _, attr := range block.Body.Attributes {
-		items = append(items, metaOrderItem{
-			name:     attr.Name,
-			startPos: attr.Range().Start.Byte,
-			endByte:  attr.Range().End.Byte,
-			isBlock:  false,
-			isTop:    topSet[attr.Name],
-			isBottom: bottomSet[attr.Name],
-		})
-	}
-	for _, childBlock := range block.Body.Blocks {
-		items = append(items, metaOrderItem{
-			name:     childBlock.Type,
-			startPos: childBlock.DefRange().Start.Byte,
-			endByte:  childBlock.Body.Range().End.Byte,
-			isBlock:  true,
-			isTop:    topSet[childBlock.Type],
-			isBottom: bottomSet[childBlock.Type],
-		})
-	}
-
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].startPos < items[j].startPos
-	})
+	items := r.collectMetaOrderItems(block)
 
 	// Find the minimum start position of any regular content item (neither top nor bottom)
 	minRegularContentPos := -1
 	for _, it := range items {
-		if !it.isTop && !it.isBottom {
-			if minRegularContentPos < 0 || it.startPos < minRegularContentPos {
-				minRegularContentPos = it.startPos
-			}
+		isRegular := !it.isTop && !it.isBottom
+		if isRegular && (minRegularContentPos < 0 || it.startPos < minRegularContentPos) {
+			minRegularContentPos = it.startPos
 		}
 	}
 
@@ -231,25 +198,9 @@ func (r *TerraformArgumentOrderRule) fixTopMetaArgPositions(
 		}
 	}
 
-	// Sort top by desired order
-	topMetaArgs := r.getTopMetaArgs(block.Type)
-	topOrder := make(map[string]int, len(topMetaArgs))
-	for i, name := range topMetaArgs {
-		topOrder[name] = i
-	}
-	sort.Slice(top, func(i, j int) bool {
-		return topOrder[top[i].name] < topOrder[top[j].name]
-	})
-
-	// Sort bottom by desired order
-	bottomMetaArgs := r.getBottomMetaArgs(block.Type)
-	bottomOrder := make(map[string]int, len(bottomMetaArgs))
-	for i, name := range bottomMetaArgs {
-		bottomOrder[name] = i
-	}
-	sort.Slice(bottom, func(i, j int) bool {
-		return bottomOrder[bottom[i].name] < bottomOrder[bottom[j].name]
-	})
+	// Sort top and bottom by desired order
+	sortMetaOrderItemsByName(top, r.getTopMetaArgs(block.Type))
+	sortMetaOrderItemsByName(bottom, r.getBottomMetaArgs(block.Type))
 
 	ordered := make([]metaOrderItem, 0, len(items))
 	ordered = append(ordered, top...)
@@ -270,7 +221,7 @@ func (r *TerraformArgumentOrderRule) fixTopMetaArgPositions(
 	return f.ReplaceText(fullBlockRange, result.String())
 }
 
-func (r *TerraformArgumentOrderRule) getTopMetaArgs(blockType string) []string {
+func (*TerraformArgumentOrderRule) getTopMetaArgs(blockType string) []string {
 	switch blockType {
 	case TypeResource:
 		return []string{ArgProvider, ArgCount, ArgForEach}
@@ -281,25 +232,13 @@ func (r *TerraformArgumentOrderRule) getTopMetaArgs(blockType string) []string {
 	}
 }
 
-func (r *TerraformArgumentOrderRule) checkBottomMetaArgPositions(block *hclsyntax.Block, blockLabels string, runner tflint.Runner) (bool, error) {
-	bottomMetaArgs := r.getBottomMetaArgs(block.Type)
-	if len(bottomMetaArgs) == 0 {
-		return false, nil
-	}
+// collectMetaOrderItems returns all attributes and child blocks of block,
+// classified as top/bottom meta-arguments and sorted by their position in the file.
+func (r *TerraformArgumentOrderRule) collectMetaOrderItems(block *hclsyntax.Block) []metaOrderItem {
+	topSet := stringSet(r.getTopMetaArgs(block.Type))
+	bottomSet := stringSet(r.getBottomMetaArgs(block.Type))
 
-	bottomSet := make(map[string]bool, len(bottomMetaArgs))
-	for _, name := range bottomMetaArgs {
-		bottomSet[name] = true
-	}
-
-	topMetaArgs := r.getTopMetaArgs(block.Type)
-	topSet := make(map[string]bool, len(topMetaArgs))
-	for _, name := range topMetaArgs {
-		topSet[name] = true
-	}
-
-	var items []metaOrderItem
-
+	items := make([]metaOrderItem, 0, len(block.Body.Attributes)+len(block.Body.Blocks))
 	for _, attr := range block.Body.Attributes {
 		items = append(items, metaOrderItem{
 			name:     attr.Name,
@@ -321,9 +260,43 @@ func (r *TerraformArgumentOrderRule) checkBottomMetaArgPositions(block *hclsynta
 		})
 	}
 
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].startPos < items[j].startPos
+	slices.SortFunc(items, func(a, b metaOrderItem) int {
+		return cmp.Compare(a.startPos, b.startPos)
 	})
+	return items
+}
+
+// stringSet builds a membership set from names.
+func stringSet(names []string) map[string]bool {
+	set := make(map[string]bool, len(names))
+	for _, name := range names {
+		set[name] = true
+	}
+	return set
+}
+
+// sortMetaOrderItemsByName sorts items in place by the position of their name
+// in order. Items with equal rank keep their relative order.
+func sortMetaOrderItemsByName(items []metaOrderItem, order []string) {
+	rank := make(map[string]int, len(order))
+	for i, name := range order {
+		rank[name] = i
+	}
+	slices.SortStableFunc(items, func(a, b metaOrderItem) int {
+		return cmp.Compare(rank[a.name], rank[b.name])
+	})
+}
+
+func (r *TerraformArgumentOrderRule) checkBottomMetaArgPositions(
+	block *hclsyntax.Block,
+	blockLabels string,
+	runner tflint.Runner,
+) (bool, error) {
+	if len(r.getBottomMetaArgs(block.Type)) == 0 {
+		return false, nil
+	}
+
+	items := r.collectMetaOrderItems(block)
 
 	// Find the maximum start position of any non-bottom item
 	maxNonBottomPos := -1
@@ -356,7 +329,7 @@ func (r *TerraformArgumentOrderRule) checkBottomMetaArgPositions(block *hclsynta
 	return false, nil
 }
 
-func (r *TerraformArgumentOrderRule) getDesiredSequence(blockType string) []string {
+func (*TerraformArgumentOrderRule) getDesiredSequence(blockType string) []string {
 	switch blockType {
 	case TypeResource:
 		return []string{ArgProvider, ArgCount + "|" + ArgForEach, ArgLifecycle, ArgDependsOn}
@@ -370,7 +343,7 @@ func (r *TerraformArgumentOrderRule) getDesiredSequence(blockType string) []stri
 // collectMetaArgumentsInLexOrder collects meta-arguments (count, for_each, provider, depends_on, lifecycle)
 // in the exact lexical order they appear in the block. This ensures we don’t incorrectly treat
 // “depends_on” or others as out-of-order if they actually appear properly in the file.
-func (r *TerraformArgumentOrderRule) collectMetaArgumentsInLexOrder(block *hclsyntax.Block) []string {
+func (*TerraformArgumentOrderRule) collectMetaArgumentsInLexOrder(block *hclsyntax.Block) []string {
 	type item struct {
 		Name     string
 		Type     string // "attr" or "block"
@@ -395,8 +368,8 @@ func (r *TerraformArgumentOrderRule) collectMetaArgumentsInLexOrder(block *hclsy
 	}
 
 	// sort them by lexical StartIdx so we see them in the actual file order
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].StartIdx < items[j].StartIdx
+	slices.SortFunc(items, func(a, b item) int {
+		return cmp.Compare(a.StartIdx, b.StartIdx)
 	})
 
 	var metaArgs []string
@@ -479,66 +452,62 @@ func (r *TerraformArgumentOrderRule) checkMetaArgSequence(
 	// 2) We'll keep track of the highest index found so far
 	lastIndex := -1
 
-	// Helper to find the actual index of a meta-argument if it exists
-	// returns -1 if not found
-	getIndex := func(arg string) int {
-		if i, ok := metaArgIndices[arg]; ok {
-			return i
-		}
-		return -1
-	}
-
-	for i := range desiredSequence {
-		want := desiredSequence[i]
-
-		// If we are dealing with "count|for_each"
+	for _, want := range desiredSequence {
+		var (
+			newIndex int
+			err      error
+		)
 		if want == ArgCount+"|"+ArgForEach {
-			countIdx := getIndex(ArgCount)
-			forEachIdx := getIndex(ArgForEach)
-
+			forEachIdx := metaArgIndex(metaArgIndices, ArgForEach)
+			// If both are present, pick whichever is earlier
+			foundIdx := earliestPresentIndex(metaArgIndex(metaArgIndices, ArgCount), forEachIdx)
 			// If both are absent, skip
-			if countIdx < 0 && forEachIdx < 0 {
+			if foundIdx < 0 {
 				continue
 			}
-			// If both are present, pick whichever is earlier
-			var foundIdx int
-			switch {
-			case countIdx >= 0 && forEachIdx >= 0:
-				if countIdx < forEachIdx {
-					foundIdx = countIdx
-				} else {
-					foundIdx = forEachIdx
-				}
-			case countIdx >= 0:
-				foundIdx = countIdx
-			default:
-				foundIdx = forEachIdx
-			}
-
-			newIndex, err := r.checkCountOrForEach(foundIdx, forEachIdx, lastIndex, block, blockLabels, desiredSequence, runner)
-			if err != nil {
-				return err
-			}
-			lastIndex = newIndex
+			newIndex, err = r.checkCountOrForEach(
+				foundIdx, forEachIdx, lastIndex, block, blockLabels, desiredSequence, runner,
+			)
 		} else {
-			idx := getIndex(want)
+			idx := metaArgIndex(metaArgIndices, want)
 			// not present -> skip
 			if idx < 0 {
 				continue
 			}
-			newIndex, err := r.checkSingleArg(want, idx, lastIndex, block, blockLabels, desiredSequence, runner)
-			if err != nil {
-				return err
-			}
-			lastIndex = newIndex
+			newIndex, err = r.checkSingleArg(want, idx, lastIndex, block, blockLabels, desiredSequence, runner)
 		}
+		if err != nil {
+			return err
+		}
+		lastIndex = newIndex
 	}
 	return nil
 }
 
+// metaArgIndex returns the index of arg in indices, or -1 if it is absent.
+func metaArgIndex(indices map[string]int, arg string) int {
+	if i, ok := indices[arg]; ok {
+		return i
+	}
+	return -1
+}
+
+// earliestPresentIndex returns the smaller of two indices, ignoring negative
+// (absent) values. It returns -1 when both are absent.
+func earliestPresentIndex(a, b int) int {
+	switch {
+	case a >= 0 && b >= 0:
+		return min(a, b)
+	case a >= 0:
+		return a
+	default:
+		return b
+	}
+}
+
 // extractCommentPrefixes scans the text gaps between consecutive items for comment lines.
 // Returns a map keyed by item startPos containing the comment text (with trailing newline).
-func (r *TerraformArgumentOrderRule) extractCommentPrefixes(
+func (*TerraformArgumentOrderRule) extractCommentPrefixes(
 	f tflint.Fixer,
 	block *hclsyntax.Block,
 	items []metaOrderItem,
@@ -605,14 +574,7 @@ func (r *TerraformArgumentOrderRule) fixBottomMetaArgPositions(
 	}
 
 	// Sort bottom by fixed order (lifecycle before depends_on)
-	bottomMetaArgs := r.getBottomMetaArgs(block.Type)
-	bottomOrder := make(map[string]int, len(bottomMetaArgs))
-	for i, name := range bottomMetaArgs {
-		bottomOrder[name] = i
-	}
-	sort.Slice(bottom, func(i, j int) bool {
-		return bottomOrder[bottom[i].name] < bottomOrder[bottom[j].name]
-	})
+	sortMetaOrderItemsByName(bottom, r.getBottomMetaArgs(block.Type))
 
 	ordered := make([]metaOrderItem, 0, len(items))
 	ordered = append(ordered, nonBottom...)
@@ -633,7 +595,7 @@ func (r *TerraformArgumentOrderRule) fixBottomMetaArgPositions(
 }
 
 // extractMetaOrderItemTexts extracts text for all attributes and blocks in a resource/module block
-func (r *TerraformArgumentOrderRule) extractMetaOrderItemTexts(
+func (*TerraformArgumentOrderRule) extractMetaOrderItemTexts(
 	f tflint.Fixer,
 	block *hclsyntax.Block,
 	items []metaOrderItem,

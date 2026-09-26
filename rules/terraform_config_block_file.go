@@ -18,15 +18,15 @@ func NewTerraformConfigBlockFileRule() *TerraformConfigBlockFileRule {
 	return &TerraformConfigBlockFileRule{}
 }
 
-func (r *TerraformConfigBlockFileRule) Name() string {
+func (*TerraformConfigBlockFileRule) Name() string {
 	return "terraform_config_block_file"
 }
 
-func (r *TerraformConfigBlockFileRule) Enabled() bool {
+func (*TerraformConfigBlockFileRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformConfigBlockFileRule) Severity() tflint.Severity {
+func (*TerraformConfigBlockFileRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -69,11 +69,12 @@ func (r *TerraformConfigBlockFileRule) processBody(
 		// Block types are always lowercase in Terraform
 		if blk.Type == TypeTerraform {
 			// Found a terraform config block in the wrong file => error
-			if err := runner.EmitIssue(
+			err := runner.EmitIssue(
 				r,
 				fmt.Sprintf(`"terraform" config block must appear in "terraform.tf", not %q`, filepath.Base(filename)),
 				blk.DefRange(),
-			); err != nil {
+			)
+			if err != nil {
 				return err
 			}
 		}

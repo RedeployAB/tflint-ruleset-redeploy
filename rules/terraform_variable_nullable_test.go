@@ -120,7 +120,7 @@ func TestTerraformVariableNullableRuleAutofix(t *testing.T) {
 
 			// Check that we have issues
 			if len(runner.Issues) == 0 {
-				t.Fatalf("Expected issues but got none")
+				t.Fatal("Expected issues but got none")
 			}
 
 			// Check the autofix

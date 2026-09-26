@@ -17,15 +17,15 @@ func NewTerraformSingleBlankLinesRule() *TerraformSingleBlankLinesRule {
 	return &TerraformSingleBlankLinesRule{}
 }
 
-func (r *TerraformSingleBlankLinesRule) Name() string {
+func (*TerraformSingleBlankLinesRule) Name() string {
 	return "terraform_single_blank_lines"
 }
 
-func (r *TerraformSingleBlankLinesRule) Enabled() bool {
+func (*TerraformSingleBlankLinesRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformSingleBlankLinesRule) Severity() tflint.Severity {
+func (*TerraformSingleBlankLinesRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -72,37 +72,41 @@ func (r *TerraformSingleBlankLinesRule) checkBody(
 	blankStartLine := -1
 
 	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
+		if strings.TrimSpace(line) == "" {
 			if blankCount == 0 {
 				// First blank line in sequence
 				blankStartLine = i
 			}
 			blankCount++
-		} else {
-			// Check if we just finished a sequence of multiple blank lines
-			if blankCount > 1 {
-				if err := r.emitIssueForMultipleBlankLines(
-					runner, filename, lineOffsets, blankStartLine, i-1,
-				); err != nil {
-					return err
-				}
-			}
-			blankCount = 0
-			blankStartLine = -1
+			continue
 		}
+		// Check if we just finished a sequence of multiple blank lines
+		err := r.emitIfMultipleBlankLines(runner, filename, lineOffsets, blankCount, blankStartLine, i-1)
+		if err != nil {
+			return err
+		}
+		blankCount = 0
+		blankStartLine = -1
 	}
 
 	// Check if file ends with multiple blank lines
-	if blankCount > 1 {
-		if err := r.emitIssueForMultipleBlankLines(
-			runner, filename, lineOffsets, blankStartLine, len(lines)-1,
-		); err != nil {
-			return err
-		}
-	}
+	return r.emitIfMultipleBlankLines(runner, filename, lineOffsets, blankCount, blankStartLine, len(lines)-1)
+}
 
-	return nil
+// emitIfMultipleBlankLines emits an issue for the blank-line run ending at
+// endLine when it spans more than one line.
+func (r *TerraformSingleBlankLinesRule) emitIfMultipleBlankLines(
+	runner tflint.Runner,
+	filename string,
+	lineOffsets *LineOffsets,
+	blankCount int,
+	startLine int,
+	endLine int,
+) error {
+	if blankCount <= 1 {
+		return nil
+	}
+	return r.emitIssueForMultipleBlankLines(runner, filename, lineOffsets, startLine, endLine)
 }
 
 func (r *TerraformSingleBlankLinesRule) emitIssueForMultipleBlankLines(

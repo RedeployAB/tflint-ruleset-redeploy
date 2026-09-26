@@ -19,15 +19,15 @@ func NewTerraformFilenameConventionRule() *TerraformFilenameConventionRule {
 	return &TerraformFilenameConventionRule{}
 }
 
-func (r *TerraformFilenameConventionRule) Name() string {
+func (*TerraformFilenameConventionRule) Name() string {
 	return "terraform_filename_convention"
 }
 
-func (r *TerraformFilenameConventionRule) Enabled() bool {
+func (*TerraformFilenameConventionRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformFilenameConventionRule) Severity() tflint.Severity {
+func (*TerraformFilenameConventionRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -47,14 +47,16 @@ func (r *TerraformFilenameConventionRule) Check(runner tflint.Runner) error {
 
 		base := filepath.Base(filename)
 		if !filenamePattern.MatchString(base) {
-			if err := runner.EmitIssue(
+			err = runner.EmitIssue(
 				r,
 				fmt.Sprintf(
-					"Terraform filename '%s' does not match the pattern '<name>.tf' or '<name>.<area>.tf' (all snake_case alphanumerics)",
+					"Terraform filename '%s' does not match the pattern '<name>.tf' or '<name>.<area>.tf' "+
+						"(all snake_case alphanumerics)",
 					base,
 				),
 				hcl.Range{Filename: filename},
-			); err != nil {
+			)
+			if err != nil {
 				return err
 			}
 		}

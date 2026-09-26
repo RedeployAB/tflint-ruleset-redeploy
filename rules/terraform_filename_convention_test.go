@@ -8,6 +8,11 @@ import (
 )
 
 func TestTerraformFilenameConvention(t *testing.T) {
+	mismatchMessage := func(filename string) string {
+		return "Terraform filename '" + filename + "' does not match the pattern " +
+			"'<name>.tf' or '<name>.<area>.tf' (all snake_case alphanumerics)"
+	}
+
 	tests := []struct {
 		Name     string
 		Filename string
@@ -24,7 +29,7 @@ func TestTerraformFilenameConvention(t *testing.T) {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformFilenameConventionRule(),
-					Message: "Terraform filename 'Main.Example.tf' does not match the pattern '<name>.tf' or '<name>.<area>.tf' (all snake_case alphanumerics)",
+					Message: mismatchMessage("Main.Example.tf"),
 					Range: hcl.Range{
 						Filename: "Main.Example.tf",
 						Start:    hcl.Pos{Line: 0, Column: 0},
@@ -54,7 +59,7 @@ func TestTerraformFilenameConvention(t *testing.T) {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformFilenameConventionRule(),
-					Message: "Terraform filename 'my_name.my_area.extra.tf' does not match the pattern '<name>.tf' or '<name>.<area>.tf' (all snake_case alphanumerics)",
+					Message: mismatchMessage("my_name.my_area.extra.tf"),
 					Range: hcl.Range{
 						Filename: "my_name.my_area.extra.tf",
 						Start:    hcl.Pos{Line: 0, Column: 0},

@@ -15,15 +15,15 @@ func NewTerraformModuleDependsOnRule() *TerraformModuleDependsOnRule {
 	return &TerraformModuleDependsOnRule{}
 }
 
-func (r *TerraformModuleDependsOnRule) Name() string {
+func (*TerraformModuleDependsOnRule) Name() string {
 	return "terraform_module_depends_on"
 }
 
-func (r *TerraformModuleDependsOnRule) Enabled() bool {
+func (*TerraformModuleDependsOnRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformModuleDependsOnRule) Severity() tflint.Severity {
+func (*TerraformModuleDependsOnRule) Severity() tflint.Severity {
 	return tflint.WARNING
 }
 
@@ -61,23 +61,31 @@ func (r *TerraformModuleDependsOnRule) processBody(body *hclsyntax.Body, runner 
 	for _, block := range body.Blocks {
 		// Block types are always lowercase in Terraform
 		if block.Type == TypeModule {
-			// Check if it has an attribute named 'depends_on'
-			for _, attr := range block.Body.Attributes {
-				// Attribute names are also lowercase in Terraform
-				if attr.Name == ArgDependsOn {
-					rng := attr.Range()
-					if err := runner.EmitIssue(
-						r,
-						"'depends_on' should not be used for modules",
-						rng,
-					); err != nil {
-						return err
-					}
-				}
+			if err := r.checkModuleBlock(block, runner); err != nil {
+				return err
 			}
 		}
 		// Recursively process nested blocks
 		if err := r.processBody(block.Body, runner); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkModuleBlock emits an issue for every 'depends_on' attribute in a module block.
+func (r *TerraformModuleDependsOnRule) checkModuleBlock(block *hclsyntax.Block, runner tflint.Runner) error {
+	for _, attr := range block.Body.Attributes {
+		// Attribute names are also lowercase in Terraform
+		if attr.Name != ArgDependsOn {
+			continue
+		}
+		err := runner.EmitIssue(
+			r,
+			"'depends_on' should not be used for modules",
+			attr.Range(),
+		)
+		if err != nil {
 			return err
 		}
 	}

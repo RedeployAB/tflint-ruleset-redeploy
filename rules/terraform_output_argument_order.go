@@ -1,8 +1,9 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -29,15 +30,15 @@ func NewTerraformOutputArgumentOrderRule() *TerraformOutputArgumentOrderRule {
 	return &TerraformOutputArgumentOrderRule{}
 }
 
-func (r *TerraformOutputArgumentOrderRule) Name() string {
+func (*TerraformOutputArgumentOrderRule) Name() string {
 	return "terraform_output_argument_order"
 }
 
-func (r *TerraformOutputArgumentOrderRule) Enabled() bool {
+func (*TerraformOutputArgumentOrderRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformOutputArgumentOrderRule) Severity() tflint.Severity {
+func (*TerraformOutputArgumentOrderRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -135,8 +136,8 @@ func (r *TerraformOutputArgumentOrderRule) checkOutputBlock(
 	}
 
 	// Sort by their position in the file
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Start < items[j].Start
+	slices.SortFunc(items, func(a, b outputArgumentItem) int {
+		return cmp.Compare(a.Start, b.Start)
 	})
 
 	lastIndex := -1
@@ -151,7 +152,11 @@ func (r *TerraformOutputArgumentOrderRule) checkOutputBlock(
 	}
 
 	if outOfOrderItem != nil {
-		msg := fmt.Sprintf("Out-of-order argument '%s'. Expected sequence: description, value, ephemeral, sensitive, precondition, depends_on", outOfOrderItem.Name)
+		msg := fmt.Sprintf(
+			"Out-of-order argument '%s'. Expected sequence: "+
+				"description, value, ephemeral, sensitive, precondition, depends_on",
+			outOfOrderItem.Name,
+		)
 		return runner.EmitIssueWithFix(r, msg, outOfOrderItem.Range, func(f tflint.Fixer) error {
 			return r.fixOutputArgumentOrder(f, block, items)
 		})
@@ -187,21 +192,18 @@ func (r *TerraformOutputArgumentOrderRule) fixOutputArgumentOrder(
 }
 
 // sortItemsByExpectedOrder sorts items by their expected order index
-func (r *TerraformOutputArgumentOrderRule) sortItemsByExpectedOrder(items []outputArgumentItem) []outputArgumentItem {
+func (*TerraformOutputArgumentOrderRule) sortItemsByExpectedOrder(items []outputArgumentItem) []outputArgumentItem {
 	orderedItems := make([]outputArgumentItem, len(items))
 	copy(orderedItems, items)
-	sort.Slice(orderedItems, func(i, j int) bool {
-		if orderedItems[i].Index != orderedItems[j].Index {
-			return orderedItems[i].Index < orderedItems[j].Index
-		}
+	slices.SortFunc(orderedItems, func(a, b outputArgumentItem) int {
 		// Keep repeated blocks such as precondition in source order
-		return orderedItems[i].Start < orderedItems[j].Start
+		return cmp.Or(cmp.Compare(a.Index, b.Index), cmp.Compare(a.Start, b.Start))
 	})
 	return orderedItems
 }
 
 // isAlreadyOrdered checks if items are already in the correct order
-func (r *TerraformOutputArgumentOrderRule) isAlreadyOrdered(items, orderedItems []outputArgumentItem) bool {
+func (*TerraformOutputArgumentOrderRule) isAlreadyOrdered(items, orderedItems []outputArgumentItem) bool {
 	for i := range items {
 		if items[i].Name != orderedItems[i].Name {
 			return false
@@ -211,14 +213,14 @@ func (r *TerraformOutputArgumentOrderRule) isAlreadyOrdered(items, orderedItems 
 }
 
 // extractItemTexts extracts text content for attributes and blocks
-func (r *TerraformOutputArgumentOrderRule) extractItemTexts(
+func (*TerraformOutputArgumentOrderRule) extractItemTexts(
 	f tflint.Fixer,
 	block *hclsyntax.Block,
 	items []outputArgumentItem,
-) (map[string]string, map[int]string) {
-	attrTexts := make(map[string]string)
+) (attrTexts map[string]string, blockTexts map[int]string) {
+	attrTexts = make(map[string]string)
 	// Blocks are keyed by start byte, since an output can hold several precondition blocks
-	blockTexts := make(map[int]string)
+	blockTexts = make(map[int]string)
 
 	// Get the text for each attribute (attribute names are always lowercase in Terraform)
 	for _, attr := range block.Body.Attributes {
@@ -278,7 +280,7 @@ func (r *TerraformOutputArgumentOrderRule) applyReorderedContent(
 }
 
 // writeBlockOpening writes the opening line of the block
-func (r *TerraformOutputArgumentOrderRule) writeBlockOpening(result *strings.Builder, block *hclsyntax.Block) {
+func (*TerraformOutputArgumentOrderRule) writeBlockOpening(result *strings.Builder, block *hclsyntax.Block) {
 	result.WriteString("output ")
 	if len(block.Labels) > 0 {
 		result.WriteString(`"`)
@@ -313,7 +315,7 @@ func (r *TerraformOutputArgumentOrderRule) writeOrderedItems(
 }
 
 // writeBlock writes a block with proper indentation
-func (r *TerraformOutputArgumentOrderRule) writeBlock(result *strings.Builder, _, text string) {
+func (*TerraformOutputArgumentOrderRule) writeBlock(result *strings.Builder, _, text string) {
 	lines := strings.Split(text, "\n")
 	for j, line := range lines {
 		if j > 0 {
@@ -327,7 +329,7 @@ func (r *TerraformOutputArgumentOrderRule) writeBlock(result *strings.Builder, _
 }
 
 // writeAttribute writes an attribute with proper indentation
-func (r *TerraformOutputArgumentOrderRule) writeAttribute(result *strings.Builder, _, text string) {
+func (*TerraformOutputArgumentOrderRule) writeAttribute(result *strings.Builder, _, text string) {
 	result.WriteString("  ")
 	result.WriteString(text)
 }

@@ -108,16 +108,7 @@ func TestLineOffsets(t *testing.T) {
 			}
 
 			// Check lines content
-			lines := lo.Lines()
-			for i, expected := range tc.expectedLines {
-				if i >= len(lines) {
-					t.Errorf("Lines()[%d] missing; want %q", i, expected)
-					continue
-				}
-				if lines[i] != expected {
-					t.Errorf("Lines()[%d] = %q; want %q", i, lines[i], expected)
-				}
-			}
+			assertLines(t, lo.Lines(), tc.expectedLines)
 
 			// Check EOF offset (last element in offsets slice)
 			eofOffset := lo.ByteOffset(len(tc.expectedLines))
@@ -126,21 +117,36 @@ func TestLineOffsets(t *testing.T) {
 			}
 
 			// Check individual line offsets
-			for line, expected := range tc.lineOffsets {
-				got := lo.ByteOffset(line)
-				if got != expected {
-					t.Errorf("ByteOffset(%d) = %d; want %d", line, got, expected)
-				}
-			}
+			assertLineOffsets(t, "ByteOffset", lo.ByteOffset, tc.lineOffsets)
 
 			// Check individual line end offsets
-			for line, expected := range tc.lineOffsetEnds {
-				got := lo.ByteOffsetEnd(line)
-				if got != expected {
-					t.Errorf("ByteOffsetEnd(%d) = %d; want %d", line, got, expected)
-				}
-			}
+			assertLineOffsets(t, "ByteOffsetEnd", lo.ByteOffsetEnd, tc.lineOffsetEnds)
 		})
+	}
+}
+
+// assertLines asserts that lines starts with the expected lines.
+func assertLines(t *testing.T, lines, expectedLines []string) {
+	t.Helper()
+	for i, expected := range expectedLines {
+		if i >= len(lines) {
+			t.Errorf("Lines()[%d] missing; want %q", i, expected)
+			continue
+		}
+		if lines[i] != expected {
+			t.Errorf("Lines()[%d] = %q; want %q", i, lines[i], expected)
+		}
+	}
+}
+
+// assertLineOffsets asserts that offsetFn returns the expected offset for each line.
+func assertLineOffsets(t *testing.T, fnName string, offsetFn func(int) int, expectedOffsets map[int]int) {
+	t.Helper()
+	for line, expected := range expectedOffsets {
+		got := offsetFn(line)
+		if got != expected {
+			t.Errorf("%s(%d) = %d; want %d", fnName, line, got, expected)
+		}
 	}
 }
 

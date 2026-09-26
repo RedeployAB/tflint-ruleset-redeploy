@@ -57,13 +57,8 @@ func EvaluateStringLiteral(expr hcl.Expression) (value string, isLiteral bool, e
 	}
 
 	// Check if it's a template expression with only literals
-	if tmplExpr, ok := expr.(*hclsyntax.TemplateExpr); ok {
-		if tmplExpr.IsStringLiteral() {
-			val, diags := tmplExpr.Value(nil)
-			if !diags.HasErrors() && val.Type() == cty.String {
-				return val.AsString(), true, nil
-			}
-		}
+	if str, ok := stringTemplateLiteral(expr); ok {
+		return str, true, nil
 	}
 
 	// Try to evaluate as a static expression
@@ -157,18 +152,8 @@ func EvaluateNumberLiteral(expr hcl.Expression) (value cty.Value, isLiteral bool
 	}
 
 	// Check if it's a unary expression (e.g., negative numbers like -10)
-	if unaryExpr, ok := expr.(*hclsyntax.UnaryOpExpr); ok {
-		if unaryExpr.Op == hclsyntax.OpNegate {
-			if litExpr, ok := unaryExpr.Val.(*hclsyntax.LiteralValueExpr); ok {
-				if litExpr.Val.Type() == cty.Number {
-					// This is a negative number literal
-					val, diags := expr.Value(nil)
-					if !diags.HasErrors() && val.Type() == cty.Number {
-						return val, true, nil
-					}
-				}
-			}
-		}
+	if val, ok := negativeNumberLiteral(expr); ok {
+		return val, true, nil
 	}
 
 	// Try to evaluate as a static expression
@@ -185,6 +170,43 @@ func EvaluateNumberLiteral(expr hcl.Expression) (value cty.Value, isLiteral bool
 	}
 
 	return cty.NilVal, false, errors.New("expression does not evaluate to a number")
+}
+
+// stringTemplateLiteral returns the value of a template expression that
+// consists only of literal parts, and whether expr was such a template.
+func stringTemplateLiteral(expr hcl.Expression) (string, bool) {
+	tmplExpr, ok := expr.(*hclsyntax.TemplateExpr)
+	if !ok || !tmplExpr.IsStringLiteral() {
+		return "", false
+	}
+	val, diags := tmplExpr.Value(nil)
+	if diags.HasErrors() || val.Type() != cty.String {
+		return "", false
+	}
+	return val.AsString(), true
+}
+
+// negativeNumberLiteral returns the value of a negated number literal
+// (e.g. -10), and whether expr was such an expression.
+func negativeNumberLiteral(expr hcl.Expression) (cty.Value, bool) {
+	if !isNegatedNumberLiteral(expr) {
+		return cty.NilVal, false
+	}
+	val, diags := expr.Value(nil)
+	if diags.HasErrors() || val.Type() != cty.Number {
+		return cty.NilVal, false
+	}
+	return val, true
+}
+
+// isNegatedNumberLiteral reports whether expr is a unary negation of a number literal.
+func isNegatedNumberLiteral(expr hcl.Expression) bool {
+	unaryExpr, ok := expr.(*hclsyntax.UnaryOpExpr)
+	if !ok || unaryExpr.Op != hclsyntax.OpNegate {
+		return false
+	}
+	litExpr, ok := unaryExpr.Val.(*hclsyntax.LiteralValueExpr)
+	return ok && litExpr.Val.Type() == cty.Number
 }
 
 // IsLiteralExpression checks if an expression is a literal (not computed).
@@ -301,7 +323,7 @@ func buildTypeString(funcExpr *hclsyntax.FunctionCallExpr) string {
 // with existing string-based evaluation patterns in the codebase
 
 // EvaluateBoolLiteralFromRawText evaluates a boolean from raw text (legacy compatibility).
-func EvaluateBoolLiteralFromRawText(rawText string) (bool, bool, error) {
+func EvaluateBoolLiteralFromRawText(rawText string) (value, isLiteral bool, err error) {
 	trimmed := strings.ToLower(strings.TrimSpace(rawText))
 	switch trimmed {
 	case StringTrue:

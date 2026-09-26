@@ -18,8 +18,9 @@ func TestTerraformLocalsMirrorAssignmentRule(t *testing.T) {
 			Content: readFixture(t, "locals_mirror_assignment_not_ok_local_name_differs.tf"),
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformLocalsMirrorAssignmentRule(),
-					Message: "Local 'bar' is assigned directly from variable 'foo'. This should not be a simple mirror assignment.",
+					Rule: NewTerraformLocalsMirrorAssignmentRule(),
+					Message: "Local 'bar' is assigned directly from variable 'foo'. " +
+						"This should not be a simple mirror assignment.",
 					Range: hcl.Range{
 						Filename: "locals.tf",
 						Start:    hcl.Pos{Line: 4, Column: 3},
@@ -38,8 +39,9 @@ func TestTerraformLocalsMirrorAssignmentRule(t *testing.T) {
 			Content: readFixture(t, "locals_mirror_assignment_not_ok_direct_mirror.tf"),
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformLocalsMirrorAssignmentRule(),
-					Message: "Local 'env' is assigned directly from variable 'env'. This should not be a simple mirror assignment.",
+					Rule: NewTerraformLocalsMirrorAssignmentRule(),
+					Message: "Local 'env' is assigned directly from variable 'env'. " +
+						"This should not be a simple mirror assignment.",
 					Range: hcl.Range{
 						Filename: "locals.tf",
 						Start:    hcl.Pos{Line: 6, Column: 3},

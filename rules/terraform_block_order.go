@@ -1,8 +1,9 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -21,17 +22,17 @@ func NewTerraformBlockOrderRule() *TerraformBlockOrderRule {
 }
 
 // Name returns the rule name.
-func (r *TerraformBlockOrderRule) Name() string {
+func (*TerraformBlockOrderRule) Name() string {
 	return "terraform_block_order"
 }
 
 // Enabled returns whether the rule is enabled by default.
-func (r *TerraformBlockOrderRule) Enabled() bool {
+func (*TerraformBlockOrderRule) Enabled() bool {
 	return true
 }
 
 // Severity returns the severity of the rule.
-func (r *TerraformBlockOrderRule) Severity() tflint.Severity {
+func (*TerraformBlockOrderRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -98,15 +99,18 @@ func (r *TerraformBlockOrderRule) checkTopLevelBlocks(
 	}
 
 	// Sort by their appearance in the file
-	sort.Slice(blocks, func(i, j int) bool {
-		return blocks[i].Start < blocks[j].Start
+	slices.SortFunc(blocks, func(a, b blockItem) int {
+		return cmp.Compare(a.Start, b.Start)
 	})
 
 	// Ensure that the order by `Index` is non-decreasing
 	lastIndex := -1
 	for _, b := range blocks {
 		if b.Index < lastIndex {
-			msg := fmt.Sprintf("Out-of-order block '%s'. Expected order: terraform -> provider -> data -> resource", b.Type)
+			msg := fmt.Sprintf(
+				"Out-of-order block '%s'. Expected order: terraform -> provider -> data -> resource",
+				b.Type,
+			)
 			return runner.EmitIssue(r, msg, b.Range)
 		}
 		lastIndex = b.Index

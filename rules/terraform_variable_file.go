@@ -22,17 +22,17 @@ func NewTerraformVariableFileRule() *TerraformVariableFileRule {
 }
 
 // Name returns the rule name.
-func (r *TerraformVariableFileRule) Name() string {
+func (*TerraformVariableFileRule) Name() string {
 	return "terraform_variable_file"
 }
 
 // Enabled returns whether the rule is enabled by default.
-func (r *TerraformVariableFileRule) Enabled() bool {
+func (*TerraformVariableFileRule) Enabled() bool {
 	return true
 }
 
 // Severity returns the severity of the rule.
-func (r *TerraformVariableFileRule) Severity() tflint.Severity {
+func (*TerraformVariableFileRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 

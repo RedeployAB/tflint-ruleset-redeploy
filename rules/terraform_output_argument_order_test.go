@@ -69,8 +69,9 @@ output "bad_order" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputArgumentOrderRule(),
-					Message: "Out-of-order argument 'ephemeral'. Expected sequence: description, value, ephemeral, sensitive, precondition, depends_on",
+					Rule: NewTerraformOutputArgumentOrderRule(),
+					Message: "Out-of-order argument 'ephemeral'. Expected sequence: " +
+						"description, value, ephemeral, sensitive, precondition, depends_on",
 					Range: hcl.Range{
 						Filename: "outputs.tf",
 						Start:    hcl.Pos{Line: 9, Column: 2},
@@ -93,8 +94,9 @@ output "bad_precondition_order" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputArgumentOrderRule(),
-					Message: "Out-of-order argument 'value'. Expected sequence: description, value, ephemeral, sensitive, precondition, depends_on",
+					Rule: NewTerraformOutputArgumentOrderRule(),
+					Message: "Out-of-order argument 'value'. Expected sequence: " +
+						"description, value, ephemeral, sensitive, precondition, depends_on",
 					Range: hcl.Range{
 						Filename: "outputs.tf",
 						Start:    hcl.Pos{Line: 8, Column: 2},
@@ -117,8 +119,9 @@ output "bad_depends_order" {
 `,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformOutputArgumentOrderRule(),
-					Message: "Out-of-order argument 'precondition'. Expected sequence: description, value, ephemeral, sensitive, precondition, depends_on",
+					Rule: NewTerraformOutputArgumentOrderRule(),
+					Message: "Out-of-order argument 'precondition'. Expected sequence: " +
+						"description, value, ephemeral, sensitive, precondition, depends_on",
 					Range: hcl.Range{
 						Filename: "outputs.tf",
 						Start:    hcl.Pos{Line: 5, Column: 2},

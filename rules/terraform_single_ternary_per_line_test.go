@@ -1,6 +1,7 @@
 package rules
 
 import (
+	"strconv"
 	"testing"
 
 	hcl "github.com/hashicorp/hcl/v2"
@@ -8,6 +9,11 @@ import (
 )
 
 func TestTerraformSingleTernaryPerLineRule(t *testing.T) {
+	ternaryMessage := func(count int) string {
+		return "Line contains " + strconv.Itoa(count) +
+			" ternary operations; use local values to keep at most one ternary per line"
+	}
+
 	tests := []struct {
 		Name     string
 		Content  string
@@ -24,7 +30,7 @@ func TestTerraformSingleTernaryPerLineRule(t *testing.T) {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformSingleTernaryPerLineRule(),
-					Message: "Line contains 2 ternary operations; use local values to keep at most one ternary per line",
+					Message: ternaryMessage(2),
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 3, Column: 23},
@@ -33,7 +39,7 @@ func TestTerraformSingleTernaryPerLineRule(t *testing.T) {
 				},
 				{
 					Rule:    NewTerraformSingleTernaryPerLineRule(),
-					Message: "Line contains 2 ternary operations; use local values to keep at most one ternary per line",
+					Message: ternaryMessage(2),
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 6, Column: 13},
@@ -48,7 +54,7 @@ func TestTerraformSingleTernaryPerLineRule(t *testing.T) {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformSingleTernaryPerLineRule(),
-					Message: "Line contains 3 ternary operations; use local values to keep at most one ternary per line",
+					Message: ternaryMessage(3),
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 3, Column: 12},
@@ -57,7 +63,7 @@ func TestTerraformSingleTernaryPerLineRule(t *testing.T) {
 				},
 				{
 					Rule:    NewTerraformSingleTernaryPerLineRule(),
-					Message: "Line contains 2 ternary operations; use local values to keep at most one ternary per line",
+					Message: ternaryMessage(2),
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 6, Column: 11},

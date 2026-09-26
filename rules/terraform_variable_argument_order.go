@@ -1,8 +1,9 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -33,15 +34,15 @@ func NewTerraformVariableArgumentOrderRule() *TerraformVariableArgumentOrderRule
 	return &TerraformVariableArgumentOrderRule{}
 }
 
-func (r *TerraformVariableArgumentOrderRule) Name() string {
+func (*TerraformVariableArgumentOrderRule) Name() string {
 	return "terraform_variable_argument_order"
 }
 
-func (r *TerraformVariableArgumentOrderRule) Enabled() bool {
+func (*TerraformVariableArgumentOrderRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformVariableArgumentOrderRule) Severity() tflint.Severity {
+func (*TerraformVariableArgumentOrderRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -88,54 +89,25 @@ func (r *TerraformVariableArgumentOrderRule) processBody(body *hclsyntax.Body, r
 	return nil
 }
 
+// variableArgumentOrderIndex defines the recognized order for attributes/blocks:
+// description(0), type(1), default(2), ephemeral(3), sensitive(4), nullable(5), validation(6)
+// Any of these may be omitted, but if present, must follow that sequence.
+// For validation blocks, multiple occurrences are allowed, but all must appear after the others.
+var variableArgumentOrderIndex = map[string]int{
+	ArgDescription: 0,
+	ArgType:        1,
+	ArgDefault:     2,
+	ArgEphemeral:   3,
+	ArgSensitive:   4,
+	ArgNullable:    5,
+	TypeValidation: 6,
+}
+
 func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 	block *hclsyntax.Block,
 	runner tflint.Runner,
 ) error {
-	// Recognized order for attributes/blocks:
-	// description(0), type(1), default(2), ephemeral(3), sensitive(4), nullable(5), validation(6)
-	// Any of these may be omitted, but if present, must follow that sequence.
-	// For validation blocks, multiple occurrences are allowed, but all must appear after the others.
-
-	// Define the expected order
-	orderMap := map[string]int{
-		ArgDescription: 0,
-		ArgType:        1,
-		ArgDefault:     2,
-		ArgEphemeral:   3,
-		ArgSensitive:   4,
-		ArgNullable:    5,
-		TypeValidation: 6,
-	}
-
-	var items []variableArgumentItem
-
-	// Gather recognized attributes (attribute names are always lowercase in Terraform)
-	for _, attr := range block.Body.Attributes {
-		idx, found := orderMap[attr.Name]
-		if found {
-			items = append(items, variableArgumentItem{
-				Name:  attr.Name,
-				Index: idx,
-				Range: attr.Range(),
-				Start: attr.Range().Start.Byte,
-				IsBlk: false,
-			})
-		}
-	}
-
-	// Gather recognized blocks: "validation" (block types are always lowercase in Terraform)
-	for _, childBlock := range block.Body.Blocks {
-		if childBlock.Type == TypeValidation {
-			items = append(items, variableArgumentItem{
-				Name:  childBlock.Type,
-				Index: orderMap[childBlock.Type], // 6
-				Range: childBlock.DefRange(),
-				Start: childBlock.DefRange().Start.Byte,
-				IsBlk: true,
-			})
-		}
-	}
+	items := collectVariableArgumentItems(block)
 
 	// If no recognized items => no check needed
 	if len(items) == 0 {
@@ -143,31 +115,73 @@ func (r *TerraformVariableArgumentOrderRule) checkVariableBlock(
 	}
 
 	// Sort items by lexical file order
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Start < items[j].Start
+	slices.SortFunc(items, func(a, b variableArgumentItem) int {
+		return cmp.Compare(a.Start, b.Start)
 	})
 
+	outOfOrderItem := findOutOfOrderVariableArgument(items)
+	if outOfOrderItem == nil {
+		return nil
+	}
+
+	msg := fmt.Sprintf(
+		"Out-of-order argument '%s'. Expected sequence: "+
+			"description, type, default, ephemeral, sensitive, nullable, validation",
+		outOfOrderItem.Name,
+	)
+	return runner.EmitIssueWithFix(r, msg, outOfOrderItem.Range, func(f tflint.Fixer) error {
+		return r.fixVariableArgumentOrder(f, block, items)
+	})
+}
+
+// collectVariableArgumentItems gathers the recognized attributes and
+// validation blocks of a variable block, in no particular order.
+func collectVariableArgumentItems(block *hclsyntax.Block) []variableArgumentItem {
+	var items []variableArgumentItem
+
+	// Gather recognized attributes (attribute names are always lowercase in Terraform)
+	for _, attr := range block.Body.Attributes {
+		idx, found := variableArgumentOrderIndex[attr.Name]
+		if !found {
+			continue
+		}
+		items = append(items, variableArgumentItem{
+			Name:  attr.Name,
+			Index: idx,
+			Range: attr.Range(),
+			Start: attr.Range().Start.Byte,
+			IsBlk: false,
+		})
+	}
+
+	// Gather recognized blocks: "validation" (block types are always lowercase in Terraform)
+	for _, childBlock := range block.Body.Blocks {
+		if childBlock.Type != TypeValidation {
+			continue
+		}
+		items = append(items, variableArgumentItem{
+			Name:  childBlock.Type,
+			Index: variableArgumentOrderIndex[childBlock.Type], // 6
+			Range: childBlock.DefRange(),
+			Start: childBlock.DefRange().Start.Byte,
+			IsBlk: true,
+		})
+	}
+
+	return items
+}
+
+// findOutOfOrderVariableArgument returns the first item (in file order) whose
+// expected index is lower than that of an item before it, or nil if none.
+func findOutOfOrderVariableArgument(items []variableArgumentItem) *variableArgumentItem {
 	// Track the highest index encountered so far
 	lastIndex := -1
-	var outOfOrderItem *variableArgumentItem
-
 	for i := range items {
 		if items[i].Index < lastIndex {
 			// Out-of-order argument found
-			outOfOrderItem = &items[i]
-			break
+			return &items[i]
 		}
 		lastIndex = items[i].Index
-	}
-
-	if outOfOrderItem != nil {
-		msg := fmt.Sprintf(
-			"Out-of-order argument '%s'. Expected sequence: description, type, default, ephemeral, sensitive, nullable, validation",
-			outOfOrderItem.Name,
-		)
-		return runner.EmitIssueWithFix(r, msg, outOfOrderItem.Range, func(f tflint.Fixer) error {
-			return r.fixVariableArgumentOrder(f, block, items)
-		})
 	}
 	return nil
 }
@@ -199,21 +213,22 @@ func (r *TerraformVariableArgumentOrderRule) fixVariableArgumentOrder(
 }
 
 // sortItemsByExpectedOrder sorts items by their expected order index
-func (r *TerraformVariableArgumentOrderRule) sortItemsByExpectedOrder(items []variableArgumentItem) []variableArgumentItem {
-	orderedItems := make([]variableArgumentItem, len(items))
-	copy(orderedItems, items)
-	sort.Slice(orderedItems, func(i, j int) bool {
-		if orderedItems[i].Index != orderedItems[j].Index {
-			return orderedItems[i].Index < orderedItems[j].Index
-		}
-		// For same index (multiple validation blocks), keep original order
-		return orderedItems[i].Start < orderedItems[j].Start
+func (*TerraformVariableArgumentOrderRule) sortItemsByExpectedOrder(
+	items []variableArgumentItem,
+) []variableArgumentItem {
+	orderedItems := slices.Clone(items)
+	slices.SortFunc(orderedItems, func(a, b variableArgumentItem) int {
+		return cmp.Or(
+			cmp.Compare(a.Index, b.Index),
+			// For same index (multiple validation blocks), keep original order
+			cmp.Compare(a.Start, b.Start),
+		)
 	})
 	return orderedItems
 }
 
 // isAlreadyOrdered checks if items are already in the correct order
-func (r *TerraformVariableArgumentOrderRule) isAlreadyOrdered(items, orderedItems []variableArgumentItem) bool {
+func (*TerraformVariableArgumentOrderRule) isAlreadyOrdered(items, orderedItems []variableArgumentItem) bool {
 	for i := range items {
 		if items[i].Name != orderedItems[i].Name {
 			return false
@@ -241,7 +256,7 @@ func (r *TerraformVariableArgumentOrderRule) extractItemTexts(
 }
 
 // extractAttributeTexts extracts text for all attributes
-func (r *TerraformVariableArgumentOrderRule) extractAttributeTexts(
+func (*TerraformVariableArgumentOrderRule) extractAttributeTexts(
 	f tflint.Fixer,
 	block *hclsyntax.Block,
 	items []variableArgumentItem,
@@ -261,7 +276,7 @@ func (r *TerraformVariableArgumentOrderRule) extractAttributeTexts(
 }
 
 // extractValidationBlockTexts extracts text for validation blocks
-func (r *TerraformVariableArgumentOrderRule) extractValidationBlockTexts(
+func (*TerraformVariableArgumentOrderRule) extractValidationBlockTexts(
 	f tflint.Fixer,
 	block *hclsyntax.Block,
 	items []variableArgumentItem,
@@ -316,7 +331,7 @@ func (r *TerraformVariableArgumentOrderRule) applyReorderedContent(
 }
 
 // writeBlockOpening writes the opening line of the block
-func (r *TerraformVariableArgumentOrderRule) writeBlockOpening(result *strings.Builder, block *hclsyntax.Block) {
+func (*TerraformVariableArgumentOrderRule) writeBlockOpening(result *strings.Builder, block *hclsyntax.Block) {
 	result.WriteString("variable ")
 	if len(block.Labels) > 0 {
 		result.WriteString(`"`)
@@ -351,7 +366,7 @@ func (r *TerraformVariableArgumentOrderRule) writeOrderedItems(
 }
 
 // writeBlock writes a block with proper indentation
-func (r *TerraformVariableArgumentOrderRule) writeBlock(result *strings.Builder, text string) {
+func (*TerraformVariableArgumentOrderRule) writeBlock(result *strings.Builder, text string) {
 	lines := strings.Split(text, "\n")
 	for j, line := range lines {
 		if j > 0 {
@@ -365,7 +380,7 @@ func (r *TerraformVariableArgumentOrderRule) writeBlock(result *strings.Builder,
 }
 
 // writeAttribute writes an attribute with proper indentation
-func (r *TerraformVariableArgumentOrderRule) writeAttribute(result *strings.Builder, text string) {
+func (*TerraformVariableArgumentOrderRule) writeAttribute(result *strings.Builder, text string) {
 	result.WriteString("  ")
 	result.WriteString(text)
 }
