@@ -8,6 +8,11 @@ import (
 )
 
 func TestTerraformVariableOrderRule(t *testing.T) {
+	outOfOrderMessage := func(name string) string {
+		return `Out-of-order variable "` + name + `". Required variables must come first in alphabetical order, ` +
+			`followed by optional variables in alphabetical order.`
+	}
+
 	tests := []struct {
 		Name    string
 		Content string
@@ -38,7 +43,7 @@ variable "foo" {}
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformVariableOrderRule(),
-					Message: `Out-of-order variable "foo". Required variables must come first in alphabetical order, followed by optional variables in alphabetical order.`,
+					Message: outOfOrderMessage("foo"),
 					Range: hcl.Range{
 						Filename: "test.tf",
 						Start:    hcl.Pos{Line: 5, Column: 1},
@@ -56,7 +61,7 @@ variable "aaa" {}
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformVariableOrderRule(),
-					Message: `Out-of-order variable "aaa". Required variables must come first in alphabetical order, followed by optional variables in alphabetical order.`,
+					Message: outOfOrderMessage("aaa"),
 					Range: hcl.Range{
 						Filename: "test.tf",
 						Start:    hcl.Pos{Line: 3, Column: 1},
@@ -78,7 +83,7 @@ variable "opt_a" {
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformVariableOrderRule(),
-					Message: `Out-of-order variable "opt_a". Required variables must come first in alphabetical order, followed by optional variables in alphabetical order.`,
+					Message: outOfOrderMessage("opt_a"),
 					Range: hcl.Range{
 						Filename: "test.tf",
 						Start:    hcl.Pos{Line: 5, Column: 1},

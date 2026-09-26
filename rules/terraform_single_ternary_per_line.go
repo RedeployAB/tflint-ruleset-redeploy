@@ -2,7 +2,8 @@ package rules
 
 import (
 	"fmt"
-	"sort"
+	"maps"
+	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -20,15 +21,15 @@ func NewTerraformSingleTernaryPerLineRule() *TerraformSingleTernaryPerLineRule {
 	return &TerraformSingleTernaryPerLineRule{}
 }
 
-func (r *TerraformSingleTernaryPerLineRule) Name() string {
+func (*TerraformSingleTernaryPerLineRule) Name() string {
 	return "terraform_single_ternary_per_line"
 }
 
-func (r *TerraformSingleTernaryPerLineRule) Enabled() bool {
+func (*TerraformSingleTernaryPerLineRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformSingleTernaryPerLineRule) Severity() tflint.Severity {
+func (*TerraformSingleTernaryPerLineRule) Severity() tflint.Severity {
 	return tflint.WARNING
 }
 
@@ -49,7 +50,7 @@ func (c *ternaryCollector) Enter(node hclsyntax.Node) hcl.Diagnostics {
 	return nil
 }
 
-func (c *ternaryCollector) Exit(hclsyntax.Node) hcl.Diagnostics {
+func (*ternaryCollector) Exit(hclsyntax.Node) hcl.Diagnostics {
 	return nil
 }
 
@@ -92,13 +93,7 @@ func (r *TerraformSingleTernaryPerLineRule) checkBody(body *hclsyntax.Body, runn
 	}
 
 	// Emit deterministically (sorted by line) so output is stable.
-	lines := make([]int, 0, len(byLine))
-	for line := range byLine {
-		lines = append(lines, line)
-	}
-	sort.Ints(lines)
-
-	for _, line := range lines {
+	for _, line := range slices.Sorted(maps.Keys(byLine)) {
 		conds := byLine[line]
 		if len(conds) < 2 {
 			continue
@@ -110,14 +105,15 @@ func (r *TerraformSingleTernaryPerLineRule) checkBody(body *hclsyntax.Body, runn
 				anchor = cond
 			}
 		}
-		if err := runner.EmitIssue(
+		err := runner.EmitIssue(
 			r,
 			fmt.Sprintf(
 				"Line contains %d ternary operations; use local values to keep at most one ternary per line",
 				len(conds),
 			),
 			anchor.Range(),
-		); err != nil {
+		)
+		if err != nil {
 			return err
 		}
 	}

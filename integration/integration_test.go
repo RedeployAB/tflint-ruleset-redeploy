@@ -49,47 +49,10 @@ func TestIntegration(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
 			testDir := filepath.Join(dir, tc.Dir)
+			chdirForTest(t, dir, testDir)
 
-			t.Cleanup(func() {
-				if chdirErr := os.Chdir(dir); chdirErr != nil {
-					t.Fatal(chdirErr)
-				}
-			})
-
-			if chdirErr := os.Chdir(testDir); chdirErr != nil {
-				t.Fatal(chdirErr)
-			}
-
-			var stdout, stderr bytes.Buffer
-			tc.Command.Stdout = &stdout
-			tc.Command.Stderr = &stderr
-			if cmdErr := tc.Command.Run(); cmdErr != nil {
-				t.Fatalf("%s, stdout=%s stderr=%s", cmdErr, stdout.String(), stderr.String())
-			}
-
-			var b []byte
-			if runtime.GOOS == "windows" && IsWindowsResultExist() {
-				b, err = os.ReadFile(filepath.Join(testDir, "result_windows.json"))
-			} else {
-				b, err = os.ReadFile(filepath.Join(testDir, "result.json"))
-			}
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			var expected interface{}
-			if err := json.Unmarshal(b, &expected); err != nil {
-				t.Fatal(err)
-			}
-
-			var got interface{}
-			if err := json.Unmarshal(stdout.Bytes(), &got); err != nil {
-				t.Fatal(err)
-			}
-
-			if diff := cmp.Diff(got, expected); diff != "" {
-				t.Fatal(diff)
-			}
+			stdout := runCommand(t, tc.Command)
+			assertExactJSONMatch(t, stdout, expectedResultPath(testDir))
 		})
 	}
 }
@@ -119,14 +82,7 @@ func TestIntegrationAutofix(t *testing.T) {
 			srcDir := filepath.Join(dir, tc.Dir)
 			tmpDir := copyFixtureDir(t, srcDir, tc.ExpectedFile)
 
-			t.Cleanup(func() {
-				if chdirErr := os.Chdir(dir); chdirErr != nil {
-					t.Fatal(chdirErr)
-				}
-			})
-			if chdirErr := os.Chdir(tmpDir); chdirErr != nil {
-				t.Fatal(chdirErr)
-			}
+			chdirForTest(t, dir, tmpDir)
 
 			stdout := runTflint(t, "--fix", "--force", "--format", "json")
 			assertJSONMatch(t, stdout, filepath.Join(srcDir, "result.json"))
@@ -158,9 +114,64 @@ func copyFixtureDir(t *testing.T, srcDir, expectedFile string) string {
 	return tmpDir
 }
 
+// chdirForTest changes the working directory to targetDir and restores
+// originalDir when the test finishes.
+func chdirForTest(t *testing.T, originalDir, targetDir string) {
+	t.Helper()
+	t.Cleanup(func() {
+		chdirErr := os.Chdir(originalDir)
+		if chdirErr != nil {
+			t.Fatal(chdirErr)
+		}
+	})
+	chdirErr := os.Chdir(targetDir)
+	if chdirErr != nil {
+		t.Fatal(chdirErr)
+	}
+}
+
+// expectedResultPath returns the expected tflint JSON output file in testDir,
+// preferring a Windows-specific result when running on Windows.
+func expectedResultPath(testDir string) string {
+	if runtime.GOOS == "windows" && IsWindowsResultExist() {
+		return filepath.Join(testDir, "result_windows.json")
+	}
+	return filepath.Join(testDir, "result.json")
+}
+
+// assertExactJSONMatch asserts that stdout is JSON equal to the file at resultPath.
+func assertExactJSONMatch(t *testing.T, stdout []byte, resultPath string) {
+	t.Helper()
+	b, err := os.ReadFile(resultPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var expected any
+	err = json.Unmarshal(b, &expected)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got any
+	err = json.Unmarshal(stdout, &got)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if diff := cmp.Diff(got, expected); diff != "" {
+		t.Fatal(diff)
+	}
+}
+
 func runTflint(t *testing.T, args ...string) []byte {
 	t.Helper()
-	cmd := exec.Command("tflint", args...)
+	return runCommand(t, exec.Command("tflint", args...))
+}
+
+// runCommand runs cmd and returns its stdout, failing the test on error.
+func runCommand(t *testing.T, cmd *exec.Cmd) []byte {
+	t.Helper()
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -176,7 +187,7 @@ func assertJSONMatch(t *testing.T, stdout []byte, resultPath string) {
 	if err != nil {
 		t.Fatalf("reading %s: %v", resultPath, err)
 	}
-	var expected, got interface{}
+	var expected, got any
 	if err := json.Unmarshal(resultJSON, &expected); err != nil {
 		t.Fatalf("unmarshaling %s: %v", resultPath, err)
 	}
@@ -192,17 +203,17 @@ func assertJSONMatch(t *testing.T, stdout []byte, resultPath string) {
 }
 
 // stripIssueFields removes version-dependent fields (fixable, fixed) from tflint JSON output.
-func stripIssueFields(v interface{}) {
-	m, ok := v.(map[string]interface{})
+func stripIssueFields(v any) {
+	m, ok := v.(map[string]any)
 	if !ok {
 		return
 	}
-	issues, ok := m["issues"].([]interface{})
+	issues, ok := m["issues"].([]any)
 	if !ok {
 		return
 	}
 	for _, issue := range issues {
-		if im, ok := issue.(map[string]interface{}); ok {
+		if im, ok := issue.(map[string]any); ok {
 			delete(im, "fixable")
 			delete(im, "fixed")
 		}

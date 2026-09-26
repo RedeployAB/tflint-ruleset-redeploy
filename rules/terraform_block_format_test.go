@@ -7,12 +7,36 @@ import (
 	"github.com/terraform-linters/tflint-plugin-sdk/helper"
 )
 
+type blockFormatTestCase struct {
+	Name    string
+	Content string
+	Issues  helper.Issues
+}
+
+// runBlockFormatTests runs each case as a subtest against a single resource.tf file.
+func runBlockFormatTests(t *testing.T, tests []blockFormatTestCase) {
+	t.Helper()
+
+	rule := NewTerraformBlockFormatRule()
+
+	for _, tc := range tests {
+		t.Run(tc.Name, func(t *testing.T) {
+			runner := helper.TestRunner(t, map[string]string{
+				"resource.tf": tc.Content,
+			})
+
+			err := rule.Check(runner)
+			if err != nil {
+				t.Fatalf("Unexpected error occurred: %s", err)
+			}
+
+			helper.AssertIssues(t, tc.Issues, runner.Issues)
+		})
+	}
+}
+
 func TestTerraformBlockFormat(t *testing.T) {
-	tests := []struct {
-		Name    string
-		Content string
-		Issues  helper.Issues
-	}{
+	tests := []blockFormatTestCase{
 		{
 			Name:    "OK - attribute then block with blank line",
 			Content: readFixture(t, "block_fmt_ok_attr_then_block_blank_line.tf"),
@@ -43,8 +67,9 @@ func TestTerraformBlockFormat(t *testing.T) {
 			Content: readFixture(t, "block_fmt_not_ok_single_block_first_extra_blank.tf"),
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformBlockFormatRule(),
-					Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
+					Rule: NewTerraformBlockFormatRule(),
+					Message: "Block should appear immediately after opening brace " +
+						"when it's the first item (no blank lines)",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 3, Column: 3},
@@ -121,8 +146,9 @@ func TestTerraformBlockFormat(t *testing.T) {
 			Content: readFixture(t, "block_fmt_not_ok_data_extra_blank_line_after_brace.tf"),
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformBlockFormatRule(),
-					Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
+					Rule: NewTerraformBlockFormatRule(),
+					Message: "Block should appear immediately after opening brace " +
+						"when it's the first item (no blank lines)",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 3, Column: 3},
@@ -241,8 +267,9 @@ func TestTerraformBlockFormat(t *testing.T) {
 }`,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformBlockFormatRule(),
-					Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
+					Rule: NewTerraformBlockFormatRule(),
+					Message: "Block should appear immediately after opening brace " +
+						"when it's the first item (no blank lines)",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 7, Column: 3},
@@ -297,8 +324,9 @@ func TestTerraformBlockFormat(t *testing.T) {
 }`,
 			Issues: helper.Issues{
 				{
-					Rule:    NewTerraformBlockFormatRule(),
-					Message: "Block should appear immediately after opening brace when it's the first item (no blank lines)",
+					Rule: NewTerraformBlockFormatRule(),
+					Message: "Block should appear immediately after opening brace " +
+						"when it's the first item (no blank lines)",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 7, Column: 3},
@@ -309,29 +337,10 @@ func TestTerraformBlockFormat(t *testing.T) {
 		},
 	}
 
-	rule := NewTerraformBlockFormatRule()
-
-	for _, tc := range tests {
-		t.Run(tc.Name, func(t *testing.T) {
-			runner := helper.TestRunner(t, map[string]string{
-				"resource.tf": tc.Content,
-			})
-
-			err := rule.Check(runner)
-			if err != nil {
-				t.Fatalf("Unexpected error occurred: %s", err)
-			}
-
-			helper.AssertIssues(t, tc.Issues, runner.Issues)
-		})
-	}
+	runBlockFormatTests(t, tests)
 
 	t.Run("variable block tests", func(t *testing.T) {
-		tests := []struct {
-			Name    string
-			Content string
-			Issues  helper.Issues
-		}{
+		tests := []blockFormatTestCase{
 			{
 				Name: "OK - variable with single validation block",
 				Content: `
@@ -412,27 +421,11 @@ variable "example" {
 			},
 		}
 
-		for _, tc := range tests {
-			tc := tc // capture range variable
-			t.Run(tc.Name, func(t *testing.T) {
-				runner := helper.TestRunner(t, map[string]string{
-					"resource.tf": tc.Content,
-				})
-				err := rule.Check(runner)
-				if err != nil {
-					t.Fatalf("Unexpected error occurred: %s", err)
-				}
-				helper.AssertIssues(t, tc.Issues, runner.Issues)
-			})
-		}
+		runBlockFormatTests(t, tests)
 	})
 
 	t.Run("output block tests", func(t *testing.T) {
-		tests := []struct {
-			Name    string
-			Content string
-			Issues  helper.Issues
-		}{
+		tests := []blockFormatTestCase{
 			{
 				Name: "OK - blank line before block",
 				Content: `
@@ -470,18 +463,6 @@ output "example" {
 			},
 		}
 
-		for _, tc := range tests {
-			tc := tc // capture range variable
-			t.Run(tc.Name, func(t *testing.T) {
-				runner := helper.TestRunner(t, map[string]string{
-					"resource.tf": tc.Content,
-				})
-				err := rule.Check(runner)
-				if err != nil {
-					t.Fatalf("Unexpected error occurred: %s", err)
-				}
-				helper.AssertIssues(t, tc.Issues, runner.Issues)
-			})
-		}
+		runBlockFormatTests(t, tests)
 	})
 }

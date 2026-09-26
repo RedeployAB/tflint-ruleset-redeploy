@@ -16,15 +16,15 @@ func NewTerraformNoLeadingTrailingBlankLinesRule() *TerraformNoLeadingTrailingBl
 	return &TerraformNoLeadingTrailingBlankLinesRule{}
 }
 
-func (r *TerraformNoLeadingTrailingBlankLinesRule) Name() string {
+func (*TerraformNoLeadingTrailingBlankLinesRule) Name() string {
 	return "terraform_no_leading_trailing_blank_lines"
 }
 
-func (r *TerraformNoLeadingTrailingBlankLinesRule) Enabled() bool {
+func (*TerraformNoLeadingTrailingBlankLinesRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformNoLeadingTrailingBlankLinesRule) Severity() tflint.Severity {
+func (*TerraformNoLeadingTrailingBlankLinesRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 

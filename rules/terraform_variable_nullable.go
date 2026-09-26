@@ -15,15 +15,15 @@ func NewTerraformVariableNullableRule() *TerraformVariableNullableRule {
 	return &TerraformVariableNullableRule{}
 }
 
-func (r *TerraformVariableNullableRule) Name() string {
+func (*TerraformVariableNullableRule) Name() string {
 	return "terraform_variable_nullable"
 }
 
-func (r *TerraformVariableNullableRule) Enabled() bool {
+func (*TerraformVariableNullableRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformVariableNullableRule) Severity() tflint.Severity {
+func (*TerraformVariableNullableRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 

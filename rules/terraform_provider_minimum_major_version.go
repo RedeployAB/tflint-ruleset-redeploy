@@ -25,15 +25,15 @@ func NewTerraformProviderMinimumMajorVersionRule() *TerraformProviderMinimumMajo
 	return &TerraformProviderMinimumMajorVersionRule{}
 }
 
-func (r *TerraformProviderMinimumMajorVersionRule) Name() string {
+func (*TerraformProviderMinimumMajorVersionRule) Name() string {
 	return "terraform_provider_minimum_major_version"
 }
 
-func (r *TerraformProviderMinimumMajorVersionRule) Enabled() bool {
+func (*TerraformProviderMinimumMajorVersionRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformProviderMinimumMajorVersionRule) Severity() tflint.Severity {
+func (*TerraformProviderMinimumMajorVersionRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -70,16 +70,29 @@ func (r *TerraformProviderMinimumMajorVersionRule) processBody(
 ) error {
 	for _, block := range body.Blocks {
 		if block.Type == TypeTerraform {
-			for _, sub := range block.Body.Blocks {
-				if sub.Type == TypeRequiredProviders {
-					if err := r.checkRequiredProvidersBlock(sub, runner); err != nil {
-						return err
-					}
-				}
+			if err := r.checkTerraformBlock(block, runner); err != nil {
+				return err
 			}
 		}
 		// Recurse
 		if err := r.processBody(block.Body, runner); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkTerraformBlock checks every required_providers block nested directly
+// in a terraform block.
+func (r *TerraformProviderMinimumMajorVersionRule) checkTerraformBlock(
+	block *hclsyntax.Block,
+	runner tflint.Runner,
+) error {
+	for _, sub := range block.Body.Blocks {
+		if sub.Type != TypeRequiredProviders {
+			continue
+		}
+		if err := r.checkRequiredProvidersBlock(sub, runner); err != nil {
 			return err
 		}
 	}
@@ -154,14 +167,22 @@ func (r *TerraformProviderMinimumMajorVersionRule) checkProviderObject(
 		// Invalid: has min but no max
 		return runner.EmitIssue(
 			r,
-			fmt.Sprintf("Provider '%s' has a minimum version constraint but no maximum (version=%q)", providerName, versionString),
+			fmt.Sprintf(
+				"Provider '%s' has a minimum version constraint but no maximum (version=%q)",
+				providerName,
+				versionString,
+			),
 			versionRange,
 		)
 	case !hasMin && hasMax:
 		// Invalid: has max but no min
 		return runner.EmitIssue(
 			r,
-			fmt.Sprintf("Provider '%s' has only a maximum version constraint; a minimum version is required (version=%q)", providerName, versionString),
+			fmt.Sprintf(
+				"Provider '%s' has only a maximum version constraint; a minimum version is required (version=%q)",
+				providerName,
+				versionString,
+			),
 			versionRange,
 		)
 	default:

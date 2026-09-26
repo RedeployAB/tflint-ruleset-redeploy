@@ -33,8 +33,9 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Content: readFixture(t, "meta_order_invalid_resource.tf"),
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'depends_on' in resource 'aws_instance example': must appear after all resource arguments and blocks",
+					Rule: NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'depends_on' in resource 'aws_instance example': " +
+						"must appear after all resource arguments and blocks",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 3},
@@ -53,8 +54,9 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Content: readFixture(t, "meta_order_invalid_module.tf"),
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'depends_on' in module 'example': must appear after all module arguments and blocks",
+					Rule: NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'depends_on' in module 'example': " +
+						"must appear after all module arguments and blocks",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 3},
@@ -73,8 +75,9 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Content: readFixture(t, "meta_order_invalid_lifecycle_before_content.tf"),
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'lifecycle' in resource 'azurerm_container_app example': must appear after all resource arguments and blocks",
+					Rule: NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'lifecycle' in resource 'azurerm_container_app example': " +
+						"must appear after all resource arguments and blocks",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 3},
@@ -88,8 +91,9 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Content: readFixture(t, "meta_order_invalid_depends_on_before_content.tf"),
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'depends_on' in resource 'aws_instance example': must appear after all resource arguments and blocks",
+					Rule: NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'depends_on' in resource 'aws_instance example': " +
+						"must appear after all resource arguments and blocks",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 3},
@@ -103,8 +107,9 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Content: readFixture(t, "meta_order_invalid_module_depends_on_before_content.tf"),
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'depends_on' in module 'example': must appear after all module arguments and blocks",
+					Rule: NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'depends_on' in module 'example': " +
+						"must appear after all module arguments and blocks",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 3},
@@ -118,8 +123,9 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Content: readFixture(t, "meta_order_invalid_both_bottom_before_content.tf"),
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'lifecycle' in resource 'aws_instance example': must appear after all resource arguments and blocks",
+					Rule: NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'lifecycle' in resource 'aws_instance example': " +
+						"must appear after all resource arguments and blocks",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 2, Column: 3},
@@ -133,8 +139,10 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Content: readFixture(t, "meta_order_invalid_top_meta_after_content.tf"),
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'for_each' in resource 'azurerm_role_assignment blob_contributor': must appear before all resource arguments and blocks",
+					Rule: NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'for_each' in resource " +
+						"'azurerm_role_assignment blob_contributor': " +
+						"must appear before all resource arguments and blocks",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 6, Column: 3},
@@ -148,8 +156,9 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Content: readFixture(t, "meta_order_invalid_top_provider_after_content.tf"),
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'provider' in resource 'aws_instance example': must appear before all resource arguments and blocks",
+					Rule: NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'provider' in resource 'aws_instance example': " +
+						"must appear before all resource arguments and blocks",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 5, Column: 3},
@@ -163,8 +172,9 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Content: readFixture(t, "meta_order_invalid_top_count_after_content_module.tf"),
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'count' in module 'example': must appear before all module arguments and blocks",
+					Rule: NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'count' in module 'example': " +
+						"must appear before all module arguments and blocks",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 5, Column: 3},
@@ -188,8 +198,9 @@ func TestTerraformMetaArgumentOrder(t *testing.T) {
 			Content: readFixture(t, "meta_order_invalid_top_and_bottom_violations.tf"),
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformMetaArgumentOrderRule(),
-					Message: "Out-of-order meta argument 'for_each' in resource 'aws_instance example': must appear before all resource arguments and blocks",
+					Rule: NewTerraformMetaArgumentOrderRule(),
+					Message: "Out-of-order meta argument 'for_each' in resource 'aws_instance example': " +
+						"must appear before all resource arguments and blocks",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 7, Column: 3},

@@ -53,8 +53,9 @@ func TestTerraformProviderMinimumMajorVersionRule(t *testing.T) {
 			FileName: "provider_minver_invalid_max.tf",
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformProviderMinimumMajorVersionRule(),
-					Message: "Provider 'aws' has only a maximum version constraint; a minimum version is required (version=\"< 4.0\")",
+					Rule: NewTerraformProviderMinimumMajorVersionRule(),
+					Message: "Provider 'aws' has only a maximum version constraint; " +
+						"a minimum version is required (version=\"< 4.0\")",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 5, Column: 17},

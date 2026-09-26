@@ -17,15 +17,15 @@ func NewTerraformSourceFormatRule() *TerraformSourceFormatRule {
 	return &TerraformSourceFormatRule{}
 }
 
-func (r *TerraformSourceFormatRule) Name() string {
+func (*TerraformSourceFormatRule) Name() string {
 	return "terraform_source_format"
 }
 
-func (r *TerraformSourceFormatRule) Enabled() bool {
+func (*TerraformSourceFormatRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformSourceFormatRule) Severity() tflint.Severity {
+func (*TerraformSourceFormatRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -62,7 +62,12 @@ func (r *TerraformSourceFormatRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
-func (r *TerraformSourceFormatRule) processBody(body *hclsyntax.Body, filename string, lines []string, runner tflint.Runner) error {
+func (r *TerraformSourceFormatRule) processBody(
+	body *hclsyntax.Body,
+	filename string,
+	lines []string,
+	runner tflint.Runner,
+) error {
 	for _, block := range body.Blocks {
 		if block.Type == "module" {
 			if err := r.checkModuleBlock(block, lines, runner); err != nil {
@@ -76,8 +81,11 @@ func (r *TerraformSourceFormatRule) processBody(body *hclsyntax.Body, filename s
 	return nil
 }
 
-//nolint:gocyclo
-func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, lines []string, runner tflint.Runner) error {
+func (r *TerraformSourceFormatRule) checkModuleBlock(
+	block *hclsyntax.Block,
+	lines []string,
+	runner tflint.Runner,
+) error {
 	srcRange := block.Body.Range()
 
 	startLine := srcRange.Start.Line - 1
@@ -86,8 +94,54 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, lin
 		endLine = len(lines) - 1
 	}
 
-	sourceLine := -1
-	versionLine := -1
+	sourceLine, versionLine := findSourceVersionLines(lines, startLine, endLine)
+
+	lastOfTheTwo := Max(sourceLine, versionLine)
+	if lastOfTheTwo < 0 {
+		return nil
+	}
+
+	attrName := pickAttrName(sourceLine, versionLine, lastOfTheTwo)
+
+	for nextLineIdx := lastOfTheTwo + 1; nextLineIdx <= endLine; nextLineIdx++ {
+		nextText := strings.TrimSpace(lines[nextLineIdx])
+		switch {
+		case nextText == "":
+			if !onlyCommentsUntilBlockEnd(lines, nextLineIdx+1, endLine) {
+				return nil
+			}
+			return runner.EmitIssueWithFix(
+				r,
+				fmt.Sprintf("Unexpected blank line after '%s' when block ends", attrName),
+				lineStartRange(srcRange.Filename, nextLineIdx),
+				removeBlankLineFix(srcRange.Filename, lines, nextLineIdx),
+			)
+		case isSourceFormatComment(nextText):
+			continue
+		case nextText == "}":
+			return nil
+		default:
+			if nextLineIdx > lastOfTheTwo+1 {
+				return nil
+			}
+			return runner.EmitIssueWithFix(
+				r,
+				fmt.Sprintf("Expected a blank line after '%s'", attrName),
+				lineStartRange(srcRange.Filename, nextLineIdx),
+				insertBlankLineFix(srcRange.Filename, lines, nextLineIdx),
+			)
+		}
+	}
+
+	return nil
+}
+
+// findSourceVersionLines returns the 0-based indices of the last "source"
+// and "version" attribute lines between startLine and endLine (inclusive),
+// or -1 for an attribute that is not present.
+func findSourceVersionLines(lines []string, startLine, endLine int) (sourceLine, versionLine int) {
+	sourceLine = -1
+	versionLine = -1
 
 	for l := startLine; l <= endLine && l < len(lines); l++ {
 		text := strings.TrimSpace(lines[l])
@@ -102,175 +156,107 @@ func (r *TerraformSourceFormatRule) checkModuleBlock(block *hclsyntax.Block, lin
 		}
 	}
 
-	if sourceLine < 0 && versionLine < 0 {
-		return nil
-	}
-
-	lastOfTheTwo := Max(sourceLine, versionLine)
-	if lastOfTheTwo < 0 {
-		return nil
-	}
-
-	nextLineIdx := lastOfTheTwo + 1
-	if nextLineIdx > endLine {
-		return nil
-	}
-
-	for nextLineIdx <= endLine {
-		nextText := strings.TrimSpace(lines[nextLineIdx])
-		switch {
-		case nextText == "":
-			tmp := nextLineIdx + 1
-			for tmp <= endLine {
-				lineCheck := strings.TrimSpace(lines[tmp])
-				if lineCheck == "" || strings.HasPrefix(lineCheck, "//") || strings.HasPrefix(lineCheck, "#") {
-					tmp++
-					continue
-				}
-				if lineCheck == "}" {
-					rng := hcl.Range{
-						Filename: srcRange.Filename,
-						Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
-						End:      hcl.Pos{Line: nextLineIdx + 1, Column: 1},
-					}
-					return runner.EmitIssueWithFix(
-						r,
-						fmt.Sprintf("Unexpected blank line after '%s' when block ends", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
-						rng,
-						func(f tflint.Fixer) error {
-							// Calculate byte position for the blank line
-							bytePos := 0
-							for i := range nextLineIdx {
-								bytePos += len(lines[i]) + 1 // +1 for newline
-							}
-
-							// Range for the blank line (entire line including newline)
-							lineStart := bytePos
-							lineEnd := bytePos + len(lines[nextLineIdx])
-							if nextLineIdx < len(lines)-1 {
-								lineEnd++ // Include the newline
-							}
-
-							removeRange := hcl.Range{
-								Filename: srcRange.Filename,
-								Start: hcl.Pos{
-									Line:   nextLineIdx + 1,
-									Column: 1,
-									Byte:   lineStart,
-								},
-								End: hcl.Pos{
-									Line:   nextLineIdx + 2,
-									Column: 1,
-									Byte:   lineEnd,
-								},
-							}
-
-							// Remove the blank line
-							return f.Remove(removeRange)
-						},
-					)
-				}
-				return nil
-			}
-			rng := hcl.Range{
-				Filename: srcRange.Filename,
-				Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
-				End:      hcl.Pos{Line: nextLineIdx + 1, Column: 1},
-			}
-			return runner.EmitIssueWithFix(
-				r,
-				fmt.Sprintf("Unexpected blank line after '%s' when block ends", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
-				rng,
-				func(f tflint.Fixer) error {
-					// Calculate byte position for the blank line
-					bytePos := 0
-					for i := range nextLineIdx {
-						bytePos += len(lines[i]) + 1 // +1 for newline
-					}
-
-					// Range for the blank line (entire line including newline)
-					lineStart := bytePos
-					lineEnd := bytePos + len(lines[nextLineIdx])
-					if nextLineIdx < len(lines)-1 {
-						lineEnd++ // Include the newline
-					}
-
-					removeRange := hcl.Range{
-						Filename: srcRange.Filename,
-						Start: hcl.Pos{
-							Line:   nextLineIdx + 1,
-							Column: 1,
-							Byte:   lineStart,
-						},
-						End: hcl.Pos{
-							Line:   nextLineIdx + 2,
-							Column: 1,
-							Byte:   lineEnd,
-						},
-					}
-
-					// Remove the blank line
-					return f.Remove(removeRange)
-				},
-			)
-		case strings.HasPrefix(nextText, "//"), strings.HasPrefix(nextText, "#"):
-			nextLineIdx++
-			continue
-		case nextText == "}":
-			return nil
-		default:
-			if nextLineIdx > lastOfTheTwo+1 {
-				return nil
-			}
-			rng := hcl.Range{
-				Filename: srcRange.Filename,
-				Start:    hcl.Pos{Line: nextLineIdx + 1, Column: 1},
-				End:      hcl.Pos{Line: nextLineIdx + 1, Column: 1},
-			}
-			return runner.EmitIssueWithFix(
-				r,
-				fmt.Sprintf("Expected a blank line after '%s'", pickAttrName(sourceLine, versionLine, lastOfTheTwo)),
-				rng,
-				func(f tflint.Fixer) error {
-					// Calculate byte position for insertion
-					bytePos := 0
-					for i := range nextLineIdx - 1 {
-						bytePos += len(lines[i]) + 1 // +1 for newline
-					}
-					// Add the length of the previous line (line with source/version)
-					bytePos += len(lines[nextLineIdx-1]) + 1
-
-					insertPos := hcl.Range{
-						Filename: srcRange.Filename,
-						Start: hcl.Pos{
-							Line:   nextLineIdx,
-							Column: len(lines[nextLineIdx-1]) + 1,
-							Byte:   bytePos - 1, // Position at end of previous line
-						},
-						End: hcl.Pos{
-							Line:   nextLineIdx,
-							Column: len(lines[nextLineIdx-1]) + 1,
-							Byte:   bytePos - 1,
-						},
-					}
-
-					// Insert a newline to create a blank line
-					return f.InsertTextAfter(insertPos, "\n")
-				},
-			)
-		}
-	}
-
-	return nil
+	return sourceLine, versionLine
 }
 
-func pickAttrName(srcLine, verLine, last int) string {
-	switch last {
-	case srcLine:
-		return "source"
-	case verLine:
-		return "version"
-	default:
-		return "source"
+// isSourceFormatComment reports whether a trimmed line is a line comment.
+func isSourceFormatComment(text string) bool {
+	return strings.HasPrefix(text, "//") || strings.HasPrefix(text, "#")
+}
+
+// onlyCommentsUntilBlockEnd reports whether the lines from fromLine through
+// endLine (inclusive) contain nothing but blank lines and comments before the
+// block's closing brace, or before the end of the range.
+func onlyCommentsUntilBlockEnd(lines []string, fromLine, endLine int) bool {
+	for l := fromLine; l <= endLine; l++ {
+		lineCheck := strings.TrimSpace(lines[l])
+		if lineCheck == "" || isSourceFormatComment(lineCheck) {
+			continue
+		}
+		return lineCheck == "}"
 	}
+	return true
+}
+
+// lineStartRange returns a zero-width range at the start of the 0-based line.
+func lineStartRange(filename string, lineIdx int) hcl.Range {
+	return hcl.Range{
+		Filename: filename,
+		Start:    hcl.Pos{Line: lineIdx + 1, Column: 1},
+		End:      hcl.Pos{Line: lineIdx + 1, Column: 1},
+	}
+}
+
+// lineByteOffset returns the byte offset of the start of the 0-based line.
+func lineByteOffset(lines []string, lineIdx int) int {
+	bytePos := 0
+	for i := range lineIdx {
+		bytePos += len(lines[i]) + 1 // +1 for newline
+	}
+	return bytePos
+}
+
+// removeBlankLineFix returns a fix that removes the blank 0-based line.
+func removeBlankLineFix(filename string, lines []string, lineIdx int) func(tflint.Fixer) error {
+	return func(f tflint.Fixer) error {
+		// Range for the blank line (entire line including newline)
+		lineStart := lineByteOffset(lines, lineIdx)
+		lineEnd := lineStart + len(lines[lineIdx])
+		if lineIdx < len(lines)-1 {
+			lineEnd++ // Include the newline
+		}
+
+		removeRange := hcl.Range{
+			Filename: filename,
+			Start: hcl.Pos{
+				Line:   lineIdx + 1,
+				Column: 1,
+				Byte:   lineStart,
+			},
+			End: hcl.Pos{
+				Line:   lineIdx + 2,
+				Column: 1,
+				Byte:   lineEnd,
+			},
+		}
+
+		// Remove the blank line
+		return f.Remove(removeRange)
+	}
+}
+
+// insertBlankLineFix returns a fix that inserts a blank line before the
+// 0-based line, i.e. at the end of the line preceding it.
+func insertBlankLineFix(filename string, lines []string, lineIdx int) func(tflint.Fixer) error {
+	return func(f tflint.Fixer) error {
+		// Calculate byte position for insertion: the start of the previous
+		// line (with source/version) plus its length and newline
+		bytePos := lineByteOffset(lines, lineIdx-1) + len(lines[lineIdx-1]) + 1
+
+		insertPos := hcl.Range{
+			Filename: filename,
+			Start: hcl.Pos{
+				Line:   lineIdx,
+				Column: len(lines[lineIdx-1]) + 1,
+				Byte:   bytePos - 1, // Position at end of previous line
+			},
+			End: hcl.Pos{
+				Line:   lineIdx,
+				Column: len(lines[lineIdx-1]) + 1,
+				Byte:   bytePos - 1,
+			},
+		}
+
+		// Insert a newline to create a blank line
+		return f.InsertTextAfter(insertPos, "\n")
+	}
+}
+
+// pickAttrName names the attribute on the last line of the two; "source"
+// wins when both share that line or neither matches.
+func pickAttrName(srcLine, verLine, last int) string {
+	if last != srcLine && last == verLine {
+		return "version"
+	}
+	return "source"
 }

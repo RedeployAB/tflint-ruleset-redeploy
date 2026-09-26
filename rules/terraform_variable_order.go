@@ -1,8 +1,9 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -32,17 +33,17 @@ func NewTerraformVariableOrderRule() *TerraformVariableOrderRule {
 }
 
 // Name returns the rule name.
-func (r *TerraformVariableOrderRule) Name() string {
+func (*TerraformVariableOrderRule) Name() string {
 	return "terraform_variable_order"
 }
 
 // Enabled returns whether the rule is enabled by default.
-func (r *TerraformVariableOrderRule) Enabled() bool {
+func (*TerraformVariableOrderRule) Enabled() bool {
 	return true
 }
 
 // Severity returns the severity of the rule.
-func (r *TerraformVariableOrderRule) Severity() tflint.Severity {
+func (*TerraformVariableOrderRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -114,8 +115,8 @@ func (r *TerraformVariableOrderRule) processFile(body *hclsyntax.Body, filename 
 	}
 
 	// Sort varBlocks by their starting position
-	sort.Slice(varBlocks, func(i, j int) bool {
-		return varBlocks[i].Start < varBlocks[j].Start
+	slices.SortFunc(varBlocks, func(a, b variableBlock) int {
+		return cmp.Compare(a.Start, b.Start)
 	})
 
 	// Check if the order is correct
@@ -129,6 +130,13 @@ func (r *TerraformVariableOrderRule) processFile(body *hclsyntax.Body, filename 
 
 // isCorrectOrder checks if the variable blocks are in the correct order
 func isCorrectOrder(varBlocks []variableBlock) bool {
+	_, found := findFirstOutOfOrderVariable(varBlocks)
+	return !found
+}
+
+// findFirstOutOfOrderVariable returns the first variable block (in file order)
+// that violates the ordering, and whether one was found.
+func findFirstOutOfOrderVariable(varBlocks []variableBlock) (outOfOrder variableBlock, found bool) {
 	lastRequiredName := ""
 	lastOptionalName := ""
 	seenOptional := false
@@ -137,19 +145,19 @@ func isCorrectOrder(varBlocks []variableBlock) bool {
 		if !vb.HasDefault {
 			// Required variable: check if we've seen optional or if out of order
 			if seenOptional || (lastRequiredName != "" && vb.Name < lastRequiredName) {
-				return false
+				return vb, true
 			}
 			lastRequiredName = vb.Name
-		} else {
-			// Optional variable: check alphabetical order
-			if lastOptionalName != "" && vb.Name < lastOptionalName {
-				return false
-			}
-			lastOptionalName = vb.Name
-			seenOptional = true
+			continue
 		}
+		// Optional variable: check alphabetical order
+		if lastOptionalName != "" && vb.Name < lastOptionalName {
+			return vb, true
+		}
+		lastOptionalName = vb.Name
+		seenOptional = true
 	}
-	return true
+	return variableBlock{}, false
 }
 
 // emitIssueWithFix emits an issue with autofix support
@@ -159,104 +167,101 @@ func (r *TerraformVariableOrderRule) emitIssueWithFix(
 	filename string,
 ) error {
 	// Find the first variable that's out of order for the error message and location
-	var outOfOrderVar string
-	var outOfOrderRange hcl.Range
-	lastRequiredName := ""
-	lastOptionalName := ""
-	seenOptional := false
-
-	for _, vb := range varBlocks {
-		if !vb.HasDefault {
-			if seenOptional || (lastRequiredName != "" && vb.Name < lastRequiredName) {
-				outOfOrderVar = vb.Name
-				outOfOrderRange = vb.DefRange
-				break
-			}
-			lastRequiredName = vb.Name
-		} else {
-			if lastOptionalName != "" && vb.Name < lastOptionalName {
-				outOfOrderVar = vb.Name
-				outOfOrderRange = vb.DefRange
-				break
-			}
-			lastOptionalName = vb.Name
-			seenOptional = true
-		}
-	}
+	outOfOrder, _ := findFirstOutOfOrderVariable(varBlocks)
 
 	msg := fmt.Sprintf(
-		`Out-of-order variable %q. Required variables must come first in alphabetical order, followed by optional variables in alphabetical order.`,
-		outOfOrderVar,
+		`Out-of-order variable %q. Required variables must come first in alphabetical order, `+
+			`followed by optional variables in alphabetical order.`,
+		outOfOrder.Name,
 	)
 
 	// Use the out-of-order variable's range for the issue location
-	return runner.EmitIssueWithFix(r, msg, outOfOrderRange, func(f tflint.Fixer) error {
-		// Get the text content of all variable blocks
-		type varBlockWithContent struct {
-			variableBlock
-			Content string
-		}
-
-		var blocksWithContent []varBlockWithContent
-		for _, vb := range varBlocks {
-			text := f.TextAt(vb.Range)
-			blocksWithContent = append(blocksWithContent, varBlockWithContent{
-				variableBlock: vb,
-				Content:       string(text.Bytes),
-			})
-		}
-
-		// Sort variables: required first (alphabetical), then optional (alphabetical)
-		sort.Slice(blocksWithContent, func(i, j int) bool {
-			if blocksWithContent[i].HasDefault != blocksWithContent[j].HasDefault {
-				return !blocksWithContent[i].HasDefault // required (!HasDefault) comes first
-			}
-			return blocksWithContent[i].Name < blocksWithContent[j].Name
-		})
-
-		// Build the fixed content preserving original spacing
-		var fixedContent strings.Builder
-
-		// Create a map to track original spacing between consecutive variables
-		spacingMap := make(map[string]string)
-		for i := 1; i < len(varBlocks); i++ {
-			betweenRange := hcl.Range{
-				Filename: filename,
-				Start:    varBlocks[i-1].Range.End,
-				End:      varBlocks[i].Range.Start,
-			}
-			betweenText := f.TextAt(betweenRange)
-			key := varBlocks[i-1].Name + "|||" + varBlocks[i].Name
-			spacingMap[key] = string(betweenText.Bytes)
-		}
-
-		for i, vb := range blocksWithContent {
-			if i > 0 {
-				// Try to find original spacing between these two variables
-				prevName := blocksWithContent[i-1].Name
-				currName := vb.Name
-
-				// Check both orderings since they might have been reordered.
-				// Default to double newline if they weren't originally adjacent.
-				spacing := "\n\n"
-				if s, ok := spacingMap[prevName+"|||"+currName]; ok {
-					spacing = s
-				} else if s, ok := spacingMap[currName+"|||"+prevName]; ok {
-					spacing = s
-				}
-
-				fixedContent.WriteString(spacing)
-			}
-			fixedContent.WriteString(vb.Content)
-		}
-
-		// Replace the entire range from first to last variable
-		fullRange := hcl.Range{
-			Filename: varBlocks[0].Range.Filename,
-			Start:    varBlocks[0].Range.Start,
-			End:      varBlocks[len(varBlocks)-1].Range.End,
-		}
-
-		return f.ReplaceText(fullRange, fixedContent.String())
+	return runner.EmitIssueWithFix(r, msg, outOfOrder.DefRange, func(f tflint.Fixer) error {
+		return fixVariableOrder(f, varBlocks, filename)
 	})
+}
+
+// varBlockWithContent pairs a variable block with its source text.
+type varBlockWithContent struct {
+	variableBlock
+	Content string
+}
+
+// compareVariableBlocksForFix orders required variables (no default) before
+// optional ones, each group alphabetically by name.
+func compareVariableBlocksForFix(a, b varBlockWithContent) int {
+	if a.HasDefault != b.HasDefault {
+		if a.HasDefault {
+			return 1
+		}
+		return -1 // required (!HasDefault) comes first
+	}
+	return strings.Compare(a.Name, b.Name)
+}
+
+// fixVariableOrder rewrites the variable blocks in the expected order while
+// preserving the original spacing between originally adjacent variables.
+func fixVariableOrder(f tflint.Fixer, varBlocks []variableBlock, filename string) error {
+	// Get the text content of all variable blocks
+	blocksWithContent := make([]varBlockWithContent, 0, len(varBlocks))
+	for _, vb := range varBlocks {
+		text := f.TextAt(vb.Range)
+		blocksWithContent = append(blocksWithContent, varBlockWithContent{
+			variableBlock: vb,
+			Content:       string(text.Bytes),
+		})
+	}
+
+	// Sort variables: required first (alphabetical), then optional (alphabetical)
+	slices.SortFunc(blocksWithContent, compareVariableBlocksForFix)
+
+	spacingMap := buildVariableSpacingMap(f, varBlocks, filename)
+
+	// Build the fixed content preserving original spacing
+	var fixedContent strings.Builder
+	for i, vb := range blocksWithContent {
+		if i > 0 {
+			fixedContent.WriteString(lookupVariableSpacing(spacingMap, blocksWithContent[i-1].Name, vb.Name))
+		}
+		fixedContent.WriteString(vb.Content)
+	}
+
+	// Replace the entire range from first to last variable
+	fullRange := hcl.Range{
+		Filename: varBlocks[0].Range.Filename,
+		Start:    varBlocks[0].Range.Start,
+		End:      varBlocks[len(varBlocks)-1].Range.End,
+	}
+
+	return f.ReplaceText(fullRange, fixedContent.String())
+}
+
+// buildVariableSpacingMap records the original text between each pair of
+// consecutive variable blocks, keyed by "prev|||curr".
+func buildVariableSpacingMap(f tflint.Fixer, varBlocks []variableBlock, filename string) map[string]string {
+	spacingMap := make(map[string]string)
+	for i := 1; i < len(varBlocks); i++ {
+		betweenRange := hcl.Range{
+			Filename: filename,
+			Start:    varBlocks[i-1].Range.End,
+			End:      varBlocks[i].Range.Start,
+		}
+		betweenText := f.TextAt(betweenRange)
+		key := varBlocks[i-1].Name + "|||" + varBlocks[i].Name
+		spacingMap[key] = string(betweenText.Bytes)
+	}
+	return spacingMap
+}
+
+// lookupVariableSpacing returns the original spacing between two variables.
+// Both orderings are checked since they might have been reordered; it
+// defaults to a double newline if they weren't originally adjacent.
+func lookupVariableSpacing(spacingMap map[string]string, prevName, currName string) string {
+	if s, ok := spacingMap[prevName+"|||"+currName]; ok {
+		return s
+	}
+	if s, ok := spacingMap[currName+"|||"+prevName]; ok {
+		return s
+	}
+	return "\n\n"
 }

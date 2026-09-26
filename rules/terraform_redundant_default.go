@@ -28,15 +28,15 @@ func NewTerraformRedundantDefaultRule() *TerraformRedundantDefaultRule {
 	return &TerraformRedundantDefaultRule{}
 }
 
-func (r *TerraformRedundantDefaultRule) Name() string {
+func (*TerraformRedundantDefaultRule) Name() string {
 	return "terraform_redundant_default"
 }
 
-func (r *TerraformRedundantDefaultRule) Enabled() bool {
+func (*TerraformRedundantDefaultRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformRedundantDefaultRule) Severity() tflint.Severity {
+func (*TerraformRedundantDefaultRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -71,7 +71,11 @@ func (r *TerraformRedundantDefaultRule) Check(runner tflint.Runner) error {
 	return nil
 }
 
-func (r *TerraformRedundantDefaultRule) processBody(body *hclsyntax.Body, config *redundantDefaultConfig, runner tflint.Runner) error {
+func (r *TerraformRedundantDefaultRule) processBody(
+	body *hclsyntax.Body,
+	config *redundantDefaultConfig,
+	runner tflint.Runner,
+) error {
 	for _, block := range body.Blocks {
 		if err := r.checkBlock(block, config, runner); err != nil {
 			return err
@@ -83,28 +87,12 @@ func (r *TerraformRedundantDefaultRule) processBody(body *hclsyntax.Body, config
 	return nil
 }
 
-func (r *TerraformRedundantDefaultRule) checkBlock(block *hclsyntax.Block, config *redundantDefaultConfig, runner tflint.Runner) error {
-	var names []string
-	switch block.Type {
-	case TypeVariable, TypeOutput:
-		if checkEnabled(config.Sensitive) {
-			names = append(names, ArgSensitive)
-		}
-		if checkEnabled(config.Ephemeral) {
-			names = append(names, ArgEphemeral)
-		}
-	case ArgLifecycle:
-		if checkEnabled(config.PreventDestroy) {
-			names = append(names, ArgPreventDestroy)
-		}
-		if checkEnabled(config.CreateBeforeDestroy) {
-			names = append(names, ArgCreateBeforeDestroy)
-		}
-	default:
-		return nil
-	}
-
-	for _, name := range names {
+func (r *TerraformRedundantDefaultRule) checkBlock(
+	block *hclsyntax.Block,
+	config *redundantDefaultConfig,
+	runner tflint.Runner,
+) error {
+	for _, name := range redundantDefaultArgNames(block.Type, config) {
 		attr := block.Body.Attributes[name]
 		if attr == nil {
 			continue
@@ -116,18 +104,56 @@ func (r *TerraformRedundantDefaultRule) checkBlock(block *hclsyntax.Block, confi
 		if err != nil || !isLiteral || value {
 			continue
 		}
-		if err := runner.EmitIssueWithFix(
+		err = runner.EmitIssueWithFix(
 			r,
 			name+" should not be set to false (omit instead)",
 			attr.Range(),
 			func(f tflint.Fixer) error {
 				return removeAttributeLine(f, runner, attr.Range())
 			},
-		); err != nil {
+		)
+		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// redundantDefaultArgNames returns the enabled argument names to check for
+// the given block type, or nil if the block type is not checked.
+func redundantDefaultArgNames(blockType string, config *redundantDefaultConfig) []string {
+	switch blockType {
+	case TypeVariable, TypeOutput:
+		return enabledRedundantDefaultArgs(
+			redundantDefaultToggle{ArgSensitive, config.Sensitive},
+			redundantDefaultToggle{ArgEphemeral, config.Ephemeral},
+		)
+	case ArgLifecycle:
+		return enabledRedundantDefaultArgs(
+			redundantDefaultToggle{ArgPreventDestroy, config.PreventDestroy},
+			redundantDefaultToggle{ArgCreateBeforeDestroy, config.CreateBeforeDestroy},
+		)
+	default:
+		return nil
+	}
+}
+
+// redundantDefaultToggle pairs an argument name with its config toggle.
+type redundantDefaultToggle struct {
+	name    string
+	enabled *bool
+}
+
+// enabledRedundantDefaultArgs returns, in order, the names of the toggles
+// that are enabled.
+func enabledRedundantDefaultArgs(toggles ...redundantDefaultToggle) []string {
+	var names []string
+	for _, toggle := range toggles {
+		if checkEnabled(toggle.enabled) {
+			names = append(names, toggle.name)
+		}
+	}
+	return names
 }
 
 // checkEnabled reports whether a config toggle is on. An unset (nil) value

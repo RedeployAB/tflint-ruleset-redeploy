@@ -1,8 +1,9 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -63,15 +64,15 @@ func NewTerraformTagsArgumentRule() *TerraformTagsArgumentRule {
 	return &TerraformTagsArgumentRule{}
 }
 
-func (r *TerraformTagsArgumentRule) Name() string {
+func (*TerraformTagsArgumentRule) Name() string {
 	return "terraform_tags_argument"
 }
 
-func (r *TerraformTagsArgumentRule) Enabled() bool {
+func (*TerraformTagsArgumentRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformTagsArgumentRule) Severity() tflint.Severity {
+func (*TerraformTagsArgumentRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -147,7 +148,7 @@ type resourceItem struct {
 	Range hcl.Range
 }
 
-func (r *TerraformTagsArgumentRule) collectResourceItems(block *hclsyntax.Block) []resourceItem {
+func (*TerraformTagsArgumentRule) collectResourceItems(block *hclsyntax.Block) []resourceItem {
 	var items []resourceItem
 
 	for _, attr := range block.Body.Attributes {
@@ -166,13 +167,13 @@ func (r *TerraformTagsArgumentRule) collectResourceItems(block *hclsyntax.Block)
 	}
 
 	// Sort items by position
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Range.Start.Byte < items[j].Range.Start.Byte
+	slices.SortFunc(items, func(a, b resourceItem) int {
+		return cmp.Compare(a.Range.Start.Byte, b.Range.Start.Byte)
 	})
 	return items
 }
 
-func (r *TerraformTagsArgumentRule) findTagsIndex(items []resourceItem) int {
+func (*TerraformTagsArgumentRule) findTagsIndex(items []resourceItem) int {
 	for i, it := range items {
 		if it.Type == typeAttr && it.Name == "tags" {
 			return i

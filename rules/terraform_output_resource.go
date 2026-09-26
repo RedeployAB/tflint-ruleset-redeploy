@@ -1,7 +1,7 @@
 package rules
 
 import (
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -10,6 +10,10 @@ import (
 
 	"github.com/terraform-linters/tflint-plugin-sdk/tflint"
 )
+
+// outputResourceMessage is reported when an output references a whole resource.
+const outputResourceMessage = "Output is referencing the entire resource or data, " +
+	"rather than a specific attribute. This can cause schema issues."
 
 // TerraformOutputResourceRule checks if a resource (including data) is output directly,
 // rather than referencing a specific attribute. This can cause schema issues or breakage.
@@ -23,17 +27,17 @@ func NewTerraformOutputResourceRule() *TerraformOutputResourceRule {
 }
 
 // Name returns the rule name.
-func (r *TerraformOutputResourceRule) Name() string {
+func (*TerraformOutputResourceRule) Name() string {
 	return "terraform_output_resource"
 }
 
 // Enabled returns whether the rule is enabled by default.
-func (r *TerraformOutputResourceRule) Enabled() bool {
+func (*TerraformOutputResourceRule) Enabled() bool {
 	return true
 }
 
 // Severity returns the severity of the rule.
-func (r *TerraformOutputResourceRule) Severity() tflint.Severity {
+func (*TerraformOutputResourceRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -125,7 +129,7 @@ func (r *TerraformOutputResourceRule) checkOutputBlock(
 		if r.isFullResourceReference(trav) {
 			return runner.EmitIssue(
 				r,
-				"Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
+				outputResourceMessage,
 				valAttr.Range(),
 			)
 		}
@@ -143,33 +147,36 @@ func (r *TerraformOutputResourceRule) checkForExpression(
 	// Check if the value expression is just the loop variable
 	// For example: [for x in resource : x] is bad
 	// But: [for x in resource : x.attr] is OK
-	if scopeTrav, ok := forExpr.ValExpr.(*hclsyntax.ScopeTraversalExpr); ok {
-		// If it's just a single variable reference (the loop variable),
-		// then we're outputting the entire resource
-		if len(scopeTrav.Traversal) == 1 {
-			if root, ok := scopeTrav.Traversal[0].(hcl.TraverseRoot); ok {
-				// Check if this is the loop variable
-				if forExpr.ValVar == root.Name ||
-					(forExpr.KeyVar != "" && forExpr.KeyVar == root.Name) {
-					// The value expression is just the loop variable
-					// Check if the collection is a resource
-					collTraversals := r.gatherTraversals(forExpr.CollExpr)
-					for _, trav := range collTraversals {
-						if isResourceRootTraversal(trav) && r.isFullResourceReference(trav) {
-							return runner.EmitIssue(
-								r,
-								"Output is referencing the entire resource or data, rather than a specific attribute. This can cause schema issues.",
-								exprRange,
-							)
-						}
-					}
-				}
-			}
+	// For all other cases (accessing attributes on loop variable, complex expressions, etc.), it's OK
+	if !isBareLoopVariable(forExpr) {
+		return nil
+	}
+
+	// The value expression is just the loop variable
+	// Check if the collection is a resource
+	for _, trav := range r.gatherTraversals(forExpr.CollExpr) {
+		if isResourceRootTraversal(trav) && r.isFullResourceReference(trav) {
+			return runner.EmitIssue(r, outputResourceMessage, exprRange)
 		}
 	}
 
-	// For all other cases (accessing attributes on loop variable, complex expressions, etc.), it's OK
 	return nil
+}
+
+// isBareLoopVariable reports whether the for expression's value expression
+// is a single variable reference to one of the loop variables, in which case
+// the for expression outputs each collection element in its entirety.
+func isBareLoopVariable(forExpr *hclsyntax.ForExpr) bool {
+	scopeTrav, ok := forExpr.ValExpr.(*hclsyntax.ScopeTraversalExpr)
+	if !ok || len(scopeTrav.Traversal) != 1 {
+		return false
+	}
+	root, ok := scopeTrav.Traversal[0].(hcl.TraverseRoot)
+	if !ok {
+		return false
+	}
+	return forExpr.ValVar == root.Name ||
+		(forExpr.KeyVar != "" && forExpr.KeyVar == root.Name)
 }
 
 // gatherTraversals extracts and normalizes traversals from an expression
@@ -201,7 +208,7 @@ func (r *TerraformOutputResourceRule) collectAndCanonicalizeTraversals(expr hcl.
 }
 
 // needsCanonicalization checks if any traversal needs canonicalization
-func (r *TerraformOutputResourceRule) needsCanonicalization(traversals []hcl.Traversal) bool {
+func (*TerraformOutputResourceRule) needsCanonicalization(traversals []hcl.Traversal) bool {
 	for _, trav := range traversals {
 		for _, step := range trav {
 			if attr, ok := step.(hcl.TraverseAttr); ok {
@@ -215,7 +222,7 @@ func (r *TerraformOutputResourceRule) needsCanonicalization(traversals []hcl.Tra
 }
 
 // canonicalizeTraversals canonicalizes a slice of traversals
-func (r *TerraformOutputResourceRule) canonicalizeTraversals(traversals []hcl.Traversal) []hcl.Traversal {
+func (*TerraformOutputResourceRule) canonicalizeTraversals(traversals []hcl.Traversal) []hcl.Traversal {
 	var canonical []hcl.Traversal
 	for _, trav := range traversals {
 		canonical = append(canonical, canonicalizeTraversal(trav))
@@ -319,28 +326,12 @@ func (r *TerraformOutputResourceRule) walkForExpr(e *hclsyntax.ForExpr, collecte
 }
 
 // walkSplatExpr handles splat expressions specially
-func (r *TerraformOutputResourceRule) walkSplatExpr(e *hclsyntax.SplatExpr, collected *[]hcl.Traversal) {
+func (*TerraformOutputResourceRule) walkSplatExpr(e *hclsyntax.SplatExpr, collected *[]hcl.Traversal) {
 	// Get the base traversal from the source
 	sourceVars := e.Source.Variables()
 
 	// Check if there's an Each expression (e.g., the .id in resource[*].id)
-	var eachSteps []hcl.Traverser
-	if e.Each != nil {
-		// Try to extract traversal steps from the Each expression
-		if scopeTrav, ok := e.Each.(*hclsyntax.ScopeTraversalExpr); ok {
-			// Skip the first step if it's a root (usually it's a relative traversal)
-			for i, step := range scopeTrav.Traversal {
-				if i == 0 {
-					if _, isRoot := step.(hcl.TraverseRoot); isRoot {
-						continue
-					}
-				}
-				eachSteps = append(eachSteps, step)
-			}
-		} else if relTrav, ok := e.Each.(*hclsyntax.RelativeTraversalExpr); ok {
-			eachSteps = relTrav.Traversal
-		}
-	}
+	eachSteps := splatEachSteps(e.Each)
 
 	for _, trav := range sourceVars {
 		// Build the complete traversal: source + splat + each
@@ -350,6 +341,27 @@ func (r *TerraformOutputResourceRule) walkSplatExpr(e *hclsyntax.SplatExpr, coll
 		fullTrav = append(fullTrav, eachSteps...)
 		*collected = append(*collected, fullTrav)
 	}
+}
+
+// splatEachSteps extracts the traversal steps applied to each element of a
+// splat expression (the .id in resource[*].id). It returns nil when there
+// is no Each expression or it is not a traversal.
+func splatEachSteps(each hclsyntax.Expression) []hcl.Traverser {
+	switch typed := each.(type) {
+	case *hclsyntax.ScopeTraversalExpr:
+		// Skip the first step if it's a root (usually it's a relative traversal)
+		var eachSteps []hcl.Traverser
+		for i, step := range typed.Traversal {
+			if _, isRoot := step.(hcl.TraverseRoot); i == 0 && isRoot {
+				continue
+			}
+			eachSteps = append(eachSteps, step)
+		}
+		return eachSteps
+	case *hclsyntax.RelativeTraversalExpr:
+		return typed.Traversal
+	}
+	return nil
 }
 
 // canonicalizeTraversal normalizes traversals with complex attribute names
@@ -384,37 +396,34 @@ func splitAttrName(name string) []string {
 	var parts []string
 	var current strings.Builder
 
+	flush := func() {
+		if current.Len() > 0 {
+			parts = append(parts, current.String())
+			current.Reset()
+		}
+	}
+
 	for i := 0; i < len(name); i++ {
 		switch name[i] {
 		case '.':
-			if current.Len() > 0 {
-				parts = append(parts, current.String())
-				current.Reset()
-			}
+			flush()
 		case '[':
-			if current.Len() > 0 {
-				parts = append(parts, current.String())
-				current.Reset()
-			}
+			flush()
 			// Find the closing bracket
-			j := i + 1
-			for j < len(name) && name[j] != ']' {
-				j++
-			}
-			if j < len(name) {
-				parts = append(parts, name[i:j+1])
-				i = j
-			} else {
+			closing := strings.IndexByte(name[i+1:], ']')
+			if closing < 0 {
 				current.WriteByte(name[i])
+				continue
 			}
+			j := i + 1 + closing
+			parts = append(parts, name[i:j+1])
+			i = j
 		default:
 			current.WriteByte(name[i])
 		}
 	}
 
-	if current.Len() > 0 {
-		parts = append(parts, current.String())
-	}
+	flush()
 	return parts
 }
 
@@ -452,8 +461,8 @@ func filterPrefixTraversals(traversals []hcl.Traversal) []hcl.Traversal {
 	}
 
 	// Sort by key - this groups potential prefixes together
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].key < sorted[j].key
+	slices.SortStableFunc(sorted, func(a, b traversalWithKey) int {
+		return strings.Compare(a.key, b.key)
 	})
 
 	var result []hcl.Traversal
@@ -532,7 +541,7 @@ func stepEqual(a, b hcl.Traverser) bool {
 }
 
 // isFullResourceReference checks if the traversal is a complete resource reference
-func (r *TerraformOutputResourceRule) isFullResourceReference(trav hcl.Traversal) bool {
+func (*TerraformOutputResourceRule) isFullResourceReference(trav hcl.Traversal) bool {
 	length := len(trav)
 	if length < 2 {
 		return false

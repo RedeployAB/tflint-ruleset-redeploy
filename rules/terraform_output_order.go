@@ -1,8 +1,9 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -29,17 +30,17 @@ func NewTerraformOutputOrderRule() *TerraformOutputOrderRule {
 }
 
 // Name returns the rule name
-func (r *TerraformOutputOrderRule) Name() string {
+func (*TerraformOutputOrderRule) Name() string {
 	return "terraform_output_order"
 }
 
 // Enabled returns whether the rule is enabled by default
-func (r *TerraformOutputOrderRule) Enabled() bool {
+func (*TerraformOutputOrderRule) Enabled() bool {
 	return true
 }
 
 // Severity returns the severity of the rule
-func (r *TerraformOutputOrderRule) Severity() tflint.Severity {
+func (*TerraformOutputOrderRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -103,8 +104,8 @@ func (r *TerraformOutputOrderRule) processFile(body *hclsyntax.Body, filename st
 	}
 
 	// Sort outputs by their starting position
-	sort.Slice(outputBlocks, func(i, j int) bool {
-		return outputBlocks[i].Start < outputBlocks[j].Start
+	slices.SortFunc(outputBlocks, func(a, b outputBlock) int {
+		return cmp.Compare(a.Start, b.Start)
 	})
 
 	// Check if the order is correct
@@ -150,69 +151,86 @@ func (r *TerraformOutputOrderRule) emitIssueWithFix(
 
 	// Use the out-of-order output's range for the issue location
 	return runner.EmitIssueWithFix(r, msg, outOfOrderRange, func(f tflint.Fixer) error {
-		// Get the text content of all output blocks
-		type outputBlockWithContent struct {
-			outputBlock
-			Content string
-		}
-
-		var blocksWithContent []outputBlockWithContent
-		for _, ob := range outputBlocks {
-			text := f.TextAt(ob.Range)
-			blocksWithContent = append(blocksWithContent, outputBlockWithContent{
-				outputBlock: ob,
-				Content:     string(text.Bytes),
-			})
-		}
-
-		// Sort outputs alphabetically by name
-		sort.Slice(blocksWithContent, func(i, j int) bool {
-			return blocksWithContent[i].Name < blocksWithContent[j].Name
-		})
-
-		// Build the fixed content preserving original spacing
-		var fixedContent strings.Builder
-
-		// Create a map to track original spacing between consecutive outputs
-		spacingMap := make(map[string]string)
-		for i := 1; i < len(outputBlocks); i++ {
-			betweenRange := hcl.Range{
-				Filename: filename,
-				Start:    outputBlocks[i-1].Range.End,
-				End:      outputBlocks[i].Range.Start,
-			}
-			betweenText := f.TextAt(betweenRange)
-			key := outputBlocks[i-1].Name + "|||" + outputBlocks[i].Name
-			spacingMap[key] = string(betweenText.Bytes)
-		}
-
-		for i, ob := range blocksWithContent {
-			if i > 0 {
-				// Try to find original spacing between these two outputs
-				prevName := blocksWithContent[i-1].Name
-				currName := ob.Name
-
-				// Check both orderings since they might have been reordered.
-				// Default to double newline if they weren't originally adjacent.
-				spacing := "\n\n"
-				if s, ok := spacingMap[prevName+"|||"+currName]; ok {
-					spacing = s
-				} else if s, ok := spacingMap[currName+"|||"+prevName]; ok {
-					spacing = s
-				}
-
-				fixedContent.WriteString(spacing)
-			}
-			fixedContent.WriteString(ob.Content)
-		}
-
-		// Replace the entire range from first to last output
-		fullRange := hcl.Range{
-			Filename: outputBlocks[0].Range.Filename,
-			Start:    outputBlocks[0].Range.Start,
-			End:      outputBlocks[len(outputBlocks)-1].Range.End,
-		}
-
-		return f.ReplaceText(fullRange, fixedContent.String())
+		return fixOutputOrder(f, outputBlocks, filename)
 	})
+}
+
+// outputBlockWithContent pairs an output block with its source text.
+type outputBlockWithContent struct {
+	outputBlock
+	Content string
+}
+
+// outputSpacingKeySeparator joins two output names into a spacing map key.
+const outputSpacingKeySeparator = "|||"
+
+// fixOutputOrder rewrites the range spanning all output blocks so that they
+// appear alphabetically ordered, preserving the original spacing between
+// outputs that were adjacent before the reorder.
+func fixOutputOrder(f tflint.Fixer, outputBlocks []outputBlock, filename string) error {
+	// Get the text content of all output blocks
+	var blocksWithContent []outputBlockWithContent
+	for _, ob := range outputBlocks {
+		text := f.TextAt(ob.Range)
+		blocksWithContent = append(blocksWithContent, outputBlockWithContent{
+			outputBlock: ob,
+			Content:     string(text.Bytes),
+		})
+	}
+
+	// Sort outputs alphabetically by name
+	slices.SortFunc(blocksWithContent, func(a, b outputBlockWithContent) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	// Build the fixed content preserving original spacing
+	var fixedContent strings.Builder
+
+	spacingMap := outputSpacingMap(f, outputBlocks, filename)
+
+	for i, ob := range blocksWithContent {
+		if i > 0 {
+			fixedContent.WriteString(lookupOutputSpacing(spacingMap, blocksWithContent[i-1].Name, ob.Name))
+		}
+		fixedContent.WriteString(ob.Content)
+	}
+
+	// Replace the entire range from first to last output
+	fullRange := hcl.Range{
+		Filename: outputBlocks[0].Range.Filename,
+		Start:    outputBlocks[0].Range.Start,
+		End:      outputBlocks[len(outputBlocks)-1].Range.End,
+	}
+
+	return f.ReplaceText(fullRange, fixedContent.String())
+}
+
+// outputSpacingMap records the original text between each pair of
+// consecutive outputs, keyed by "<previous>|||<current>".
+func outputSpacingMap(f tflint.Fixer, outputBlocks []outputBlock, filename string) map[string]string {
+	spacingMap := make(map[string]string)
+	for i := 1; i < len(outputBlocks); i++ {
+		betweenRange := hcl.Range{
+			Filename: filename,
+			Start:    outputBlocks[i-1].Range.End,
+			End:      outputBlocks[i].Range.Start,
+		}
+		betweenText := f.TextAt(betweenRange)
+		key := outputBlocks[i-1].Name + outputSpacingKeySeparator + outputBlocks[i].Name
+		spacingMap[key] = string(betweenText.Bytes)
+	}
+	return spacingMap
+}
+
+// lookupOutputSpacing returns the original spacing between two outputs.
+// Both orderings are checked since they might have been reordered; it
+// defaults to a double newline if they weren't originally adjacent.
+func lookupOutputSpacing(spacingMap map[string]string, prevName, currName string) string {
+	if s, ok := spacingMap[prevName+outputSpacingKeySeparator+currName]; ok {
+		return s
+	}
+	if s, ok := spacingMap[currName+outputSpacingKeySeparator+prevName]; ok {
+		return s
+	}
+	return "\n\n"
 }

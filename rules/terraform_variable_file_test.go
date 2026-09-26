@@ -34,8 +34,9 @@ func TestTerraformVariableFileRule(t *testing.T) {
 			},
 			Expected: helper.Issues{
 				{
-					Rule:    NewTerraformVariableFileRule(),
-					Message: `"variable" block must be placed in "variables.tf" or "variables.<area>.tf", not "main.tf"`,
+					Rule: NewTerraformVariableFileRule(),
+					Message: `"variable" block must be placed in "variables.tf" or "variables.<area>.tf", ` +
+						`not "main.tf"`,
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 1, Column: 1},

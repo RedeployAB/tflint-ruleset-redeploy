@@ -25,17 +25,17 @@ func NewTerraformProviderFileRule() *TerraformProviderFileRule {
 }
 
 // Name returns the rule name.
-func (r *TerraformProviderFileRule) Name() string {
+func (*TerraformProviderFileRule) Name() string {
 	return "terraform_provider_file"
 }
 
 // Enabled returns whether the rule is enabled by default.
-func (r *TerraformProviderFileRule) Enabled() bool {
+func (*TerraformProviderFileRule) Enabled() bool {
 	return true
 }
 
 // Severity returns the severity of the rule.
-func (r *TerraformProviderFileRule) Severity() tflint.Severity {
+func (*TerraformProviderFileRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 

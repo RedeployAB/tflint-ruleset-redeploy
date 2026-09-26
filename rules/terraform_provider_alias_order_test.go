@@ -32,8 +32,9 @@ func TestTerraformProviderAliasOrderRule(t *testing.T) {
 					},
 				},
 				{
-					Rule:    NewTerraformProviderAliasOrderRule(),
-					Message: "Provider 'google': default (un-aliased) provider must be declared before aliased providers",
+					Rule: NewTerraformProviderAliasOrderRule(),
+					Message: "Provider 'google': default (un-aliased) provider must be declared " +
+						"before aliased providers",
 					Range: hcl.Range{
 						Filename: "resource.tf",
 						Start:    hcl.Pos{Line: 6, Column: 1},

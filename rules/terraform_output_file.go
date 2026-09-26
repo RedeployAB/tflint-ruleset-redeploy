@@ -22,17 +22,17 @@ func NewTerraformOutputFileRule() *TerraformOutputFileRule {
 }
 
 // Name returns the rule name.
-func (r *TerraformOutputFileRule) Name() string {
+func (*TerraformOutputFileRule) Name() string {
 	return "terraform_output_file"
 }
 
 // Enabled returns whether the rule is enabled by default.
-func (r *TerraformOutputFileRule) Enabled() bool {
+func (*TerraformOutputFileRule) Enabled() bool {
 	return true
 }
 
 // Severity returns the severity of the rule.
-func (r *TerraformOutputFileRule) Severity() tflint.Severity {
+func (*TerraformOutputFileRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -97,6 +97,9 @@ func (r *TerraformOutputFileRule) emitIssue(
 	rng hcl.Range,
 	filename string,
 ) error {
-	msg := fmt.Sprintf(`"output" block must be placed in "outputs.tf" or "outputs.<area>.tf", not %q`, filepath.Base(filename))
+	msg := fmt.Sprintf(
+		`"output" block must be placed in "outputs.tf" or "outputs.<area>.tf", not %q`,
+		filepath.Base(filename),
+	)
 	return runner.EmitIssue(r, msg, rng)
 }

@@ -8,6 +8,11 @@ import (
 )
 
 func TestTerraformVariableArgumentOrderRule(t *testing.T) {
+	outOfOrderMessage := func(name string) string {
+		return "Out-of-order argument '" + name + "'. Expected sequence: " +
+			"description, type, default, ephemeral, sensitive, nullable, validation"
+	}
+
 	tests := []struct {
 		Name   string
 		File   string
@@ -29,7 +34,7 @@ func TestTerraformVariableArgumentOrderRule(t *testing.T) {
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformVariableArgumentOrderRule(),
-					Message: "Out-of-order argument 'type'. Expected sequence: description, type, default, ephemeral, sensitive, nullable, validation",
+					Message: outOfOrderMessage("type"),
 					Range: hcl.Range{
 						Filename: "variables.tf",
 						Start:    hcl.Pos{Line: 4, Column: 3},
@@ -44,7 +49,7 @@ func TestTerraformVariableArgumentOrderRule(t *testing.T) {
 			Issues: helper.Issues{
 				{
 					Rule:    NewTerraformVariableArgumentOrderRule(),
-					Message: "Out-of-order argument 'default'. Expected sequence: description, type, default, ephemeral, sensitive, nullable, validation",
+					Message: outOfOrderMessage("default"),
 					Range: hcl.Range{
 						Filename: "variables.tf",
 						Start:    hcl.Pos{Line: 10, Column: 3},

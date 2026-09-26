@@ -1,8 +1,9 @@
 package rules
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -22,15 +23,15 @@ func NewTerraformResourceArgumentOrderRule() *TerraformResourceArgumentOrderRule
 	return &TerraformResourceArgumentOrderRule{}
 }
 
-func (r *TerraformResourceArgumentOrderRule) Name() string {
+func (*TerraformResourceArgumentOrderRule) Name() string {
 	return "terraform_resource_argument_order"
 }
 
-func (r *TerraformResourceArgumentOrderRule) Enabled() bool {
+func (*TerraformResourceArgumentOrderRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformResourceArgumentOrderRule) Severity() tflint.Severity {
+func (*TerraformResourceArgumentOrderRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -121,22 +122,26 @@ func (r *TerraformResourceArgumentOrderRule) checkArgumentOrder(block *hclsyntax
 		})
 	}
 
-	sort.Slice(items, func(i, j int) bool {
-		return items[i].Idx < items[j].Idx
+	slices.SortFunc(items, func(a, b item) int {
+		return cmp.Compare(a.Idx, b.Idx)
 	})
 
 	var seenBlock bool
 	for _, it := range items {
 		if it.IsBlk {
 			seenBlock = true
-		} else if seenBlock {
-			if err := runner.EmitIssue(
-				r,
-				fmt.Sprintf("Argument '%s' must not come after a nested block", it.Name),
-				it.Range,
-			); err != nil {
-				return err
-			}
+			continue
+		}
+		if !seenBlock {
+			continue
+		}
+		err := runner.EmitIssue(
+			r,
+			fmt.Sprintf("Argument '%s' must not come after a nested block", it.Name),
+			it.Range,
+		)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

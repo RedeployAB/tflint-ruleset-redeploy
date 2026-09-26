@@ -12,6 +12,9 @@ func TestTerraformProviderFileRule(t *testing.T) {
 	azurermProvider := readFixture(t, "provider_file_azurerm_provider.tf")
 	terraformWithProvider := readFixture(t, "provider_file_terraform_with_provider.tf")
 	simpleResource := readFixture(t, "simple_resource.tf")
+	wrongFileMessage := func(filename string) string {
+		return `"provider" block must be placed in "providers.tf" or "providers.<area>.tf", not "` + filename + `"`
+	}
 
 	tests := []struct {
 		Name     string
@@ -47,7 +50,7 @@ func TestTerraformProviderFileRule(t *testing.T) {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformProviderFileRule(),
-					Message: `"provider" block must be placed in "providers.tf" or "providers.<area>.tf", not "main.tf"`,
+					Message: wrongFileMessage("main.tf"),
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 1, Column: 1},
@@ -64,7 +67,7 @@ func TestTerraformProviderFileRule(t *testing.T) {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformProviderFileRule(),
-					Message: `"provider" block must be placed in "providers.tf" or "providers.<area>.tf", not "terraform.tf"`,
+					Message: wrongFileMessage("terraform.tf"),
 					Range: hcl.Range{
 						Filename: "terraform.tf",
 						Start:    hcl.Pos{Line: 5, Column: 1},
@@ -89,7 +92,7 @@ func TestTerraformProviderFileRule(t *testing.T) {
 			Expected: helper.Issues{
 				{
 					Rule:    NewTerraformProviderFileRule(),
-					Message: `"provider" block must be placed in "providers.tf" or "providers.<area>.tf", not "main.tf"`,
+					Message: wrongFileMessage("main.tf"),
 					Range: hcl.Range{
 						Filename: "main.tf",
 						Start:    hcl.Pos{Line: 1, Column: 1},

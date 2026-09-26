@@ -148,7 +148,9 @@ func BenchmarkMapLookup(b *testing.B) {
 		return -1
 	}
 
-	testNames := []string{"description", "type", "default", "ephemeral", "sensitive", "nullable", "validation", "unknown"}
+	testNames := []string{
+		"description", "type", "default", "ephemeral", "sensitive", "nullable", "validation", "unknown",
+	}
 
 	b.Run("MapLookup", func(b *testing.B) {
 		b.ResetTimer()
@@ -174,31 +176,33 @@ func BenchmarkBlockTypeCheck(b *testing.B) {
 	types := []string{"resource", "data", "module", "variable", "output", "provider", "terraform", "locals"}
 
 	b.Run("ToLowerAndCompare", func(b *testing.B) {
-		b.ResetTimer()
-		for range b.N {
-			for _, t := range types {
-				_ = strings.ToLower(t) == "resource"
-			}
-		}
+		benchmarkStringPredicate(b, types, func(t string) bool {
+			return strings.ToLower(t) == "resource"
+		})
 	})
 
 	b.Run("EqualFold", func(b *testing.B) {
-		b.ResetTimer()
-		for range b.N {
-			for _, t := range types {
-				_ = strings.EqualFold(t, "resource")
-			}
-		}
+		benchmarkStringPredicate(b, types, func(t string) bool {
+			return strings.EqualFold(t, "resource")
+		})
 	})
 
 	b.Run("DirectCompare", func(b *testing.B) {
-		b.ResetTimer()
-		for range b.N {
-			for _, t := range types {
-				_ = t == "resource" || t == "Resource" || t == "RESOURCE"
-			}
-		}
+		benchmarkStringPredicate(b, types, func(t string) bool {
+			return t == "resource" || t == "Resource" || t == "RESOURCE"
+		})
 	})
+}
+
+// benchmarkStringPredicate runs predicate against every input b.N times.
+func benchmarkStringPredicate(b *testing.B, inputs []string, predicate func(string) bool) {
+	b.Helper()
+	b.ResetTimer()
+	for range b.N {
+		for _, input := range inputs {
+			_ = predicate(input)
+		}
+	}
 }
 
 // BenchmarkTraversalKey benchmarks traversal key generation
@@ -218,29 +222,31 @@ func BenchmarkTraversalKey(b *testing.B) {
 	})
 
 	b.Run("StringBuilder", func(b *testing.B) {
-		traversalKeyBuilder := func(trav hcl.Traversal) string {
-			var sb strings.Builder
-			for i, step := range trav {
-				if i > 0 {
-					sb.WriteByte('.')
-				}
-				switch s := step.(type) {
-				case hcl.TraverseRoot:
-					sb.WriteString(s.Name)
-				case hcl.TraverseAttr:
-					sb.WriteString(s.Name)
-				case hcl.TraverseIndex:
-					sb.WriteString("[idx]")
-				case hcl.TraverseSplat:
-					sb.WriteString("[*]")
-				}
-			}
-			return sb.String()
-		}
-
 		b.ResetTimer()
 		for range b.N {
 			_ = traversalKeyBuilder(trav)
 		}
 	})
+}
+
+// traversalKeyBuilder is a strings.Builder based alternative to traversalKey,
+// used as a benchmark baseline.
+func traversalKeyBuilder(trav hcl.Traversal) string {
+	var sb strings.Builder
+	for i, step := range trav {
+		if i > 0 {
+			sb.WriteByte('.')
+		}
+		switch s := step.(type) {
+		case hcl.TraverseRoot:
+			sb.WriteString(s.Name)
+		case hcl.TraverseAttr:
+			sb.WriteString(s.Name)
+		case hcl.TraverseIndex:
+			sb.WriteString("[idx]")
+		case hcl.TraverseSplat:
+			sb.WriteString("[*]")
+		}
+	}
+	return sb.String()
 }

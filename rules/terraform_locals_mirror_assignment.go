@@ -18,15 +18,15 @@ func NewTerraformLocalsMirrorAssignmentRule() *TerraformLocalsMirrorAssignmentRu
 	return &TerraformLocalsMirrorAssignmentRule{}
 }
 
-func (r *TerraformLocalsMirrorAssignmentRule) Name() string {
+func (*TerraformLocalsMirrorAssignmentRule) Name() string {
 	return "terraform_locals_mirror_assignment"
 }
 
-func (r *TerraformLocalsMirrorAssignmentRule) Enabled() bool {
+func (*TerraformLocalsMirrorAssignmentRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformLocalsMirrorAssignmentRule) Severity() tflint.Severity {
+func (*TerraformLocalsMirrorAssignmentRule) Severity() tflint.Severity {
 	return tflint.ERROR
 }
 
@@ -102,31 +102,8 @@ func (r *TerraformLocalsMirrorAssignmentRule) checkLocals(
 	for _, block := range body.Blocks {
 		// Block types are always lowercase in Terraform
 		if block.Type == TypeLocals {
-			// Each attribute in this block is a local variable
-			for attrName, attr := range block.Body.Attributes {
-				// Check if this local is assigned *directly* from var.<something>
-				if scopeExpr, ok := attr.Expr.(*hclsyntax.ScopeTraversalExpr); ok {
-					if len(scopeExpr.Traversal) == 2 {
-						if root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot); ok && root.Name == TypeVar {
-							if second, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr); ok {
-								// Emit an issue with autofix for any direct assignment local_name = var.<something>
-								if err := runner.EmitIssueWithFix(
-									r,
-									fmt.Sprintf(
-										"Local '%s' is assigned directly from variable '%s'. This should not be a simple mirror assignment.",
-										attrName, second.Name,
-									),
-									attr.Range(),
-									func(f tflint.Fixer) error {
-										return removeAttributeLine(f, runner, attr.Range())
-									},
-								); err != nil {
-									return err
-								}
-							}
-						}
-					}
-				}
+			if err := r.checkLocalsBlock(block, runner); err != nil {
+				return err
 			}
 		}
 		// Recurse into nested blocks
@@ -135,4 +112,54 @@ func (r *TerraformLocalsMirrorAssignmentRule) checkLocals(
 		}
 	}
 	return nil
+}
+
+// checkLocalsBlock emits an issue, with an autofix that removes the line, for
+// every local in the block that is a plain mirror of var.<something>.
+func (r *TerraformLocalsMirrorAssignmentRule) checkLocalsBlock(
+	block *hclsyntax.Block,
+	runner tflint.Runner,
+) error {
+	// Each attribute in this block is a local variable
+	for attrName, attr := range block.Body.Attributes {
+		variableName, ok := mirroredVariableName(attr.Expr)
+		if !ok {
+			continue
+		}
+		// Emit an issue with autofix for any direct assignment local_name = var.<something>
+		err := runner.EmitIssueWithFix(
+			r,
+			fmt.Sprintf(
+				"Local '%s' is assigned directly from variable '%s'. "+
+					"This should not be a simple mirror assignment.",
+				attrName, variableName,
+			),
+			attr.Range(),
+			func(f tflint.Fixer) error {
+				return removeAttributeLine(f, runner, attr.Range())
+			},
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// mirroredVariableName reports whether expr is *exactly* var.<name> and, if
+// so, returns <name>.
+func mirroredVariableName(expr hclsyntax.Expression) (name string, ok bool) {
+	scopeExpr, ok := expr.(*hclsyntax.ScopeTraversalExpr)
+	if !ok || len(scopeExpr.Traversal) != 2 {
+		return "", false
+	}
+	root, ok := scopeExpr.Traversal[0].(hcl.TraverseRoot)
+	if !ok || root.Name != TypeVar {
+		return "", false
+	}
+	second, ok := scopeExpr.Traversal[1].(hcl.TraverseAttr)
+	if !ok {
+		return "", false
+	}
+	return second.Name, true
 }

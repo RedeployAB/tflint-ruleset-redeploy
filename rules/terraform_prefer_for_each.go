@@ -22,15 +22,15 @@ func NewTerraformPreferForEachRule() *TerraformPreferForEachRule {
 	return &TerraformPreferForEachRule{}
 }
 
-func (r *TerraformPreferForEachRule) Name() string {
+func (*TerraformPreferForEachRule) Name() string {
 	return "terraform_prefer_for_each"
 }
 
-func (r *TerraformPreferForEachRule) Enabled() bool {
+func (*TerraformPreferForEachRule) Enabled() bool {
 	return true
 }
 
-func (r *TerraformPreferForEachRule) Severity() tflint.Severity {
+func (*TerraformPreferForEachRule) Severity() tflint.Severity {
 	return tflint.WARNING
 }
 
@@ -76,11 +76,12 @@ func (r *TerraformPreferForEachRule) checkBlocks(body *hclsyntax.Body, runner tf
 		if !createsMultipleInstances(countAttr.Expr) && !evaluatesToMultiple(runner, countAttr.Expr) {
 			continue
 		}
-		if err := runner.EmitIssue(
+		err := runner.EmitIssue(
 			r,
 			"Use 'for_each' instead of 'count' to create multiple instances",
 			countAttr.Expr.Range(),
-		); err != nil {
+		)
+		if err != nil {
 			return err
 		}
 	}
@@ -119,12 +120,13 @@ func createsMultipleInstances(expr hclsyntax.Expression) bool {
 // invoke the callback, so this does not introduce false positives.
 func evaluatesToMultiple(runner tflint.Runner, expr hclsyntax.Expression) bool {
 	multiple := false
-	if err := runner.EvaluateExpr(expr, func(count int) error {
+	err := runner.EvaluateExpr(expr, func(count int) error {
 		if count >= 2 {
 			multiple = true
 		}
 		return nil
-	}, nil); err != nil {
+	}, nil)
+	if err != nil {
 		return false
 	}
 	return multiple
