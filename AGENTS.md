@@ -11,7 +11,7 @@ Terraform style guide. Ensure you have the following prerequisites:
 
 - Go v1.27+
 - TFLint v0.46+
-- golangci-lint v2.13+
+- golangci-lint v2.14+
 
 ## Building the Project
 
