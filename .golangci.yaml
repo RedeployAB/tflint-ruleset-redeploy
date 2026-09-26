@@ -22,6 +22,25 @@ linters:
     - usestdlibvars # Prefers stdlib constants over magic strings
     - wastedassign # Flags assignments whose value is never used
   settings:
+    revive:
+      # Opinionated by default: every revive rule is on, and only rules that
+      # duplicate another linter or are pure noise get switched off below.
+      enable-all-rules: true
+      rules:
+        - name: add-constant # Flags every 0/1/""; goconst covers repeated strings
+          disabled: true
+        - name: unhandled-error # Duplicates errcheck
+          disabled: true
+        - name: line-length-limit
+          arguments: [120]
+        - name: cognitive-complexity
+          arguments: [15] # Aligned with gocyclo min-complexity
+        - name: cyclomatic
+          arguments: [15] # Aligned with gocyclo min-complexity
+        - name: enforce-switch-style
+          arguments: ["allowNoDefault"] # Still enforces default-last; no empty defaults
+        - name: function-length
+          exclude: ["TEST"] # Table-driven tests are long by design
     errcheck:
       check-blank: true
     gocritic:
