@@ -49,7 +49,7 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: codelytv/pr-size-labeler@e1869bf36de18c36cd132495c39f53c135b689a3
+      - uses: codelytv/pr-size-labeler@4e3aa0f77f348c8066513d453515316ffa01a607
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           message_if_xl: ""
